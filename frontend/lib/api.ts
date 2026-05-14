@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { ApiResponse, Contact, Campaign, ScrapeJob } from "@/types";
 
 // All requests go to /api/* on the same domain.
@@ -8,6 +8,28 @@ const api = axios.create({
   baseURL: "/",
   headers: { "Content-Type": "application/json" },
 });
+
+// Intercept errors and surface a useful message
+api.interceptors.response.use(
+  (res) => res,
+  (err: AxiosError) => {
+    if (!err.response) {
+      // Network error — backend unreachable
+      err.message =
+        "Backend unreachable. Check that Railway is deployed and BACKEND_URL is set in Vercel.";
+    }
+    return Promise.reject(err);
+  }
+);
+
+export async function checkHealth(): Promise<boolean> {
+  try {
+    await api.get("/api/health");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // ── Scraping ──────────────────────────────────────────────────────────────────
 export async function startScrapeJob(

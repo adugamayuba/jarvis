@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getContacts, getCampaigns, getScrapeJobs } from "@/lib/api";
-import { Users, Mail, Search, CheckCircle2 } from "lucide-react";
+import { getContacts, getCampaigns, getScrapeJobs, checkHealth } from "@/lib/api";
+import { Users, Mail, Search, CheckCircle2, AlertCircle, Wifi } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ScrapeJob } from "@/types";
@@ -39,9 +39,16 @@ function StatusDot({ status }: { status: ScrapeJob["status"] }) {
 }
 
 export default function DashboardPage() {
+  const { data: isHealthy, isLoading: healthLoading } = useQuery({
+    queryKey: ["health"],
+    queryFn: checkHealth,
+    refetchInterval: 30_000,
+  });
+
   const { data: contactsData } = useQuery({
     queryKey: ["contacts"],
     queryFn: () => getContacts({ limit: 1000 }),
+    enabled: isHealthy === true,
   });
   const { data: campaignsData } = useQuery({
     queryKey: ["campaigns"],
@@ -62,6 +69,21 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-4xl">
+      {/* Backend connection status */}
+      {!healthLoading && (
+        <div className={cn(
+          "flex items-center gap-2.5 text-[12px] px-3 py-2 rounded-md mb-6 w-fit",
+          isHealthy
+            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+            : "bg-red-500/10 text-red-400 border border-red-500/20"
+        )}>
+          {isHealthy
+            ? <><Wifi className="w-3.5 h-3.5" /> Backend connected</>
+            : <><AlertCircle className="w-3.5 h-3.5" /> Backend unreachable — check Railway is deployed and <code className="font-mono mx-1">BACKEND_URL</code> is set in Vercel</>
+          }
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-white">Overview</h1>
         <p className="text-[13px] text-neutral-500 mt-0.5">Your outreach pipeline at a glance</p>

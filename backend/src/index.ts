@@ -34,17 +34,18 @@ app.use("/api/email", emailRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-// Start
+// Start — server always boots, Firebase errors surface at request time
 async function bootstrap() {
   try {
     initFirebase();
-    app.listen(PORT, () => {
-      console.log(`🚀 Jarvis backend running on port ${PORT}`);
-    });
+    console.log("✅ Firebase initialized");
   } catch (err) {
-    console.error("Failed to start server:", err);
-    process.exit(1);
+    console.error("⚠️  Firebase init failed (check env vars):", (err as Error).message);
   }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Jarvis backend running on port ${PORT}`);
+  });
 }
 
 bootstrap();

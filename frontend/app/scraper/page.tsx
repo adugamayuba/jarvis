@@ -157,7 +157,7 @@ export default function ScraperPage() {
             </Button>
           </div>
           <p className="text-[12px] text-neutral-600">
-            e.g. https://www.crunchbase.com/lists/recently-funded-startups — emails are extracted and contacts saved automatically
+            e.g. https://www.crunchbase.com/organization/openai or https://www.crunchbase.com/person/sam-altman
           </p>
         </form>
       </div>
@@ -165,7 +165,7 @@ export default function ScraperPage() {
       {/* How it works */}
       <div className="grid grid-cols-3 gap-3 mb-8">
         {[
-          { step: "01", label: "Paste a URL", desc: "Any Crunchbase list or profile page" },
+          { step: "01", label: "Paste a URL", desc: "/organization/ or /person/ Crunchbase URL" },
           { step: "02", label: "Apify scrapes it", desc: "Extracts names, emails, bios" },
           { step: "03", label: "Contacts saved", desc: "Auto-stored in Firebase, ready to email" },
         ].map(({ step, label, desc }) => (

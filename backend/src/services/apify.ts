@@ -6,9 +6,8 @@ dotenv.config();
 const APIFY_BASE_URL = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 
-// Well-tested Apify actors
 const ACTORS = {
-  CRUNCHBASE: "epctex/crunchbase-scraper",
+  CRUNCHBASE: "parseforge/crunchbase-scraper",
 };
 
 export interface ScrapedContact {
@@ -83,50 +82,49 @@ export async function scrapeCrunchbase(url: string): Promise<ScrapedContact[]> {
   const input = {
     startUrls: [{ url }],
     maxItems: 100,
-    proxyConfiguration: { useApifyProxy: true },
   };
 
   const results = await runActor(ACTORS.CRUNCHBASE, input);
   return parseResults(results);
 }
 
+// Maps parseforge/crunchbase-scraper output fields to our contact schema
 function parseResults(results: Record<string, unknown>[]): ScrapedContact[] {
-  return results.map((item) => ({
-    name:
-      str(item.name) ||
-      str(item.fullName) ||
-      str(item.personName) ||
-      str(item.title) ||
-      "Unknown",
-    email: str(item.email) || extractEmail(item),
-    oneLiner:
-      str(item.shortDescription) ||
-      str(item.description) ||
-      str(item.bio) ||
-      str(item.overview) ||
-      "",
-    title:
-      str(item.jobTitle) ||
-      str(item.primaryJobTitle) ||
-      str(item.role) ||
-      "",
-    company:
-      str(item.organizationName) ||
-      str(item.primaryOrganization) ||
-      str(item.company) ||
-      "",
-    linkedinUrl: str(item.linkedinUrl) || str(item.linkedin) || "",
-    crunchbaseUrl:
-      str(item.profileUrl) ||
-      str(item.url) ||
-      str(item.crunchbaseUrl) ||
-      "",
-    profileImageUrl:
-      str(item.profileImageUrl) ||
-      str(item.imageUrl) ||
-      str(item.avatar) ||
-      "",
-  }));
+  return results.map((item) => {
+    // Founders array — extract first founder as a contact if it's a company result
+    const founders = Array.isArray(item.founders)
+      ? (item.founders as Record<string, string>[])
+      : [];
+    const founderName = founders[0]?.name || "";
+    const founderRole = founders[0]?.role || "";
+
+    // For person profiles, name is top-level; for company profiles use founder name
+    const name = str(item.name) || founderName || "Unknown";
+
+    // One-liner: description field from the actor
+    const oneLiner = str(item.description) || str(item.overview) || "";
+
+    // Title: for companies this is their category/type; for people it's their role
+    const title =
+      str(item.currentRole) ||
+      founderRole ||
+      str(item.lastRoundType) ||
+      "";
+
+    // Company name — for person profiles it comes from currentRole parsing
+    const company = str(item.organizationName) || str(item.primaryOrganization) || "";
+
+    return {
+      name,
+      email: str(item.email) || extractEmail(item),
+      oneLiner,
+      title,
+      company,
+      linkedinUrl: str(item.linkedinUrl) || str(item.linkedin) || "",
+      crunchbaseUrl: str(item.cbUrl) || str(item.profileUrl) || str(item.url) || "",
+      profileImageUrl: str(item.logoUrl) || str(item.profileImageUrl) || "",
+    };
+  });
 }
 
 function str(v: unknown): string {

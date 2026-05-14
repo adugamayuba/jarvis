@@ -59,6 +59,9 @@ function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
+        {job.status === "failed" && job.error && (
+          <p className="text-[11px] text-red-400 mt-0.5 truncate max-w-sm">{job.error}</p>
+        )}
       </td>
       <td className="px-4 py-3">
         <span className="text-[12px] text-neutral-500 capitalize">{job.source}</span>

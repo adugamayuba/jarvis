@@ -6,18 +6,10 @@ dotenv.config();
 const APIFY_BASE_URL = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 
-// Apify actor IDs for different platforms
+// Well-tested Apify actors
 const ACTORS = {
-  CRUNCHBASE: "missourivalleyfinancial/crunchbase-companies-scraper",
-  LINKEDIN: "curious_coder/linkedin-profile-scraper",
-  TWITTER: "apidojo/tweet-scraper",
+  CRUNCHBASE: "epctex/crunchbase-scraper",
 };
-
-export interface ApifyRunInput {
-  url?: string;
-  urls?: string[];
-  [key: string]: unknown;
-}
 
 export interface ScrapedContact {
   name: string;
@@ -32,139 +24,118 @@ export interface ScrapedContact {
 
 async function runActor(
   actorId: string,
-  input: ApifyRunInput
-): Promise<unknown[]> {
+  input: Record<string, unknown>
+): Promise<Record<string, unknown>[]> {
   if (!APIFY_TOKEN) {
-    throw new Error("APIFY_API_TOKEN is not set");
+    throw new Error(
+      "APIFY_API_TOKEN is not set — add it to Railway environment variables"
+    );
   }
 
+  // Start the actor run
   const runResponse = await axios.post(
     `${APIFY_BASE_URL}/acts/${actorId}/runs`,
     input,
     {
       params: { token: APIFY_TOKEN },
       headers: { "Content-Type": "application/json" },
+      timeout: 30_000,
     }
   );
 
-  const runId = runResponse.data.data.id;
-  console.log(`🚀 Apify run started: ${runId}`);
+  const runId: string = runResponse.data.data.id;
+  const datasetId: string = runResponse.data.data.defaultDatasetId;
+  console.log(`Apify run started: ${runId}`);
 
-  // Poll for completion
+  // Poll until finished (max 6 minutes)
   let status = "RUNNING";
   let attempts = 0;
-  const maxAttempts = 60; // 5 minutes max
 
-  while (status === "RUNNING" || status === "READY") {
-    if (attempts >= maxAttempts) {
-      throw new Error("Apify run timed out after 5 minutes");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-    const statusResponse = await axios.get(
-      `${APIFY_BASE_URL}/acts/${actorId}/runs/${runId}`,
-      { params: { token: APIFY_TOKEN } }
+  while ((status === "RUNNING" || status === "READY") && attempts < 72) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const s = await axios.get(
+      `${APIFY_BASE_URL}/actor-runs/${runId}`,
+      { params: { token: APIFY_TOKEN }, timeout: 10_000 }
     );
-    status = statusResponse.data.data.status;
+    status = s.data.data.status;
     attempts++;
-    console.log(`⏳ Apify run status: ${status} (attempt ${attempts})`);
+    console.log(`Apify status: ${status} (${attempts * 5}s elapsed)`);
   }
 
   if (status !== "SUCCEEDED") {
-    throw new Error(`Apify run failed with status: ${status}`);
+    throw new Error(
+      `Apify actor finished with status: ${status}. Check your Apify dashboard for details.`
+    );
   }
 
-  // Fetch dataset results
-  const datasetId = runResponse.data.data.defaultDatasetId;
-  const resultsResponse = await axios.get(
+  const itemsResponse = await axios.get(
     `${APIFY_BASE_URL}/datasets/${datasetId}/items`,
     {
       params: { token: APIFY_TOKEN, format: "json", clean: true },
+      timeout: 30_000,
     }
   );
 
-  return resultsResponse.data;
+  return itemsResponse.data as Record<string, unknown>[];
 }
 
-// Scrape Crunchbase list/profile page
 export async function scrapeCrunchbase(url: string): Promise<ScrapedContact[]> {
-  const input: ApifyRunInput = {
+  const input = {
     startUrls: [{ url }],
     maxItems: 100,
     proxyConfiguration: { useApifyProxy: true },
   };
 
-  try {
-    const results = await runActor(ACTORS.CRUNCHBASE, input);
-    return parseCrunchbaseResults(results as Record<string, unknown>[]);
-  } catch (error) {
-    console.error("Crunchbase scrape error:", error);
-    throw error;
-  }
+  const results = await runActor(ACTORS.CRUNCHBASE, input);
+  return parseResults(results);
 }
 
-function parseCrunchbaseResults(
-  results: Record<string, unknown>[]
-): ScrapedContact[] {
-  return results.map((item) => {
-    const contact: ScrapedContact = {
-      name:
-        (item.name as string) ||
-        (item.fullName as string) ||
-        (item.personName as string) ||
-        "Unknown",
-      email: (item.email as string) || extractEmail(item),
-      oneLiner:
-        (item.shortDescription as string) ||
-        (item.description as string) ||
-        (item.bio as string) ||
-        "",
-      title:
-        (item.title as string) ||
-        (item.jobTitle as string) ||
-        (item.primaryJobTitle as string) ||
-        "",
-      company:
-        (item.company as string) ||
-        (item.organizationName as string) ||
-        (item.primaryOrganization as string) ||
-        "",
-      linkedinUrl:
-        (item.linkedinUrl as string) || (item.linkedin as string) || "",
-      crunchbaseUrl:
-        (item.profileUrl as string) ||
-        (item.url as string) ||
-        (item.crunchbaseUrl as string) ||
-        "",
-      profileImageUrl:
-        (item.profileImageUrl as string) ||
-        (item.imageUrl as string) ||
-        (item.avatar as string) ||
-        "",
-    };
-    return contact;
-  });
+function parseResults(results: Record<string, unknown>[]): ScrapedContact[] {
+  return results.map((item) => ({
+    name:
+      str(item.name) ||
+      str(item.fullName) ||
+      str(item.personName) ||
+      str(item.title) ||
+      "Unknown",
+    email: str(item.email) || extractEmail(item),
+    oneLiner:
+      str(item.shortDescription) ||
+      str(item.description) ||
+      str(item.bio) ||
+      str(item.overview) ||
+      "",
+    title:
+      str(item.jobTitle) ||
+      str(item.primaryJobTitle) ||
+      str(item.role) ||
+      "",
+    company:
+      str(item.organizationName) ||
+      str(item.primaryOrganization) ||
+      str(item.company) ||
+      "",
+    linkedinUrl: str(item.linkedinUrl) || str(item.linkedin) || "",
+    crunchbaseUrl:
+      str(item.profileUrl) ||
+      str(item.url) ||
+      str(item.crunchbaseUrl) ||
+      "",
+    profileImageUrl:
+      str(item.profileImageUrl) ||
+      str(item.imageUrl) ||
+      str(item.avatar) ||
+      "",
+  }));
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : "";
 }
 
 function extractEmail(item: Record<string, unknown>): string {
-  const text = JSON.stringify(item);
-  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-  const matches = text.match(emailRegex);
+  const matches = JSON.stringify(item).match(
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+  );
   return matches ? matches[0] : "";
-}
-
-// Get Apify run status by run ID
-export async function getRunStatus(runId: string): Promise<{
-  status: string;
-  contactsFound?: number;
-}> {
-  if (!APIFY_TOKEN) throw new Error("APIFY_API_TOKEN is not set");
-
-  const response = await axios.get(`${APIFY_BASE_URL}/actor-runs/${runId}`, {
-    params: { token: APIFY_TOKEN },
-  });
-
-  return {
-    status: response.data.data.status,
-    contactsFound: response.data.data.stats?.itemCount,
-  };
 }

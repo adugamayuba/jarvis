@@ -1,11 +1,23 @@
 import type { NextConfig } from "next";
 
+function getBackendUrl(): string {
+  let url =
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8080";
+
+  // Auto-add https:// if the user pasted just the hostname
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+
+  // Strip trailing slash
+  return url.replace(/\/$/, "");
+}
+
 const nextConfig: NextConfig = {
   async rewrites() {
-    const backendUrl =
-      process.env.BACKEND_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://localhost:8080";
+    const backendUrl = getBackendUrl();
 
     return [
       {

@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 
 interface JobIdParams extends Record<string, string> { jobId: string }
 import { z } from "zod";
-import { scrapeCrunchbase } from "../services/apify";
+import { scrapeCrunchbaseDirect } from "../services/crunchbase";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { Contact, ScrapeJob } from "../types";
 
@@ -39,10 +39,10 @@ router.post("/", async (req: Request, res: Response) => {
     // Run scraping in the background and update job when done
     (async () => {
       try {
-        let contacts: Awaited<ReturnType<typeof scrapeCrunchbase>> = [];
+        let contacts: Awaited<ReturnType<typeof scrapeCrunchbaseDirect>> = [];
 
         if (source === "crunchbase") {
-          contacts = await scrapeCrunchbase(url);
+          contacts = await scrapeCrunchbaseDirect(url);
         } else {
           throw new Error(`Source '${source}' not yet supported`);
         }

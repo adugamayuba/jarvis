@@ -8,7 +8,7 @@ const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 
 // Apify REST API uses ~ as separator, not /
 const ACTORS = {
-  CRUNCHBASE: "curious_coder~crunchbase-scraper",
+  CRUNCHBASE: "saswave~crunchbase-search-results",
 };
 
 export interface ScrapedContact {
@@ -91,65 +91,76 @@ export async function scrapeCrunchbase(url: string): Promise<ScrapedContact[]> {
   }
 
   const input: Record<string, unknown> = {
-    "search.url": url,
-    count: 100,
-    minDelay: 1,
-    maxDelay: 3,
+    url,
+    max_pages: 3,
+    proxyConfiguration: { useApifyProxy: true },
   };
 
   if (cookie.length > 0) {
-    input.cookie = cookie;
+    input.cookies = cookie;
   }
 
   const results = await runActor(ACTORS.CRUNCHBASE, input);
   return parseResults(results);
 }
 
-// Maps curious_coder/crunchbase-scraper output to our contact schema.
-// This actor returns people/company records — we normalise both shapes.
+// Normalises any shape of Crunchbase actor output into our contact schema.
+// Field names vary by actor — we check all known variants.
 function parseResults(results: Record<string, unknown>[]): ScrapedContact[] {
-  return results.map((item) => ({
-    name:
-      str(item.name) ||
-      str(item.full_name) ||
-      str(item.firstName) + " " + str(item.lastName) ||
-      "Unknown",
-    email:
-      str(item.email) ||
-      str(item.contact_email) ||
-      extractEmail(item),
-    oneLiner:
-      str(item.short_description) ||
-      str(item.description) ||
-      str(item.bio) ||
-      str(item.overview) ||
-      "",
-    title:
-      str(item.title) ||
-      str(item.primary_job_title) ||
-      str(item.job_title) ||
-      str(item.role) ||
-      "",
-    company:
-      str(item.primary_organization) ||
-      str(item.organization_name) ||
-      str(item.company) ||
-      "",
-    linkedinUrl:
-      str(item.linkedin_url) ||
-      str(item.linkedinUrl) ||
-      "",
-    crunchbaseUrl:
-      str(item.profile_url) ||
-      str(item.url) ||
-      str(item.crunchbase_url) ||
-      "",
-    profileImageUrl:
-      str(item.profile_image_url) ||
-      str(item.image_url) ||
-      str(item.logo_url) ||
-      "",
-  }));
+  return results.map((item) => {
+    const firstName = str(item.first_name) || str(item.firstName);
+    const lastName = str(item.last_name) || str(item.lastName);
+    const fullFromParts = [firstName, lastName].filter(Boolean).join(" ");
+
+    return {
+      name:
+        str(item.name) ||
+        str(item.full_name) ||
+        fullFromParts ||
+        "Unknown",
+      email:
+        str(item.email) ||
+        str(item.contact_email) ||
+        str(item.Email) ||
+        extractEmail(item),
+      oneLiner:
+        str(item.short_description) ||
+        str(item.description) ||
+        str(item.bio) ||
+        str(item.overview) ||
+        str(item.Short_Description) ||
+        "",
+      title:
+        str(item.primary_job_title) ||
+        str(item.title) ||
+        str(item.job_title) ||
+        str(item.role) ||
+        str(item.Primary_Job_Title) ||
+        "",
+      company:
+        str(item.primary_organization) ||
+        str(item.organization_name) ||
+        str(item.company) ||
+        str(item.Primary_Organization) ||
+        "",
+      linkedinUrl:
+        str(item.linkedin_url) ||
+        str(item.linkedinUrl) ||
+        str(item.LinkedIn) ||
+        "",
+      crunchbaseUrl:
+        str(item.profile_url) ||
+        str(item.url) ||
+        str(item.crunchbase_url) ||
+        str(item.Profile_URL) ||
+        "",
+      profileImageUrl:
+        str(item.profile_image_url) ||
+        str(item.image_url) ||
+        str(item.logo_url) ||
+        "",
+    };
+  });
 }
 
 function str(v: unknown): string {

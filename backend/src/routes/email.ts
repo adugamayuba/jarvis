@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 
 interface IdParams extends Record<string, string> { id: string }
 import { z } from "zod";
-import { sendEmail, sendBulkEmails } from "../services/resend";
+import { sendEmail, sendBulkEmails } from "../services/gmail";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { Campaign } from "../types";
 

@@ -51,7 +51,31 @@ cp .env.example .env.local  # set NEXT_PUBLIC_API_URL=http://localhost:8080
 | Service | Where to get it |
 |---------|----------------|
 | Apify | [console.apify.com](https://console.apify.com/account/integrations) |
-| Resend | [resend.com/api-keys](https://resend.com/api-keys) |
+| Gmail OAuth2 | See below |
+
+### 4. Set up Gmail OAuth2 (one-time)
+
+Emails are sent directly from your Gmail account using Google's API.
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or use existing)
+3. Enable the **Gmail API**: APIs & Services → Library → search "Gmail API" → Enable
+4. Create credentials: APIs & Services → Credentials → Create Credentials → **OAuth 2.0 Client ID**
+   - Application type: **Web application**
+   - Authorised redirect URIs: add `https://developers.google.com/oauthplayground`
+5. Copy your **Client ID** and **Client Secret**
+6. Go to [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/)
+   - Click the gear icon → check **Use your own OAuth credentials** → paste Client ID + Secret
+   - In Step 1, find and select `https://mail.google.com/`
+   - Click **Authorize APIs** → sign in with your Gmail account
+   - In Step 2, click **Exchange authorization code for tokens**
+   - Copy the **Refresh token**
+7. Add to `backend/.env`:
+   ```
+   GMAIL_CLIENT_ID=xxxx.apps.googleusercontent.com
+   GMAIL_CLIENT_SECRET=GOCSPX-xxxx
+   GMAIL_REFRESH_TOKEN=1//xxxx
+   ```
 
 ### 4. Run
 

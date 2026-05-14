@@ -279,7 +279,7 @@ function CampaignsInner() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-white">Campaigns</h1>
-        <p className="text-[13px] text-neutral-500 mt-0.5">Write a template, pick contacts, send via Resend</p>
+        <p className="text-[13px] text-neutral-500 mt-0.5">Write a template, pick contacts, send via your Gmail</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">

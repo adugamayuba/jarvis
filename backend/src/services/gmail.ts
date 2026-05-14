@@ -1,9 +1,21 @@
-import { Resend } from "resend";
+import { google } from "googleapis";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function createGmailClient() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    "https://developers.google.com/oauthplayground"
+  );
+
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+  });
+
+  return google.gmail({ version: "v1", auth: oauth2Client });
+}
 
 export interface EmailPayload {
   to: string;
@@ -11,7 +23,6 @@ export interface EmailPayload {
   fromEmail: string;
   subject: string;
   body: string;
-  contactName?: string;
 }
 
 export interface BulkEmailResult {
@@ -21,9 +32,30 @@ export interface BulkEmailResult {
   error?: string;
 }
 
-// Replace template variables like {{name}}, {{company}}, etc.
+// Encode email to RFC 2822 format then base64url
+function buildRawEmail(payload: EmailPayload): string {
+  const lines = [
+    `From: "${payload.fromName}" <${payload.fromEmail}>`,
+    `To: ${payload.to}`,
+    `Subject: ${payload.subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/plain; charset=UTF-8`,
+    ``,
+    payload.body,
+  ];
+
+  const raw = lines.join("\r\n");
+  // base64url encode
+  return Buffer.from(raw)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+// Replace {{variable}} placeholders
 function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] || "");
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<{
@@ -32,38 +64,18 @@ export async function sendEmail(payload: EmailPayload): Promise<{
   error?: string;
 }> {
   try {
-    const htmlBody = payload.body
-      .split("\n")
-      .map((line) => `<p>${line}</p>`)
-      .join("");
+    const gmail = createGmailClient();
+    const raw = buildRawEmail(payload);
 
-    const { data, error } = await resend.emails.send({
-      from: `${payload.fromName} <${payload.fromEmail}>`,
-      to: [payload.to],
-      subject: payload.subject,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>${payload.subject}</title>
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            ${htmlBody}
-          </body>
-        </html>
-      `,
-      text: payload.body,
+    const res = await gmail.users.messages.send({
+      userId: "me",
+      requestBody: { raw },
     });
 
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, messageId: data?.id };
+    return { success: true, messageId: res.data.id ?? undefined };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Gmail send error:", message);
     return { success: false, error: message };
   }
 }
@@ -81,17 +93,13 @@ export async function sendBulkEmails(
     subject: string;
     body: string;
   },
-  delayMs = 300
+  delayMs = 500
 ): Promise<BulkEmailResult[]> {
   const results: BulkEmailResult[] = [];
 
   for (const contact of contacts) {
     if (!contact.email) {
-      results.push({
-        email: contact.email,
-        success: false,
-        error: "No email address",
-      });
+      results.push({ email: contact.email, success: false, error: "No email address" });
       continue;
     }
 
@@ -102,16 +110,12 @@ export async function sendBulkEmails(
       title: contact.title || "",
     };
 
-    const interpolatedSubject = interpolate(template.subject, vars);
-    const interpolatedBody = interpolate(template.body, vars);
-
     const result = await sendEmail({
       to: contact.email,
       fromName: template.fromName,
       fromEmail: template.fromEmail,
-      subject: interpolatedSubject,
-      body: interpolatedBody,
-      contactName: contact.name,
+      subject: interpolate(template.subject, vars),
+      body: interpolate(template.body, vars),
     });
 
     results.push({
@@ -121,7 +125,7 @@ export async function sendBulkEmails(
       error: result.error,
     });
 
-    // Rate limiting delay between sends
+    // Respect Gmail sending limits (~100/day free, 500 with Workspace)
     if (delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }

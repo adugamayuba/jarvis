@@ -6,8 +6,9 @@ dotenv.config();
 const APIFY_BASE_URL = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 
+// Apify REST API uses ~ as separator, not /
 const ACTORS = {
-  CRUNCHBASE: "parseforge/crunchbase-scraper",
+  CRUNCHBASE: "curious_coder~crunchbase-scraper",
 };
 
 export interface ScrapedContact {
@@ -88,43 +89,51 @@ export async function scrapeCrunchbase(url: string): Promise<ScrapedContact[]> {
   return parseResults(results);
 }
 
-// Maps parseforge/crunchbase-scraper output fields to our contact schema
+// Maps curious_coder/crunchbase-scraper output to our contact schema.
+// This actor returns people/company records — we normalise both shapes.
 function parseResults(results: Record<string, unknown>[]): ScrapedContact[] {
-  return results.map((item) => {
-    // Founders array — extract first founder as a contact if it's a company result
-    const founders = Array.isArray(item.founders)
-      ? (item.founders as Record<string, string>[])
-      : [];
-    const founderName = founders[0]?.name || "";
-    const founderRole = founders[0]?.role || "";
-
-    // For person profiles, name is top-level; for company profiles use founder name
-    const name = str(item.name) || founderName || "Unknown";
-
-    // One-liner: description field from the actor
-    const oneLiner = str(item.description) || str(item.overview) || "";
-
-    // Title: for companies this is their category/type; for people it's their role
-    const title =
-      str(item.currentRole) ||
-      founderRole ||
-      str(item.lastRoundType) ||
-      "";
-
-    // Company name — for person profiles it comes from currentRole parsing
-    const company = str(item.organizationName) || str(item.primaryOrganization) || "";
-
-    return {
-      name,
-      email: str(item.email) || extractEmail(item),
-      oneLiner,
-      title,
-      company,
-      linkedinUrl: str(item.linkedinUrl) || str(item.linkedin) || "",
-      crunchbaseUrl: str(item.cbUrl) || str(item.profileUrl) || str(item.url) || "",
-      profileImageUrl: str(item.logoUrl) || str(item.profileImageUrl) || "",
-    };
-  });
+  return results.map((item) => ({
+    name:
+      str(item.name) ||
+      str(item.full_name) ||
+      str(item.firstName) + " " + str(item.lastName) ||
+      "Unknown",
+    email:
+      str(item.email) ||
+      str(item.contact_email) ||
+      extractEmail(item),
+    oneLiner:
+      str(item.short_description) ||
+      str(item.description) ||
+      str(item.bio) ||
+      str(item.overview) ||
+      "",
+    title:
+      str(item.title) ||
+      str(item.primary_job_title) ||
+      str(item.job_title) ||
+      str(item.role) ||
+      "",
+    company:
+      str(item.primary_organization) ||
+      str(item.organization_name) ||
+      str(item.company) ||
+      "",
+    linkedinUrl:
+      str(item.linkedin_url) ||
+      str(item.linkedinUrl) ||
+      "",
+    crunchbaseUrl:
+      str(item.profile_url) ||
+      str(item.url) ||
+      str(item.crunchbase_url) ||
+      "",
+    profileImageUrl:
+      str(item.profile_image_url) ||
+      str(item.image_url) ||
+      str(item.logo_url) ||
+      "",
+  }));
 }
 
 function str(v: unknown): string {

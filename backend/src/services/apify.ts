@@ -80,10 +80,26 @@ async function runActor(
 }
 
 export async function scrapeCrunchbase(url: string): Promise<ScrapedContact[]> {
-  const input = {
-    startUrls: [{ url }],
-    maxItems: 100,
+  // Parse cookies from env var — stored as JSON array string
+  let cookie: unknown[] = [];
+  if (process.env.CRUNCHBASE_COOKIES) {
+    try {
+      cookie = JSON.parse(process.env.CRUNCHBASE_COOKIES);
+    } catch {
+      console.warn("CRUNCHBASE_COOKIES env var is not valid JSON, proceeding without cookies");
+    }
+  }
+
+  const input: Record<string, unknown> = {
+    "search.url": url,
+    count: 100,
+    minDelay: 1,
+    maxDelay: 3,
   };
+
+  if (cookie.length > 0) {
+    input.cookie = cookie;
+  }
 
   const results = await runActor(ACTORS.CRUNCHBASE, input);
   return parseResults(results);

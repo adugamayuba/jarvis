@@ -157,7 +157,7 @@ export default function ScraperPage() {
             </Button>
           </div>
           <p className="text-[12px] text-neutral-600">
-            e.g. https://www.crunchbase.com/organization/openai or https://www.crunchbase.com/person/sam-altman
+            e.g. https://www.crunchbase.com/lists/my-list/... or https://www.crunchbase.com/discover/people/...
           </p>
         </form>
       </div>
@@ -165,9 +165,9 @@ export default function ScraperPage() {
       {/* How it works */}
       <div className="grid grid-cols-3 gap-3 mb-8">
         {[
-          { step: "01", label: "Paste a URL", desc: "/organization/ or /person/ Crunchbase URL" },
-          { step: "02", label: "Apify scrapes it", desc: "Extracts names, emails, bios" },
-          { step: "03", label: "Contacts saved", desc: "Auto-stored in Firebase, ready to email" },
+        { step: "01", label: "Paste a list URL", desc: "Any Crunchbase /lists/ or /discover/ page" },
+        { step: "02", label: "Apify scrapes it", desc: "Extracts names, titles, emails, bios" },
+        { step: "03", label: "Contacts saved", desc: "Auto-stored in Firebase, ready to email" },
         ].map(({ step, label, desc }) => (
           <div key={step} className="border border-neutral-800 rounded-lg px-4 py-3">
             <p className="text-[11px] text-neutral-600 font-mono mb-1.5">{step}</p>

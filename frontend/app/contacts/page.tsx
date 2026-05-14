@@ -6,20 +6,15 @@ import { getContacts, deleteContact, deleteContacts } from "@/lib/api";
 import { Contact } from "@/types";
 import { toast } from "sonner";
 import {
-  Users,
-  Mail,
-  Search,
   Trash2,
   ExternalLink,
   CheckCircle2,
-  Circle,
-  Filter,
   Download,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -27,6 +22,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      onClick={onChange}
+      className={cn(
+        "w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0",
+        checked ? "bg-white border-white" : "border-neutral-600 hover:border-neutral-400"
+      )}
+    >
+      {checked && (
+        <svg className="w-2.5 h-2.5 text-neutral-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function SourceBadge({ source }: { source: Contact["source"] }) {
+  return (
+    <span className={cn(
+      "text-[11px] font-medium px-1.5 py-0.5 rounded capitalize",
+      source === "crunchbase" ? "bg-orange-500/10 text-orange-400" :
+      source === "linkedin" ? "bg-blue-500/10 text-blue-400" :
+      "bg-neutral-800 text-neutral-400"
+    )}>
+      {source}
+    </span>
+  );
+}
 
 function ContactRow({
   contact,
@@ -40,97 +66,62 @@ function ContactRow({
   onDelete: () => void;
 }) {
   return (
-    <tr className="border-b border-white/[0.04] hover:bg-white/[0.015] transition-colors group">
-      <td className="px-4 py-3.5">
-        <button onClick={onSelect} className="flex items-center justify-center">
-          {selected ? (
-            <CheckCircle2 className="w-4 h-4 text-violet-400" />
-          ) : (
-            <Circle className="w-4 h-4 text-white/20 group-hover:text-white/40" />
-          )}
-        </button>
+    <tr className={cn(
+      "border-b border-neutral-800/40 hover:bg-neutral-800/20 transition-colors group",
+      selected && "bg-neutral-800/30"
+    )}>
+      <td className="px-4 py-3">
+        <Checkbox checked={selected} onChange={onSelect} />
       </td>
-      <td className="px-4 py-3.5">
-        <div className="flex items-center gap-3">
-          {contact.profileImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={contact.profileImageUrl}
-              alt={contact.name}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/30 to-indigo-600/30 flex items-center justify-center text-xs font-semibold text-violet-300">
-              {contact.name?.charAt(0).toUpperCase()}
-            </div>
-          )}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-[11px] font-semibold text-neutral-400 shrink-0">
+            {contact.name?.charAt(0).toUpperCase()}
+          </div>
           <div>
-            <p className="text-sm font-medium text-white">{contact.name}</p>
-            <p className="text-xs text-white/40">
-              {contact.title}
-              {contact.title && contact.company ? " · " : ""}
-              {contact.company}
-            </p>
+            <p className="text-[13px] font-medium text-neutral-200">{contact.name}</p>
+            {(contact.title || contact.company) && (
+              <p className="text-[11px] text-neutral-500 mt-0.5">
+                {[contact.title, contact.company].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
         </div>
       </td>
-      <td className="px-4 py-3.5">
+      <td className="px-4 py-3">
         {contact.email ? (
-          <a
-            href={`mailto:${contact.email}`}
-            className="text-sm text-violet-300 hover:text-violet-200 font-mono"
-          >
+          <a href={`mailto:${contact.email}`} className="text-[12px] text-neutral-400 hover:text-white font-mono transition-colors">
             {contact.email}
           </a>
         ) : (
-          <span className="text-xs text-white/20">—</span>
+          <span className="text-[12px] text-neutral-700">No email</span>
         )}
       </td>
-      <td className="px-4 py-3.5 max-w-xs">
-        <p className="text-xs text-white/50 line-clamp-2">
-          {contact.oneLiner || "—"}
-        </p>
+      <td className="px-4 py-3 max-w-xs">
+        <p className="text-[12px] text-neutral-500 line-clamp-1">{contact.oneLiner || "—"}</p>
       </td>
-      <td className="px-4 py-3.5">
-        <Badge
-          variant="secondary"
-          className={cn(
-            "text-xs capitalize",
-            contact.source === "crunchbase"
-              ? "bg-orange-500/10 text-orange-400 border-0"
-              : contact.source === "linkedin"
-              ? "bg-blue-500/10 text-blue-400 border-0"
-              : "bg-white/5 text-white/40 border-0"
-          )}
-        >
-          {contact.source}
-        </Badge>
+      <td className="px-4 py-3">
+        <SourceBadge source={contact.source} />
       </td>
-      <td className="px-4 py-3.5">
+      <td className="px-4 py-3">
         {contact.emailSent ? (
-          <span className="flex items-center gap-1 text-xs text-emerald-400">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Sent
-          </span>
+          <div className="flex items-center gap-1.5 text-[12px] text-emerald-500">
+            <CheckCircle2 className="w-3 h-3" />
+            Sent
+          </div>
         ) : (
-          <span className="text-xs text-white/25">—</span>
+          <span className="text-[12px] text-neutral-700">—</span>
         )}
       </td>
-      <td className="px-4 py-3.5">
+      <td className="px-4 py-3">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           {contact.crunchbaseUrl && (
-            <a
-              href={contact.crunchbaseUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-white/30 hover:text-white/70 transition-colors"
-            >
+            <a href={contact.crunchbaseUrl} target="_blank" rel="noreferrer"
+              className="text-neutral-600 hover:text-neutral-400 transition-colors">
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
-          <button
-            onClick={onDelete}
-            className="text-white/30 hover:text-red-400 transition-colors"
-          >
+          <button onClick={onDelete} className="text-neutral-600 hover:text-red-400 transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -143,7 +134,6 @@ export default function ContactsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -157,7 +147,6 @@ export default function ContactsPage() {
       toast.success("Contact deleted");
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
-    onError: () => toast.error("Failed to delete contact"),
   });
 
   const bulkDeleteMutation = useMutation({
@@ -167,18 +156,16 @@ export default function ContactsPage() {
       setSelected(new Set());
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
-    onError: () => toast.error("Failed to delete contacts"),
   });
 
   const contacts = data?.data || [];
 
   const filtered = contacts.filter((c) => {
-    const matchesSearch =
-      !search ||
-      c.name?.toLowerCase().includes(search.toLowerCase()) ||
-      c.email?.toLowerCase().includes(search.toLowerCase()) ||
-      c.company?.toLowerCase().includes(search.toLowerCase());
-
+    const q = search.toLowerCase();
+    const matchesSearch = !q ||
+      c.name?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.company?.toLowerCase().includes(q);
     const matchesFilter =
       filter === "all" ||
       (filter === "with-email" && !!c.email) ||
@@ -186,7 +173,6 @@ export default function ContactsPage() {
       (filter === "emailed" && c.emailSent) ||
       (filter === "not-emailed" && !c.emailSent) ||
       c.source === filter;
-
     return matchesSearch && matchesFilter;
   });
 
@@ -199,54 +185,36 @@ export default function ContactsPage() {
   }
 
   function toggleAll() {
-    if (selected.size === filtered.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(filtered.map((c) => c.id)));
-    }
+    setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map((c) => c.id)));
   }
 
   function exportCsv() {
     const rows = [
       ["Name", "Email", "One-liner", "Title", "Company", "Source", "Emailed"],
-      ...filtered.map((c) => [
-        c.name,
-        c.email,
-        c.oneLiner,
-        c.title || "",
-        c.company || "",
-        c.source,
-        c.emailSent ? "yes" : "no",
-      ]),
+      ...filtered.map((c) => [c.name, c.email, c.oneLiner, c.title || "", c.company || "", c.source, c.emailSent ? "yes" : "no"]),
     ];
-    const csv = rows.map((r) => r.map((v) => `"${v}"`).join(",")).join("\n");
+    const csv = rows.map((r) => r.map((v) => `"${v ?? ""}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "jarvis-contacts.csv";
-    link.click();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "contacts.csv";
+    a.click();
   }
 
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Users className="w-4 h-4 text-violet-400" />
-            <span className="text-xs font-mono text-violet-400 uppercase tracking-widest">
-              Contacts
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">Your Leads</h1>
-          <p className="text-white/40 text-sm mt-1">
-            {contacts.length} contacts · {contacts.filter((c) => c.email).length} with emails
+          <h1 className="text-xl font-semibold text-white">Contacts</h1>
+          <p className="text-[13px] text-neutral-500 mt-0.5">
+            {contacts.length} total · {contacts.filter((c) => c.email).length} with emails
           </p>
         </div>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={exportCsv}
-          className="border-white/10 text-white/60 hover:text-white hover:bg-white/[0.04] gap-1.5"
+          className="text-neutral-400 hover:text-white hover:bg-neutral-800 text-[12px] h-8 gap-1.5"
         >
           <Download className="w-3.5 h-3.5" />
           Export CSV
@@ -254,84 +222,77 @@ export default function ContactsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search contacts…"
-            className="pl-9 bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/20"
-          />
-        </div>
-        <Filter className="w-4 h-4 text-white/30 shrink-0" />
+      <div className="flex items-center gap-2 mb-5">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, email, company..."
+          className="max-w-xs bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-8"
+        />
         <Select value={filter} onValueChange={(v) => setFilter(v ?? "all")}>
-          <SelectTrigger className="w-44 bg-white/[0.03] border-white/[0.08] text-white/70">
+          <SelectTrigger className="w-36 bg-neutral-800/50 border-neutral-700 text-neutral-400 text-[13px] h-8">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-[#13131f] border-white/[0.08]">
-            <SelectItem value="all" className="text-white/80">All contacts</SelectItem>
-            <SelectItem value="with-email" className="text-white/80">With email</SelectItem>
-            <SelectItem value="no-email" className="text-white/80">No email</SelectItem>
-            <SelectItem value="emailed" className="text-white/80">Emailed</SelectItem>
-            <SelectItem value="not-emailed" className="text-white/80">Not emailed</SelectItem>
-            <SelectItem value="crunchbase" className="text-white/80">Crunchbase</SelectItem>
-            <SelectItem value="linkedin" className="text-white/80">LinkedIn</SelectItem>
+          <SelectContent className="bg-neutral-900 border-neutral-700">
+            {[
+              { value: "all", label: "All" },
+              { value: "with-email", label: "With email" },
+              { value: "no-email", label: "No email" },
+              { value: "emailed", label: "Emailed" },
+              { value: "not-emailed", label: "Not emailed" },
+              { value: "crunchbase", label: "Crunchbase" },
+              { value: "linkedin", label: "LinkedIn" },
+            ].map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-neutral-200 text-[13px]">{opt.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
         {selected.size > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => bulkDeleteMutation.mutate([...selected])}
-            className="bg-red-500/15 text-red-400 hover:bg-red-500/25 border-0"
-          >
-            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-            Delete {selected.size}
-          </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-[12px] text-neutral-500">{selected.size} selected</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => bulkDeleteMutation.mutate([...selected])}
+              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-[12px] h-8 gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </Button>
+            <a
+              href={`/campaigns?contacts=${[...selected].join(",")}`}
+              className="inline-flex items-center gap-1.5 bg-white text-neutral-900 hover:bg-neutral-200 text-[12px] font-medium h-8 px-3 rounded-md transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Send campaign
+            </a>
+          </div>
         )}
       </div>
 
       {/* Table */}
-      <div className="bg-[#0d0d14] border border-white/[0.06] rounded-xl overflow-hidden">
+      <div className="border border-neutral-800 rounded-lg overflow-hidden">
         {isLoading ? (
-          <div className="p-12 text-center">
-            <div className="w-6 h-6 border-2 border-violet-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-white/30 text-sm">Loading contacts…</p>
+          <div className="px-5 py-10 text-center">
+            <p className="text-[13px] text-neutral-500">Loading...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <Users className="w-10 h-10 text-white/10 mx-auto mb-3" />
-            <p className="text-white/30 text-sm">No contacts found</p>
-            <p className="text-white/20 text-xs mt-1">
-              Try scraping a Crunchbase URL first
-            </p>
+          <div className="px-5 py-10 text-center">
+            <p className="text-[13px] text-neutral-500">No contacts found.</p>
+            <p className="text-[12px] text-neutral-600 mt-1">Try scraping a Crunchbase URL first.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="px-4 py-3">
-                    <button onClick={toggleAll}>
-                      {selected.size === filtered.length && filtered.length > 0 ? (
-                        <CheckCircle2 className="w-4 h-4 text-violet-400" />
-                      ) : (
-                        <Circle className="w-4 h-4 text-white/20" />
-                      )}
-                    </button>
+                <tr className="border-b border-neutral-800">
+                  <th className="px-4 py-2.5 w-8">
+                    <Checkbox checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
                   </th>
-                  {["Person", "Email", "One-liner", "Source", "Status", ""].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-xs font-medium text-white/30 uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
+                  {["Person", "Email", "About", "Source", "Status", ""].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-[11px] font-medium text-neutral-500 uppercase tracking-wider">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -350,28 +311,10 @@ export default function ContactsPage() {
         )}
       </div>
 
-      {/* Footer count */}
       {filtered.length > 0 && (
-        <p className="text-xs text-white/25 mt-3">
-          Showing {filtered.length} of {contacts.length} contacts
-          {selected.size > 0 && ` · ${selected.size} selected`}
+        <p className="text-[11px] text-neutral-600 mt-3">
+          {filtered.length} of {contacts.length} contacts
         </p>
-      )}
-
-      {/* Send campaign shortcut */}
-      {selected.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-violet-600 rounded-xl px-5 py-3 flex items-center gap-4 shadow-xl shadow-violet-900/40">
-          <span className="text-sm font-medium text-white">
-            {selected.size} contact{selected.size !== 1 ? "s" : ""} selected
-          </span>
-          <a
-            href={`/campaigns?contacts=${[...selected].join(",")}`}
-            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
-          >
-            <Mail className="w-3.5 h-3.5" />
-            Send Campaign
-          </a>
-        </div>
       )}
     </div>
   );

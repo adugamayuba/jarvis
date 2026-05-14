@@ -7,8 +7,6 @@ import {
   Search,
   Users,
   Mail,
-  Zap,
-  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,19 +21,21 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-60 shrink-0 flex flex-col bg-[#0d0d14] border-r border-white/[0.06] h-screen">
+    <aside className="w-56 shrink-0 flex flex-col border-r border-neutral-800/60 h-screen bg-neutral-950">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-white/[0.06]">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
-          <Zap className="w-4 h-4 text-white" />
+      <div className="px-4 py-4 border-b border-neutral-800/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" fill="#0a0a0a" stroke="#0a0a0a" strokeWidth="0.5" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span className="text-sm font-semibold text-white tracking-tight">Jarvis</span>
         </div>
-        <span className="font-semibold text-white tracking-tight text-[15px]">
-          Jarvis
-        </span>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-2 py-3 space-y-px">
         {navItems.map(({ href, icon: Icon, label }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -44,30 +44,21 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group",
+                "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
                 active
-                  ? "bg-violet-500/15 text-violet-300"
-                  : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
+                  ? "bg-neutral-800 text-white"
+                  : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
               )}
             >
-              <Icon
-                className={cn(
-                  "w-4 h-4 shrink-0",
-                  active ? "text-violet-400" : "text-white/40 group-hover:text-white/60"
-                )}
-              />
-              <span className="flex-1">{label}</span>
-              {active && (
-                <ChevronRight className="w-3.5 h-3.5 text-violet-400/60" />
-              )}
+              <Icon className="w-[15px] h-[15px] shrink-0" />
+              {label}
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-white/[0.06]">
-        <p className="text-[11px] text-white/20 font-mono">v1.0.0</p>
+      <div className="px-4 py-3 border-t border-neutral-800/60">
+        <p className="text-[11px] text-neutral-600 font-mono">v1.0.0</p>
       </div>
     </aside>
   );

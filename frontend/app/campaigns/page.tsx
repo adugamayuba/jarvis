@@ -4,123 +4,86 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getContacts, getCampaigns, createCampaign } from "@/lib/api";
-import { Campaign, Contact } from "@/types";
+import { Campaign } from "@/types";
 import { toast } from "sonner";
 import {
-  Mail,
-  Send,
+  Loader2,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Loader2,
-  Users,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-const DEFAULT_TEMPLATE = `Hi {{firstName}},
+const DEFAULT_BODY = `Hi {{firstName}},
 
-I came across your work at {{company}} and was really impressed by what you're building.
+I came across your work at {{company}} and wanted to reach out.
 
-I'd love to connect and explore if there's any way we can collaborate or add value to what you're doing.
+Would you be open to a quick 15-minute call this week?`;
 
-Would you be open to a quick 15-minute chat this week?
-
-Best,`;
-
-function CampaignCard({ campaign }: { campaign: Campaign }) {
+function CampaignRow({ campaign }: { campaign: Campaign }) {
   const [open, setOpen] = useState(false);
+  const sentRate = campaign.contactIds.length > 0
+    ? Math.round(((campaign.sentCount || 0) / campaign.contactIds.length) * 100)
+    : 0;
+
   return (
-    <div className="bg-[#0d0d14] border border-white/[0.06] rounded-xl overflow-hidden">
+    <div className={cn("border border-neutral-800 rounded-lg overflow-hidden", open && "border-neutral-700")}>
       <button
-        className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-white/[0.015] transition-colors"
+        className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-neutral-800/20 transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
-        <div
-          className={cn(
-            "w-2 h-2 rounded-full shrink-0",
-            campaign.status === "sent"
-              ? "bg-emerald-400"
-              : campaign.status === "sending"
-              ? "bg-amber-400 animate-pulse"
-              : campaign.status === "failed"
-              ? "bg-red-400"
-              : "bg-white/20"
-          )}
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white">{campaign.name}</p>
-          <p className="text-xs text-white/40 mt-0.5">
-            {campaign.subject} · {campaign.contactIds.length} recipients
-          </p>
+        <span className={cn(
+          "w-1.5 h-1.5 rounded-full shrink-0",
+          campaign.status === "sent" ? "bg-emerald-500" :
+          campaign.status === "sending" ? "bg-amber-400 animate-pulse" :
+          campaign.status === "failed" ? "bg-red-500" : "bg-neutral-600"
+        )} />
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-[13px] font-medium text-neutral-200 truncate">{campaign.name}</p>
+          <p className="text-[11px] text-neutral-500 mt-0.5">{campaign.subject}</p>
         </div>
         <div className="flex items-center gap-4 shrink-0">
-          {campaign.status === "sent" && (
-            <div className="text-right">
-              <p className="text-sm font-semibold text-emerald-400">
-                {campaign.sentCount}
-              </p>
-              <p className="text-xs text-white/30">sent</p>
-            </div>
-          )}
-          <span
-            className={cn(
-              "text-xs px-2.5 py-1 rounded-full font-medium",
-              campaign.status === "sent"
-                ? "bg-emerald-500/10 text-emerald-400"
-                : campaign.status === "sending"
-                ? "bg-amber-500/10 text-amber-400"
-                : campaign.status === "failed"
-                ? "bg-red-500/10 text-red-400"
-                : "bg-white/5 text-white/40"
-            )}
-          >
+          <div className="text-right">
+            <p className="text-[13px] font-medium text-neutral-300 tabular-nums">{campaign.sentCount ?? 0}</p>
+            <p className="text-[11px] text-neutral-600">sent</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[13px] font-medium text-neutral-300 tabular-nums">{campaign.contactIds.length}</p>
+            <p className="text-[11px] text-neutral-600">recipients</p>
+          </div>
+          <span className={cn(
+            "text-[11px] font-medium px-2 py-0.5 rounded w-16 text-center",
+            campaign.status === "sent" ? "bg-emerald-500/10 text-emerald-400" :
+            campaign.status === "sending" ? "bg-amber-500/10 text-amber-400" :
+            campaign.status === "failed" ? "bg-red-500/10 text-red-400" :
+            "bg-neutral-800 text-neutral-500"
+          )}>
             {campaign.status}
           </span>
-          {open ? (
-            <ChevronUp className="w-4 h-4 text-white/30" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-white/30" />
-          )}
+          {open ? <ChevronUp className="w-3.5 h-3.5 text-neutral-600" /> : <ChevronDown className="w-3.5 h-3.5 text-neutral-600" />}
         </div>
       </button>
       {open && (
-        <div className="border-t border-white/[0.04] px-5 py-4 grid grid-cols-2 gap-4 text-sm">
+        <div className="border-t border-neutral-800 px-4 py-4 grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs text-white/30 mb-1">From</p>
-            <p className="text-white/70">
-              {campaign.fromName} &lt;{campaign.fromEmail}&gt;
-            </p>
+            <p className="text-[11px] text-neutral-600 mb-1 uppercase tracking-wider">From</p>
+            <p className="text-[13px] text-neutral-400">{campaign.fromName} &lt;{campaign.fromEmail}&gt;</p>
           </div>
           <div>
-            <p className="text-xs text-white/30 mb-1">Subject</p>
-            <p className="text-white/70">{campaign.subject}</p>
+            <p className="text-[11px] text-neutral-600 mb-1 uppercase tracking-wider">Delivery rate</p>
+            <p className="text-[13px] text-neutral-400">{sentRate}% ({campaign.sentCount} / {campaign.contactIds.length})</p>
           </div>
           <div className="col-span-2">
-            <p className="text-xs text-white/30 mb-1">Body preview</p>
-            <p className="text-white/50 text-xs whitespace-pre-line line-clamp-4">
-              {campaign.body}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-white/30 mb-1">Sent</p>
-            <p className="text-emerald-400">{campaign.sentCount ?? "—"}</p>
-          </div>
-          <div>
-            <p className="text-xs text-white/30 mb-1">Failed</p>
-            <p className="text-red-400">{campaign.failedCount ?? "—"}</p>
+            <p className="text-[11px] text-neutral-600 mb-1 uppercase tracking-wider">Body preview</p>
+            <p className="text-[12px] text-neutral-500 font-mono whitespace-pre-line line-clamp-3">{campaign.body}</p>
           </div>
           {campaign.createdAt && (
             <div className="col-span-2">
-              <p className="text-xs text-white/30 mb-1">Created</p>
-              <p className="text-white/40 text-xs">
-                {new Date(campaign.createdAt).toLocaleString()}
-              </p>
+              <p className="text-[11px] text-neutral-600 mb-1 uppercase tracking-wider">Sent</p>
+              <p className="text-[12px] text-neutral-500">{new Date(campaign.createdAt).toLocaleString()}</p>
             </div>
           )}
         </div>
@@ -129,26 +92,15 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
   );
 }
 
-function CampaignStatusIcon({ status }: { status: Campaign["status"] }) {
-  if (status === "sent") return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-  if (status === "failed") return <XCircle className="w-4 h-4 text-red-400" />;
-  if (status === "sending") return <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />;
-  return <Clock className="w-4 h-4 text-white/30" />;
-}
-// Suppress unused warning
-void CampaignStatusIcon;
-
 function NewCampaignForm({ preselectedIds }: { preselectedIds: string[] }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [fromName, setFromName] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState(DEFAULT_TEMPLATE);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(preselectedIds)
-  );
-  const [contactSearch, setContactSearch] = useState("");
+  const [body, setBody] = useState(DEFAULT_BODY);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(preselectedIds));
+  const [search, setSearch] = useState("");
 
   const { data: contactsData } = useQuery({
     queryKey: ["contacts"],
@@ -157,224 +109,138 @@ function NewCampaignForm({ preselectedIds }: { preselectedIds: string[] }) {
 
   const sendMutation = useMutation({
     mutationFn: () =>
-      createCampaign({
-        name,
-        fromName,
-        fromEmail,
-        subject,
-        body,
-        contactIds: [...selectedIds],
-      }),
+      createCampaign({ name, fromName, fromEmail, subject, body, contactIds: [...selectedIds] }),
     onSuccess: (res) => {
       if (res.success) {
-        toast.success("Campaign launched!", {
-          description: `Sending to ${res.data?.contactCount} contacts`,
-        });
+        toast.success("Campaign launched", { description: `Sending to ${res.data?.contactCount} contacts` });
         queryClient.invalidateQueries({ queryKey: ["campaigns"] });
         queryClient.invalidateQueries({ queryKey: ["contacts"] });
-        setName("");
-        setSubject("");
-        setBody(DEFAULT_TEMPLATE);
-        setSelectedIds(new Set());
+        setName(""); setSubject(""); setBody(DEFAULT_BODY); setSelectedIds(new Set());
       } else {
-        toast.error(res.error || "Failed to send campaign");
+        toast.error(res.error || "Failed");
       }
     },
-    onError: () => toast.error("Failed to connect to backend"),
+    onError: () => toast.error("Cannot connect to backend"),
   });
 
-  const contacts = contactsData?.data || [];
-  const withEmail = contacts.filter((c) => !!c.email);
-  const filtered = withEmail.filter(
-    (c) =>
-      !contactSearch ||
-      c.name?.toLowerCase().includes(contactSearch.toLowerCase()) ||
-      c.email?.toLowerCase().includes(contactSearch.toLowerCase()) ||
-      c.company?.toLowerCase().includes(contactSearch.toLowerCase())
+  const contacts = (contactsData?.data || []).filter((c) => !!c.email);
+  const filteredContacts = contacts.filter((c) =>
+    !search ||
+    c.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.email?.toLowerCase().includes(search.toLowerCase())
   );
-
-  function toggleContact(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  function selectAll() {
-    setSelectedIds(new Set(filtered.map((c) => c.id)));
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return toast.error("Campaign name is required");
-    if (!fromEmail.trim()) return toast.error("From email is required");
-    if (!subject.trim()) return toast.error("Subject is required");
-    if (!body.trim()) return toast.error("Email body is required");
+    if (!name.trim()) return toast.error("Campaign name required");
+    if (!fromEmail.trim()) return toast.error("From email required");
+    if (!subject.trim()) return toast.error("Subject required");
     if (selectedIds.size === 0) return toast.error("Select at least one contact");
     sendMutation.mutate();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Campaign Details */}
-      <div className="bg-[#0d0d14] border border-white/[0.06] rounded-xl p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider">
-          Campaign Details
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="text-xs text-white/40 mb-1.5 block">
-              Campaign Name
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. YC W24 Founders Outreach"
-              className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/20"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-white/40 mb-1.5 block">
-              From Name
-            </label>
-            <Input
-              value={fromName}
-              onChange={(e) => setFromName(e.target.value)}
-              placeholder="Your Name"
-              className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/20"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-white/40 mb-1.5 block">
-              From Email
-            </label>
-            <Input
-              type="email"
-              value={fromEmail}
-              onChange={(e) => setFromEmail(e.target.value)}
-              placeholder="you@yourdomain.com"
-              className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/20"
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs text-white/40 mb-1.5 block">
-              Subject Line
-            </label>
-            <Input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Quick question about {{company}}"
-              className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/20"
-            />
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Details */}
+      <div className="border border-neutral-800 rounded-lg p-4 space-y-3">
+        <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">Campaign details</p>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Campaign name"
+          className="bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-8"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            value={fromName}
+            onChange={(e) => setFromName(e.target.value)}
+            placeholder="Your name"
+            className="bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-8"
+          />
+          <Input
+            type="email"
+            value={fromEmail}
+            onChange={(e) => setFromEmail(e.target.value)}
+            placeholder="you@yourdomain.com"
+            className="bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-8"
+          />
         </div>
-
+        <Input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Subject line — use {{company}}, {{firstName}}"
+          className="bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-8"
+        />
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs text-white/40">Email Body</label>
-            <span className="text-xs text-white/20 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              Use {`{{firstName}}`}, {`{{company}}`}, {`{{name}}`}
-            </span>
-          </div>
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={10}
-            className="bg-white/[0.03] border-white/[0.08] text-white/80 placeholder:text-white/20 font-mono text-sm resize-none"
+            rows={8}
+            className="bg-neutral-800/50 border-neutral-700 text-neutral-300 placeholder:text-neutral-600 font-mono text-[12px] resize-none"
           />
+          <p className="text-[11px] text-neutral-600 mt-1.5">
+            Variables: {'{{firstName}}'} {'{{name}}'} {'{{company}}'} {'{{title}}'}
+          </p>
         </div>
       </div>
 
-      {/* Contact Selector */}
-      <div className="bg-[#0d0d14] border border-white/[0.06] rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider">
-              Recipients
-            </h3>
-            <p className="text-xs text-white/30 mt-0.5">
-              {selectedIds.size} selected · only contacts with emails shown
-            </p>
-          </div>
-          <Button
+      {/* Recipients */}
+      <div className="border border-neutral-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">
+            Recipients — {selectedIds.size} selected
+          </p>
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
-            onClick={selectAll}
-            className="text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 text-xs"
+            onClick={() => setSelectedIds(new Set(filteredContacts.map((c) => c.id)))}
+            className="text-[12px] text-neutral-500 hover:text-neutral-300 transition-colors"
           >
-            <Users className="w-3.5 h-3.5 mr-1.5" />
-            Select All ({filtered.length})
-          </Button>
+            Select all ({filteredContacts.length})
+          </button>
         </div>
-
-        <div className="relative mb-3">
-          <Input
-            value={contactSearch}
-            onChange={(e) => setContactSearch(e.target.value)}
-            placeholder="Search contacts…"
-            className="bg-white/[0.02] border-white/[0.06] text-white/70 placeholder:text-white/20 text-sm"
-          />
-        </div>
-
-        <div className="max-h-64 overflow-y-auto space-y-1 pr-1 scrollbar-thin">
-          {filtered.length === 0 ? (
-            <p className="text-center text-sm text-white/20 py-6">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter contacts..."
+          className="mb-2 bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-8"
+        />
+        <div className="max-h-52 overflow-y-auto space-y-px">
+          {filteredContacts.length === 0 ? (
+            <p className="text-[13px] text-neutral-600 py-4 text-center">
               No contacts with emails. Scrape some leads first.
             </p>
           ) : (
-            filtered.map((contact) => {
-              const isSelected = selectedIds.has(contact.id);
+            filteredContacts.map((c) => {
+              const isSelected = selectedIds.has(c.id);
               return (
                 <button
-                  key={contact.id}
+                  key={c.id}
                   type="button"
-                  onClick={() => toggleContact(contact.id)}
+                  onClick={() => setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    next.has(c.id) ? next.delete(c.id) : next.add(c.id);
+                    return next;
+                  })}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
-                    isSelected
-                      ? "bg-violet-500/10 border border-violet-500/20"
-                      : "hover:bg-white/[0.03] border border-transparent"
+                    "w-full flex items-center gap-2.5 px-2.5 py-2 rounded text-left transition-colors",
+                    isSelected ? "bg-neutral-800" : "hover:bg-neutral-800/40"
                   )}
                 >
-                  <div
-                    className={cn(
-                      "w-4 h-4 rounded border flex items-center justify-center shrink-0",
-                      isSelected
-                        ? "bg-violet-500 border-violet-500"
-                        : "border-white/20"
-                    )}
-                  >
+                  <div className={cn(
+                    "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                    isSelected ? "bg-white border-white" : "border-neutral-600"
+                  )}>
                     {isSelected && (
-                      <svg
-                        className="w-2.5 h-2.5 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={3}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M5 13l4 4L19 7"
-                        />
+                      <svg className="w-2 h-2 text-neutral-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white/80 truncate">
-                      {contact.name}
-                    </p>
-                    <p className="text-xs text-white/30 truncate">
-                      {contact.email}
-                      {contact.company ? ` · ${contact.company}` : ""}
-                    </p>
+                    <span className="text-[13px] text-neutral-300">{c.name}</span>
+                    <span className="text-[11px] text-neutral-600 ml-2">{c.email}</span>
                   </div>
-                  {contact.emailSent && (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400/60 shrink-0" />
-                  )}
+                  {c.emailSent && <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />}
                 </button>
               );
             })
@@ -382,22 +248,15 @@ function NewCampaignForm({ preselectedIds }: { preselectedIds: string[] }) {
         </div>
       </div>
 
-      {/* Submit */}
       <Button
         type="submit"
         disabled={sendMutation.isPending || selectedIds.size === 0}
-        className="w-full bg-violet-600 hover:bg-violet-500 text-white h-11 text-sm font-medium"
+        className="w-full bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] font-medium h-9"
       >
         {sendMutation.isPending ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Sending campaign…
-          </>
+          <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Sending...</>
         ) : (
-          <>
-            <Send className="w-4 h-4 mr-2" />
-            Send to {selectedIds.size} contact{selectedIds.size !== 1 ? "s" : ""}
-          </>
+          `Send to ${selectedIds.size} contact${selectedIds.size !== 1 ? "s" : ""}`
         )}
       </Button>
     </form>
@@ -419,47 +278,30 @@ function CampaignsInner() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <div className="flex items-center gap-2 mb-1">
-          <Mail className="w-4 h-4 text-violet-400" />
-          <span className="text-xs font-mono text-violet-400 uppercase tracking-widest">
-            Campaigns
-          </span>
-        </div>
-        <h1 className="text-2xl font-bold text-white">Email Campaigns</h1>
-        <p className="text-white/40 text-sm mt-1">
-          Send personalized outreach at scale using Resend
-        </p>
+        <h1 className="text-xl font-semibold text-white">Campaigns</h1>
+        <p className="text-[13px] text-neutral-500 mt-0.5">Write a template, pick contacts, send via Resend</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: New Campaign */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
+        {/* Left: History */}
         <div>
-          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-widest mb-4">
-            New Campaign
-          </h2>
-          <NewCampaignForm preselectedIds={preselectedIds} />
-        </div>
-
-        {/* Right: Past Campaigns */}
-        <div>
-          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-widest mb-4">
-            Campaign History
-          </h2>
+          <h2 className="text-[11px] font-medium text-neutral-500 uppercase tracking-widest mb-3">History</h2>
           {campaigns.length === 0 ? (
-            <div className="bg-[#0d0d14] border border-white/[0.06] rounded-xl p-12 text-center">
-              <Mail className="w-10 h-10 text-white/10 mx-auto mb-3" />
-              <p className="text-white/30 text-sm">No campaigns sent yet</p>
-              <p className="text-white/20 text-xs mt-1">
-                Create your first campaign on the left
-              </p>
+            <div className="border border-neutral-800 rounded-lg px-5 py-10 text-center">
+              <p className="text-[13px] text-neutral-500">No campaigns yet.</p>
+              <p className="text-[12px] text-neutral-600 mt-1">Create one on the right.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {campaigns.map((campaign) => (
-                <CampaignCard key={campaign.id} campaign={campaign} />
-              ))}
+            <div className="space-y-2">
+              {campaigns.map((c) => <CampaignRow key={c.id} campaign={c} />)}
             </div>
           )}
+        </div>
+
+        {/* Right: New Campaign */}
+        <div>
+          <h2 className="text-[11px] font-medium text-neutral-500 uppercase tracking-widest mb-3">New campaign</h2>
+          <NewCampaignForm preselectedIds={preselectedIds} />
         </div>
       </div>
     </div>

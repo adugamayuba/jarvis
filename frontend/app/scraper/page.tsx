@@ -5,16 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { startScrapeJob, getScrapeJob, getScrapeJobs } from "@/lib/api";
 import { ScrapeJob } from "@/types";
 import { toast } from "sonner";
-import {
-  Search,
-  Link2,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  ExternalLink,
-  Zap,
-} from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,13 +23,21 @@ const sourceOptions = [
   { value: "twitter", label: "Twitter / X" },
 ];
 
-function JobStatusIcon({ status }: { status: ScrapeJob["status"] }) {
-  if (status === "completed")
-    return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-  if (status === "failed") return <XCircle className="w-4 h-4 text-red-400" />;
-  if (status === "running")
-    return <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />;
-  return <Clock className="w-4 h-4 text-white/30" />;
+function StatusBadge({ status }: { status: ScrapeJob["status"] }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded",
+        status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
+        status === "running" ? "bg-amber-500/10 text-amber-400" :
+        status === "failed" ? "bg-red-500/10 text-red-400" :
+        "bg-neutral-800 text-neutral-400"
+      )}
+    >
+      {status === "running" && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
+      {status}
+    </span>
+  );
 }
 
 function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
@@ -46,70 +45,44 @@ function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
     if (job.status !== "running") return;
     const interval = setInterval(async () => {
       const res = await getScrapeJob(job.id);
-      if (res.data?.status !== "running") {
-        onRefresh();
-        clearInterval(interval);
-      }
+      if (res.data?.status !== "running") { onRefresh(); clearInterval(interval); }
     }, 5000);
     return () => clearInterval(interval);
   }, [job.id, job.status, onRefresh]);
 
   return (
-    <div className="px-5 py-4 flex items-start gap-4">
-      <div className="mt-0.5">
-        <JobStatusIcon status={job.status} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-white/80 hover:text-white truncate flex items-center gap-1 max-w-md"
-          >
-            {job.url}
-            <ExternalLink className="w-3 h-3 shrink-0" />
+    <tr className="border-b border-neutral-800/50 hover:bg-neutral-800/20 transition-colors group">
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] text-neutral-300 font-mono truncate max-w-sm">{job.url}</span>
+          <a href={job.url} target="_blank" rel="noreferrer" className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-600 hover:text-neutral-400">
+            <ExternalLink className="w-3 h-3" />
           </a>
         </div>
-        <div className="flex items-center gap-3 text-xs text-white/30">
-          <span className="capitalize">{job.source}</span>
-          {job.contactsFound !== undefined && (
-            <span className="text-emerald-400/70">
-              {job.contactsFound} contacts found
-            </span>
-          )}
-          {job.error && (
-            <span className="text-red-400/70 truncate">{job.error}</span>
-          )}
-          {job.createdAt && (
-            <span>{new Date(job.createdAt).toLocaleString()}</span>
-          )}
-        </div>
-      </div>
-      <span
-        className={cn(
-          "text-xs px-2.5 py-1 rounded-full font-medium shrink-0",
-          job.status === "completed"
-            ? "bg-emerald-500/10 text-emerald-400"
-            : job.status === "running"
-            ? "bg-amber-500/10 text-amber-400"
-            : job.status === "failed"
-            ? "bg-red-500/10 text-red-400"
-            : "bg-white/5 text-white/40"
-        )}
-      >
-        {job.status}
-      </span>
-    </div>
+      </td>
+      <td className="px-4 py-3">
+        <span className="text-[12px] text-neutral-500 capitalize">{job.source}</span>
+      </td>
+      <td className="px-4 py-3">
+        <span className="text-[13px] text-neutral-400 tabular-nums">
+          {job.contactsFound !== undefined ? job.contactsFound : "—"}
+        </span>
+      </td>
+      <td className="px-4 py-3">
+        <StatusBadge status={job.status} />
+      </td>
+      <td className="px-4 py-3">
+        <span className="text-[12px] text-neutral-600">
+          {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : "—"}
+        </span>
+      </td>
+    </tr>
   );
 }
 
 export default function ScraperPage() {
   const [url, setUrl] = useState("");
-  const [source, setSource] = useState<"crunchbase" | "linkedin" | "twitter">(
-    "crunchbase"
-  );
-
+  const [source, setSource] = useState<"crunchbase" | "linkedin" | "twitter">("crunchbase");
   const queryClient = useQueryClient();
 
   const { data: jobsData, refetch } = useQuery({
@@ -122,9 +95,7 @@ export default function ScraperPage() {
     mutationFn: () => startScrapeJob(url.trim(), source),
     onSuccess: (res) => {
       if (res.success) {
-        toast.success("Scrape job started!", {
-          description: `Job ID: ${res.data?.jobId}`,
-        });
+        toast.success("Scrape job started");
         setUrl("");
         queryClient.invalidateQueries({ queryKey: ["scrapeJobs"] });
         queryClient.invalidateQueries({ queryKey: ["contacts"] });
@@ -132,151 +103,100 @@ export default function ScraperPage() {
         toast.error(res.error || "Failed to start scrape");
       }
     },
-    onError: () => toast.error("Failed to connect to backend"),
+    onError: () => toast.error("Cannot connect to backend"),
   });
 
   const jobs = jobsData?.data || [];
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!url.trim()) return toast.error("Please enter a URL");
+    if (!url.trim()) return toast.error("Enter a URL first");
     scrapeMutation.mutate();
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-4xl">
       <div className="mb-8">
-        <div className="flex items-center gap-2 mb-1">
-          <Search className="w-4 h-4 text-violet-400" />
-          <span className="text-xs font-mono text-violet-400 uppercase tracking-widest">
-            Lead Scraper
-          </span>
-        </div>
-        <h1 className="text-2xl font-bold text-white">Scrape Leads</h1>
-        <p className="text-white/40 text-sm mt-1">
-          Paste a Crunchbase list or profile URL to extract contacts and emails
-        </p>
+        <h1 className="text-xl font-semibold text-white">Scraper</h1>
+        <p className="text-[13px] text-neutral-500 mt-0.5">Paste a URL to extract contacts and emails</p>
       </div>
 
-      {/* Scrape Form */}
-      <div className="bg-[#0d0d14] border border-white/[0.06] rounded-xl p-6 mb-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2 block">
-              Source Platform
-            </label>
-            <Select
-              value={source}
-              onValueChange={(v) =>
-                setSource(v as "crunchbase" | "linkedin" | "twitter")
-              }
-            >
-              <SelectTrigger className="bg-white/[0.03] border-white/[0.08] text-white w-48">
+      {/* Form */}
+      <div className="border border-neutral-800 rounded-lg p-5 mb-8 bg-neutral-900/30">
+        <form onSubmit={handleSubmit}>
+          <div className="flex gap-3 mb-4">
+            <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
+              <SelectTrigger className="w-36 bg-neutral-800/50 border-neutral-700 text-neutral-200 text-[13px] h-9 shrink-0">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#13131f] border-white/[0.08]">
+              <SelectContent className="bg-neutral-900 border-neutral-700">
                 {sourceOptions.map((opt) => (
-                  <SelectItem
-                    key={opt.value}
-                    value={opt.value}
-                    className="text-white/80"
-                  >
+                  <SelectItem key={opt.value} value={opt.value} className="text-neutral-200 text-[13px]">
                     {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://www.crunchbase.com/lists/..."
+              className="flex-1 bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-9"
+            />
+            <Button
+              type="submit"
+              disabled={scrapeMutation.isPending || !url.trim()}
+              className="bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] font-medium h-9 px-4 shrink-0"
+            >
+              {scrapeMutation.isPending ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Running</>
+              ) : "Scrape"}
+            </Button>
           </div>
-
-          <div>
-            <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2 block">
-              URL to Scrape
-            </label>
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                <Input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://www.crunchbase.com/lists/..."
-                  className="pl-9 bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/20 focus-visible:ring-violet-500/50 focus-visible:border-violet-500/50"
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={scrapeMutation.isPending || !url.trim()}
-                className="bg-violet-600 hover:bg-violet-500 text-white px-6 shrink-0"
-              >
-                {scrapeMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Starting…
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4 mr-2" />
-                    Scrape
-                  </>
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-white/25 mt-2">
-              Example: https://www.crunchbase.com/lists/recently-funded-startups
-            </p>
-          </div>
+          <p className="text-[12px] text-neutral-600">
+            e.g. https://www.crunchbase.com/lists/recently-funded-startups — emails are extracted and contacts saved automatically
+          </p>
         </form>
       </div>
 
-      {/* Tips */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      {/* How it works */}
+      <div className="grid grid-cols-3 gap-3 mb-8">
         {[
-          {
-            label: "Crunchbase Lists",
-            desc: "Paste any /lists/ or /organization/ URL",
-          },
-          {
-            label: "Auto Email Detection",
-            desc: "Apify extracts emails from scraped profiles",
-          },
-          {
-            label: "Auto-saved",
-            desc: "Contacts saved to Firebase automatically",
-          },
-        ].map(({ label, desc }) => (
-          <div
-            key={label}
-            className="bg-white/[0.02] border border-white/[0.05] rounded-lg px-4 py-3"
-          >
-            <p className="text-xs font-medium text-white/60">{label}</p>
-            <p className="text-xs text-white/30 mt-0.5">{desc}</p>
+          { step: "01", label: "Paste a URL", desc: "Any Crunchbase list or profile page" },
+          { step: "02", label: "Apify scrapes it", desc: "Extracts names, emails, bios" },
+          { step: "03", label: "Contacts saved", desc: "Auto-stored in Firebase, ready to email" },
+        ].map(({ step, label, desc }) => (
+          <div key={step} className="border border-neutral-800 rounded-lg px-4 py-3">
+            <p className="text-[11px] text-neutral-600 font-mono mb-1.5">{step}</p>
+            <p className="text-[13px] font-medium text-neutral-300">{label}</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">{desc}</p>
           </div>
         ))}
       </div>
 
-      {/* Jobs List */}
+      {/* History table */}
       <div>
-        <h2 className="text-sm font-semibold text-white/50 uppercase tracking-widest mb-3">
-          Scrape History
-        </h2>
-        <div className="bg-[#0d0d14] border border-white/[0.06] rounded-xl overflow-hidden">
+        <h2 className="text-[11px] font-medium text-neutral-500 uppercase tracking-widest mb-3">History</h2>
+        <div className="border border-neutral-800 rounded-lg overflow-hidden">
           {jobs.length === 0 ? (
-            <div className="p-12 text-center">
-              <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
-              <p className="text-white/30 text-sm">No scrape jobs yet</p>
-              <p className="text-white/20 text-xs mt-1">
-                Paste a URL above to get started
-              </p>
+            <div className="px-5 py-10 text-center">
+              <p className="text-[13px] text-neutral-500">No jobs yet. Paste a URL above to get started.</p>
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.04]">
-              {jobs.map((job) => (
-                <JobRow
-                  key={job.id}
-                  job={job}
-                  onRefresh={() => refetch()}
-                />
-              ))}
-            </div>
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-neutral-800">
+                  {["URL", "Source", "Contacts", "Status", "Date"].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-[11px] font-medium text-neutral-500 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map((job) => (
+                  <JobRow key={job.id} job={job} onRefresh={() => refetch()} />
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>

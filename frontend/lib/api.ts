@@ -1,8 +1,11 @@
 import axios from "axios";
 import { ApiResponse, Contact, Campaign, ScrapeJob } from "@/types";
 
+// All requests go to /api/* on the same domain.
+// next.config.ts rewrites them server-side to the Railway backend,
+// so there are no CORS issues and no client-side env vars needed.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
+  baseURL: "/",
   headers: { "Content-Type": "application/json" },
 });
 

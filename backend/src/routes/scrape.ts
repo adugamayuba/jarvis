@@ -114,6 +114,26 @@ router.get("/:jobId", async (req: Request<JobIdParams>, res: Response) => {
   }
 });
 
+// GET /api/scrape/debug — check credentials status
+router.get("/debug", (_req: Request, res: Response) => {
+  const cookies = process.env.CRUNCHBASE_COOKIES || "";
+  let cookieCount = 0;
+  try {
+    const arr = JSON.parse(cookies);
+    cookieCount = Array.isArray(arr) ? arr.length : 0;
+  } catch {
+    cookieCount = -1;
+  }
+
+  res.json({
+    cookies_set: cookies.length > 0,
+    cookies_valid_json: cookieCount >= 0,
+    cookie_count: cookieCount,
+    user_key_set: !!process.env.CRUNCHBASE_USER_KEY,
+    apify_token_set: !!process.env.APIFY_API_TOKEN,
+  });
+});
+
 // GET /api/scrape — list all jobs
 router.get("/", async (_req: Request, res: Response) => {
   try {

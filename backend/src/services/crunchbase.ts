@@ -18,7 +18,7 @@ function getCookieHeader(): string {
 
 // Shared headers that mimic a real browser session
 function getHeaders(cookie: string) {
-  return {
+  const headers: Record<string, string> = {
     "accept": "application/json, text/plain, */*",
     "accept-language": "en-US,en;q=0.9",
     "content-type": "application/json",
@@ -29,6 +29,13 @@ function getHeaders(cookie: string) {
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "x-requested-with": "XMLHttpRequest",
   };
+
+  // Required by Crunchbase API — get from browser DevTools (see README)
+  if (process.env.CRUNCHBASE_USER_KEY) {
+    headers["x-cb-user-key"] = process.env.CRUNCHBASE_USER_KEY;
+  }
+
+  return headers;
 }
 
 // Field IDs we want for person results

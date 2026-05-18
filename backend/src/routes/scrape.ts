@@ -93,6 +93,27 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/scrape/debug — check credentials status (must be before /:jobId)
+router.get("/debug", (_req: Request, res: Response) => {
+  const cookies = process.env.CRUNCHBASE_COOKIES || "";
+  let cookieCount = 0;
+  try {
+    const arr = JSON.parse(cookies);
+    cookieCount = Array.isArray(arr) ? arr.length : 0;
+  } catch {
+    cookieCount = -1;
+  }
+
+  res.json({
+    cookies_set: cookies.length > 0,
+    cookies_valid_json: cookieCount >= 0,
+    cookie_count: cookieCount,
+    user_key_set: !!process.env.CRUNCHBASE_USER_KEY,
+    user_key_preview: process.env.CRUNCHBASE_USER_KEY?.slice(0, 8) + "...",
+    apify_token_set: !!process.env.APIFY_API_TOKEN,
+  });
+});
+
 // GET /api/scrape/:jobId — get job status
 router.get("/:jobId", async (req: Request<JobIdParams>, res: Response) => {
   try {
@@ -112,27 +133,6 @@ router.get("/:jobId", async (req: Request<JobIdParams>, res: Response) => {
     const message = err instanceof Error ? err.message : "Unknown error";
     res.status(500).json({ success: false, error: message });
   }
-});
-
-// GET /api/scrape/debug — check credentials status
-router.get("/debug", (_req: Request, res: Response) => {
-  const cookies = process.env.CRUNCHBASE_COOKIES || "";
-  let cookieCount = 0;
-  try {
-    const arr = JSON.parse(cookies);
-    cookieCount = Array.isArray(arr) ? arr.length : 0;
-  } catch {
-    cookieCount = -1;
-  }
-
-  res.json({
-    cookies_set: cookies.length > 0,
-    cookies_valid_json: cookieCount >= 0,
-    cookie_count: cookieCount,
-    user_key_set: !!process.env.CRUNCHBASE_USER_KEY,
-    user_key_preview: process.env.CRUNCHBASE_USER_KEY?.slice(0, 8) + "...",
-    apify_token_set: !!process.env.APIFY_API_TOKEN,
-  });
 });
 
 // GET /api/scrape — list all jobs

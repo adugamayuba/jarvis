@@ -130,6 +130,7 @@ router.get("/debug", (_req: Request, res: Response) => {
     cookies_valid_json: cookieCount >= 0,
     cookie_count: cookieCount,
     user_key_set: !!process.env.CRUNCHBASE_USER_KEY,
+    user_key_preview: process.env.CRUNCHBASE_USER_KEY?.slice(0, 8) + "...",
     apify_token_set: !!process.env.APIFY_API_TOKEN,
   });
 });

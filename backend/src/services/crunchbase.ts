@@ -30,9 +30,10 @@ function getHeaders(cookie: string) {
     "x-requested-with": "XMLHttpRequest",
   };
 
-  // Required by Crunchbase API — get from browser DevTools (see README)
+  // Required by Crunchbase API — found in browser DevTools request headers
   if (process.env.CRUNCHBASE_USER_KEY) {
     headers["x-cb-user-key"] = process.env.CRUNCHBASE_USER_KEY;
+    headers["x-cb-client-app-instance-id"] = process.env.CRUNCHBASE_USER_KEY;
   }
 
   return headers;

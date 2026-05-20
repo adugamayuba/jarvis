@@ -57,7 +57,7 @@ function parseContacts(text: string): ParsedContact[] {
 
 export default function BulkSendPage() {
   const [pastedList, setPastedList] = useState("");
-  const [fromName, setFromName] = useState("Jarvis");
+  const [fromName, setFromName] = useState("Abel Adugam");
   const [fromEmail, setFromEmail] = useState("adugamhq@gmail.com");
   const [selectedDraft, setSelectedDraft] = useState<GmailDraft | null>(null);
   const [subject, setSubject] = useState("");

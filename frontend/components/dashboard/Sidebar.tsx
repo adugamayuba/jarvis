@@ -9,11 +9,13 @@ import {
   Mail,
   Send,
   LogOut,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearToken } from "@/lib/auth";
 
 const navItems = [
+  { href: "/jarvis", icon: Zap, label: "Jarvis AI" },
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/scraper", icon: Search, label: "Scraper" },
   { href: "/contacts", icon: Users, label: "Contacts" },
@@ -25,7 +27,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/jarvis") return null;
 
   function handleLogout() {
     clearToken();

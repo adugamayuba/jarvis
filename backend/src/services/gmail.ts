@@ -32,8 +32,13 @@ export interface BulkEmailResult {
   error?: string;
 }
 
+function getSignature(): string {
+  return process.env.GMAIL_SIGNATURE || `\n\n--\nAbel Adugam\nCEO, Softdroom Holdings\nadugamhq@gmail.com`;
+}
+
 // Encode email to RFC 2822 format then base64url
 function buildRawEmail(payload: EmailPayload): string {
+  const bodyWithSig = payload.body + getSignature();
   const lines = [
     `From: "${payload.fromName}" <${payload.fromEmail}>`,
     `To: ${payload.to}`,
@@ -41,7 +46,7 @@ function buildRawEmail(payload: EmailPayload): string {
     `MIME-Version: 1.0`,
     `Content-Type: text/plain; charset=UTF-8`,
     ``,
-    payload.body,
+    bodyWithSig,
   ];
 
   const raw = lines.join("\r\n");

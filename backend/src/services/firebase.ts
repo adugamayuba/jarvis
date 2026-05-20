@@ -36,4 +36,6 @@ export const COLLECTIONS = {
   CONTACTS: "contacts",
   CAMPAIGNS: "campaigns",
   SCRAPE_JOBS: "scrapeJobs",
+  CONVERSATIONS: "conversations",
+  PROFILE: "profile",
 } as const;

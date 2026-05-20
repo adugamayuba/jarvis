@@ -95,8 +95,8 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
 function NewCampaignForm({ preselectedIds }: { preselectedIds: string[] }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
-  const [fromName, setFromName] = useState("");
-  const [fromEmail, setFromEmail] = useState("");
+  const [fromName, setFromName] = useState("Jarvis");
+  const [fromEmail, setFromEmail] = useState("adugamhq@gmail.com");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState(DEFAULT_BODY);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(preselectedIds));

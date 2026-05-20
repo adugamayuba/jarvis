@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 
 interface IdParams extends Record<string, string> { id: string }
 import { z } from "zod";
-import { sendEmail, sendBulkEmails } from "../services/gmail";
+import { sendEmail, sendBulkEmails, getDrafts } from "../services/gmail";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { Campaign } from "../types";
 
@@ -203,6 +203,87 @@ router.get("/campaigns/:id", async (req: Request<IdParams>, res: Response) => {
     }
 
     res.json({ success: true, data: { id: doc.id, ...doc.data() } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+// GET /api/email/drafts — list Gmail drafts as templates
+router.get("/drafts", async (_req: Request, res: Response) => {
+  try {
+    const drafts = await getDrafts();
+    res.json({ success: true, data: drafts });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+// POST /api/email/bulk — send to a pasted list of name/email pairs
+const BulkSendSchema = z.object({
+  contacts: z.array(
+    z.object({
+      name: z.string(),
+      email: z.string().email(),
+      company: z.string().optional(),
+      title: z.string().optional(),
+    })
+  ).min(1),
+  fromName: z.string().min(1),
+  fromEmail: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  campaignName: z.string().optional(),
+});
+
+router.post("/bulk", async (req: Request, res: Response) => {
+  try {
+    const parsed = BulkSendSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.issues.map((e) => e.message).join(", ") });
+      return;
+    }
+
+    const { contacts, fromName, fromEmail, subject, body, campaignName } = parsed.data;
+    const db = getDb();
+
+    const campaign = {
+      name: campaignName || `Bulk send — ${new Date().toLocaleDateString()}`,
+      fromName,
+      fromEmail,
+      subject,
+      body,
+      contactIds: [],
+      status: "sending" as const,
+      sentCount: 0,
+      failedCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const campaignRef = await db.collection(COLLECTIONS.CAMPAIGNS).add(campaign);
+
+    // Send async
+    (async () => {
+      const results = await sendBulkEmails(contacts, { fromName, fromEmail, subject, body });
+      const sentCount = results.filter((r) => r.success).length;
+      const failedCount = results.filter((r) => !r.success).length;
+
+      await campaignRef.update({
+        status: "sent",
+        sentCount,
+        failedCount,
+        updatedAt: new Date().toISOString(),
+      });
+      console.log(`✅ Bulk send: ${sentCount} sent, ${failedCount} failed`);
+    })();
+
+    res.status(202).json({
+      success: true,
+      data: { campaignId: campaignRef.id, contactCount: contacts.length },
+      message: "Bulk send started",
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     res.status(500).json({ success: false, error: message });

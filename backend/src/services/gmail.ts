@@ -80,6 +80,49 @@ export async function sendEmail(payload: EmailPayload): Promise<{
   }
 }
 
+export interface GmailDraft {
+  id: string;
+  subject: string;
+  body: string;
+  snippet: string;
+}
+
+// Fetch Gmail drafts to use as templates
+export async function getDrafts(): Promise<GmailDraft[]> {
+  const gmail = createGmailClient();
+  const list = await gmail.users.drafts.list({ userId: "me", maxResults: 20 });
+  const drafts = list.data.drafts || [];
+
+  const full = await Promise.all(
+    drafts.map((d) =>
+      gmail.users.drafts.get({ userId: "me", id: d.id!, format: "full" })
+    )
+  );
+
+  return full.map((res) => {
+    const msg = res.data.message!;
+    const headers = msg.payload?.headers || [];
+    const subject = headers.find((h) => h.name === "Subject")?.value || "(no subject)";
+
+    // Extract plain text body
+    let body = "";
+    const parts = msg.payload?.parts || [];
+    const textPart = parts.find((p) => p.mimeType === "text/plain");
+    if (textPart?.body?.data) {
+      body = Buffer.from(textPart.body.data, "base64").toString("utf-8");
+    } else if (msg.payload?.body?.data) {
+      body = Buffer.from(msg.payload.body.data, "base64").toString("utf-8");
+    }
+
+    return {
+      id: res.data.id!,
+      subject,
+      body,
+      snippet: msg.snippet || "",
+    };
+  });
+}
+
 export async function sendBulkEmails(
   contacts: Array<{
     name: string;

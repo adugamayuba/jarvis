@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { ApiResponse, Contact, Campaign, ScrapeJob } from "@/types";
+import { getToken } from "./auth";
 
 // All requests go to /api/* on the same domain.
 // next.config.ts rewrites them server-side to the Railway backend,
@@ -9,18 +10,58 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Attach auth token to every request
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // Intercept errors and surface a useful message
 api.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
     if (!err.response) {
-      // Network error — backend unreachable
       err.message =
         "Backend unreachable. Check that Railway is deployed and BACKEND_URL is set in Vercel.";
     }
     return Promise.reject(err);
   }
 );
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export async function login(password: string): Promise<ApiResponse<{ token: string }>> {
+  const res = await api.post("/api/auth/login", { password });
+  return res.data;
+}
+
+// ── Gmail Drafts ──────────────────────────────────────────────────────────────
+export async function getDrafts(): Promise<ApiResponse<GmailDraft[]>> {
+  const res = await api.get("/api/email/drafts");
+  return res.data;
+}
+
+export interface GmailDraft {
+  id: string;
+  subject: string;
+  body: string;
+  snippet: string;
+}
+
+// ── Bulk Send ─────────────────────────────────────────────────────────────────
+export async function bulkSend(payload: {
+  contacts: Array<{ name: string; email: string; company?: string; title?: string }>;
+  fromName: string;
+  fromEmail: string;
+  subject: string;
+  body: string;
+  campaignName?: string;
+}): Promise<ApiResponse<{ campaignId: string; contactCount: number }>> {
+  const res = await api.post("/api/email/bulk", payload);
+  return res.data;
+}
 
 export async function checkHealth(): Promise<boolean> {
   try {

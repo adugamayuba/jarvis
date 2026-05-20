@@ -1,24 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Search,
   Users,
   Mail,
+  Send,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { clearToken } from "@/lib/auth";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/scraper", icon: Search, label: "Scraper" },
   { href: "/contacts", icon: Users, label: "Contacts" },
   { href: "/campaigns", icon: Mail, label: "Campaigns" },
+  { href: "/bulk", icon: Send, label: "Bulk Send" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  if (pathname === "/login") return null;
+
+  function handleLogout() {
+    clearToken();
+    router.replace("/login");
+  }
 
   return (
     <aside className="w-56 shrink-0 flex flex-col border-r border-neutral-800/60 h-screen bg-neutral-950">
@@ -57,8 +69,14 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="px-4 py-3 border-t border-neutral-800/60">
-        <p className="text-[11px] text-neutral-600 font-mono">v1.0.0</p>
+      <div className="px-2 py-3 border-t border-neutral-800/60">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-neutral-600 hover:text-neutral-300 hover:bg-neutral-800/50 transition-colors w-full"
+        >
+          <LogOut className="w-[15px] h-[15px] shrink-0" />
+          Sign out
+        </button>
       </div>
     </aside>
   );

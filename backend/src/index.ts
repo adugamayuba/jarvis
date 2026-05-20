@@ -6,6 +6,7 @@ import { errorHandler, notFound } from "./middleware/errorHandler";
 import scrapeRoutes from "./routes/scrape";
 import contactsRoutes from "./routes/contacts";
 import emailRoutes from "./routes/email";
+import authRoutes from "./routes/auth";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/scrape", scrapeRoutes);
 app.use("/api/contacts", contactsRoutes);
 app.use("/api/email", emailRoutes);

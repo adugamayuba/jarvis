@@ -3,6 +3,35 @@ import { getDb, COLLECTIONS } from "../services/firebase";
 import { findEmailsForAllContacts } from "../services/emailFinder";
 import { apolloMatchPerson, apolloTestConnection } from "../services/apollo";
 import { hunterTestConnection } from "../services/hunter";
+import axios from "axios";
+
+// Fetch primary organization from Crunchbase profile using cookies
+async function getOrgFromCrunchbase(crunchbaseUrl: string): Promise<string> {
+  if (!crunchbaseUrl || !process.env.CRUNCHBASE_COOKIES) return "";
+  try {
+    const slug = crunchbaseUrl.split("/person/")[1]?.split("?")[0];
+    if (!slug) return "";
+
+    const cookies = JSON.parse(process.env.CRUNCHBASE_COOKIES) as Array<{ name: string; value: string }>;
+    const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join("; ");
+
+    const res = await axios.get(
+      `https://www.crunchbase.com/v4/data/entities/people/${slug}?field_ids=primary_organization`,
+      {
+        headers: {
+          "cookie": cookieHeader,
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "x-requested-with": "XMLHttpRequest",
+          ...(process.env.CRUNCHBASE_USER_KEY ? { "x-cb-client-app-instance-id": process.env.CRUNCHBASE_USER_KEY } : {}),
+        },
+        timeout: 8_000,
+      }
+    );
+    return res.data?.properties?.primary_organization?.value || "";
+  } catch {
+    return "";
+  }
+}
 
 interface IdParams extends Record<string, string> { jobId: string }
 
@@ -220,6 +249,8 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
           name: (d.data().name as string) || "",
           company: (d.data().company as string) || "",
           existingEmail: (d.data().email as string) || "",
+          crunchbaseUrl: (d.data().crunchbaseUrl as string) || "",
+          location: (d.data().location as string) || "",
         })).filter(c => c.name);
 
         await jobRef.update({
@@ -232,7 +263,17 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
 
         for (const contact of contacts) {
           try {
-            const result = await apolloMatchPerson(contact.name, contact.company || undefined);
+            // Get org from Crunchbase if not already stored
+            let org = contact.company || "";
+            if (!org && contact.crunchbaseUrl) {
+              org = await getOrgFromCrunchbase(contact.crunchbaseUrl);
+              if (org) {
+                // Save org back to contact for future use
+                await db.collection(COLLECTIONS.CONTACTS).doc(contact.id).update({ company: org });
+              }
+            }
+
+            const result = await apolloMatchPerson(contact.name, org || undefined);
             processed++;
 
             if (result?.emails && result.emails.length > 0) {

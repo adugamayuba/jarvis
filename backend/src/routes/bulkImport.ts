@@ -1,4 +1,6 @@
 import { Router, Request, Response } from "express";
+
+interface IdParams extends Record<string, string> { jobId: string }
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { findEmailsForAllContacts } from "../services/emailFinder";
 
@@ -93,7 +95,7 @@ router.post("/find-emails", async (_req: Request, res: Response) => {
 });
 
 // GET /api/import/find-emails/:jobId
-router.get("/find-emails/:jobId", async (req: Request, res: Response) => {
+router.get("/find-emails/:jobId", async (req: Request<IdParams>, res: Response) => {
   try {
     const db = getDb();
     const doc = await db.collection("emailFinderJobs").doc(req.params.jobId).get();

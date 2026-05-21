@@ -13,6 +13,17 @@ import { ScrapeJob, Campaign } from "@/types";
 const RAISE_GOAL = 10_000_000;
 const RAISED = 100_000;
 
+const SOFTDROOM_SUBS = [
+  { name: "Reelin AI", category: "AI Social", status: "Raising $10M", url: "reelin.ai" },
+  { name: "Softdroom AI Capital", category: "Venture Capital", status: "Active", url: "softdroomai.com" },
+  { name: "Dasdroom", category: "Marketing", status: "Active", url: "dasdroom.com" },
+  { name: "Skydroom", category: "Luxury Travel", status: "Active", url: "skydroom.com" },
+  { name: "Droomify", category: "EdTech", status: "Active", url: "droomify.com" },
+  { name: "Stardroom", category: "Real Estate", status: "New 2026", url: "stardroom.com" },
+  { name: "Terradroom", category: "Agriculture", status: "New 2026", url: "terradroom.com" },
+  { name: "Gigadroom", category: "Consulting", status: "New 2026", url: "gigadroom.com" },
+];
+
 function fmt(n: number) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
@@ -65,7 +76,7 @@ export default function DashboardPage() {
   const pct = ((RAISED / RAISE_GOAL) * 100).toFixed(2);
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8 max-w-5xl overflow-y-auto h-full">
       {/* Backend status */}
       {!healthLoading && !isHealthy && (
         <div className="flex items-center gap-2 text-[12px] px-3 py-2 rounded-md mb-6 w-fit bg-red-500/10 text-red-400 border border-red-500/20">
@@ -79,33 +90,40 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Mission header */}
-      <div className="mb-8">
-        <p className="text-[11px] font-mono text-neutral-600 uppercase tracking-widest mb-1">Mission</p>
-        <h1 className="text-2xl font-semibold text-white">Raise $10M from Angel Investors</h1>
-        <p className="text-[13px] text-neutral-500 mt-1">
-          Min. check size $3K · VersusPay / Softdroom Holdings · Series A prep
-        </p>
+      {/* Header */}
+      <div className="mb-7 flex items-start justify-between">
+        <div>
+          <p className="text-[11px] font-mono text-neutral-600 uppercase tracking-widest mb-1">Command Center</p>
+          <h1 className="text-2xl font-semibold text-white">Reelin AI · Softdroom Holdings</h1>
+          <p className="text-[13px] text-neutral-500 mt-1">
+            World&apos;s first autonomous AI social network · Global conglomerate HQ Singapore
+          </p>
+        </div>
+        <Link href="/jarvis" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-700 text-[12px] text-neutral-400 hover:text-white hover:border-neutral-600 transition-colors">
+          <Zap className="w-3 h-3" /> Ask Jarvis
+        </Link>
       </div>
 
-      {/* Raise progress */}
-      <div className="border border-neutral-800 rounded-xl p-5 mb-6">
-        <div className="flex items-end justify-between mb-3">
+      {/* Reelin AI Raise */}
+      <div className="border border-neutral-800 rounded-xl p-5 mb-4 bg-neutral-900/20">
+        <div className="flex items-start justify-between mb-1">
           <div>
-            <p className="text-[11px] text-neutral-500 uppercase tracking-wider mb-1">Raised to date</p>
-            <p className="text-3xl font-semibold text-white tabular-nums">{fmt(RAISED)}</p>
-            <p className="text-[12px] text-neutral-600 mt-0.5">of {fmt(RAISE_GOAL)} goal · {pct}% complete</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded">Raising Now</span>
+            </div>
+            <p className="text-[13px] font-medium text-white">Reelin AI — Seed Round</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">Mark Cuban backed us at pre-seed · $100K · Now raising $10M</p>
           </div>
-          <div className="text-right">
-            <p className="text-[11px] text-neutral-500 mb-1">Remaining</p>
-            <p className="text-xl font-semibold text-neutral-300">{fmt(RAISE_GOAL - RAISED)}</p>
+          <div className="text-right shrink-0">
+            <p className="text-2xl font-semibold text-white tabular-nums">{fmt(RAISED)}</p>
+            <p className="text-[11px] text-neutral-600">of {fmt(RAISE_GOAL)}</p>
           </div>
         </div>
         <ProgressBar value={RAISED} max={RAISE_GOAL} />
         <div className="mt-3 flex items-center gap-4 text-[12px] text-neutral-600">
-          <span className="flex items-center gap-1.5"><TrendingUp className="w-3 h-3" /> $100K from Shark Tank investor (6mo ago)</span>
+          <span className="flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-emerald-600" /> {pct}% complete</span>
           <span>·</span>
-          <span>Need ~3,300 checks at $3K avg</span>
+          <span>Min. check $3K · {fmt(RAISE_GOAL - RAISED)} remaining</span>
         </div>
       </div>
 
@@ -138,10 +156,10 @@ export default function DashboardPage() {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
           {[
-            "Find 20 fintech angel investors I can email today",
-            "Search Crunchbase for $3K–$100K angel check writers",
-            "Draft my investor pitch email for VersusPay",
-            "Research top African tech angel investors",
+            "Find 20 angel investors in AI/consumer tech I can email today",
+            "Search Twitter for angels talking about AI social networks",
+            "Draft my Reelin AI investor pitch email (Mark Cuban backed)",
+            "Find investors who backed early-stage AI apps — research their portfolios",
           ].map((prompt) => (
             <Link
               key={prompt}
@@ -178,6 +196,31 @@ export default function DashboardPage() {
               <p className="text-[13px] font-medium text-neutral-200">{label}</p>
               <p className="text-[12px] text-neutral-500 mt-0.5">{desc}</p>
             </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Softdroom Portfolio */}
+      <div className="mb-6">
+        <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Softdroom Holdings — Portfolio</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {SOFTDROOM_SUBS.map((sub) => (
+            <a
+              key={sub.name}
+              href={`https://${sub.url}`}
+              target="_blank"
+              rel="noreferrer"
+              className="border border-neutral-800 rounded-lg px-3 py-3 hover:border-neutral-700 hover:bg-neutral-800/20 transition-all group"
+            >
+              <p className="text-[13px] font-medium text-neutral-300 group-hover:text-white transition-colors">{sub.name}</p>
+              <p className="text-[11px] text-neutral-600 mt-0.5">{sub.category}</p>
+              <span className={cn(
+                "text-[10px] font-medium px-1.5 py-0.5 rounded mt-1.5 inline-block",
+                sub.status === "Raising $10M" ? "bg-emerald-500/10 text-emerald-500" :
+                sub.status.startsWith("New") ? "bg-blue-500/10 text-blue-400" :
+                "bg-neutral-800 text-neutral-500"
+              )}>{sub.status}</span>
+            </a>
           ))}
         </div>
       </div>

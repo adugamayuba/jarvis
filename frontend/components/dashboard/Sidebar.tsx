@@ -27,7 +27,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  if (pathname === "/login" || pathname === "/jarvis") return null;
+  if (pathname === "/login") return null;
 
   function handleLogout() {
     clearToken();

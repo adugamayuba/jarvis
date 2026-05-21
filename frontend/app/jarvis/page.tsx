@@ -32,17 +32,21 @@ const TOOL_META: Record<string, { icon: React.ElementType; label: string; color:
   search_web: { icon: Globe, label: "Searching the web", color: "text-blue-400" },
   scrape_crunchbase: { icon: Database, label: "Scraping Crunchbase", color: "text-orange-400" },
   find_angel_investors: { icon: Search, label: "Finding investors", color: "text-violet-400" },
-  send_email: { icon: Mail, label: "Sending email", color: "text-emerald-400" },
-  save_contacts: { icon: Database, label: "Saving contacts", color: "text-amber-400" },
-  get_contacts: { icon: Database, label: "Reading contacts", color: "text-neutral-400" },
+  send_email: { icon: Mail, label: "Sending email via Gmail", color: "text-emerald-400" },
+  save_contacts: { icon: Database, label: "Saving to pipeline", color: "text-amber-400" },
+  get_contacts: { icon: Database, label: "Reading pipeline", color: "text-neutral-400" },
+  scrape_linkedin_jobs: { icon: Search, label: "Scraping LinkedIn jobs", color: "text-blue-300" },
+  scrape_linkedin_posts: { icon: Search, label: "Scraping LinkedIn posts", color: "text-blue-400" },
+  scrape_twitter: { icon: Globe, label: "Searching Twitter/X", color: "text-sky-400" },
+  extract_contacts: { icon: Mail, label: "Extracting contact emails", color: "text-amber-300" },
 };
 
 const SUGGESTED = [
-  "Find 20 fintech angel investors I can email today",
-  "Search for African tech angels who write $3K–$100K checks",
-  "Draft my investor pitch email for VersusPay",
-  "Scrape https://www.crunchbase.com/lists/... for investor contacts",
-  "What's my current fundraising pipeline status?",
+  "Find 20 angel investors in AI consumer apps and email them about Reelin AI",
+  "Search Twitter for VCs and angels talking about AI social networks",
+  "Search LinkedIn posts from people who angel invest in early-stage AI startups",
+  "Draft a cold email pitch — Mark Cuban backed our pre-seed, we're raising $10M seed",
+  "Extract investor emails from a VC firm website",
 ];
 
 function ToolCallBlock({ tc, idx }: { tc: ToolCall; idx: number }) {

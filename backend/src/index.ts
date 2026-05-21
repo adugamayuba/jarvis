@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // Health check — available at both /health and /api/health (via proxy)

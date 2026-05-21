@@ -129,9 +129,9 @@ export async function findEmailsForAllContacts(
   const jobRef = db.collection("emailFinderJobs").doc(jobId);
 
   try {
-    // Get all contacts without emails
+    // Get all contacts without emails (email field is "" for imported contacts)
     const snap = await db.collection(COLLECTIONS.CONTACTS)
-      .where("email", "in", ["", null])
+      .where("email", "==", "")
       .limit(2000)
       .get();
 

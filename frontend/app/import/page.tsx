@@ -160,8 +160,8 @@ export default function ImportPage() {
     if (allContacts.length === 0) { toast.error("No contacts to import"); return; }
     setImporting(true);
     try {
-      // Import in chunks of 500
-      const chunkSize = 500;
+      // Import in chunks of 200 to stay well under request size limits
+      const chunkSize = 200;
       let totalImported = 0;
       let totalSkipped = 0;
       for (let i = 0; i < allContacts.length; i += chunkSize) {
@@ -175,8 +175,9 @@ export default function ImportPage() {
       setImportResult({ imported: totalImported, skipped: totalSkipped });
       toast.success(`Imported ${totalImported} contacts`, { description: `${totalSkipped} already existed` });
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
-    } catch {
-      toast.error("Import failed");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast.error("Import failed", { description: msg });
     } finally {
       setImporting(false);
     }

@@ -13,7 +13,16 @@ interface CsvContact {
   numExits?: number;
 }
 
-// POST /api/import/contacts — bulk import from CSV data
+// Extract slug from crunchbase URL — used as stable document ID for dedup
+function slugFromUrl(url: string): string {
+  const match = url.match(/crunchbase\.com\/person\/([^/?#]+)/);
+  if (match) return `cb_${match[1]}`;
+  const match2 = url.match(/crunchbase\.com\/organization\/([^/?#]+)/);
+  if (match2) return `cb_org_${match2[1]}`;
+  return `cb_${url.replace(/[^a-zA-Z0-9]/g, "_").slice(-40)}`;
+}
+
+// POST /api/import/contacts
 router.post("/contacts", async (req: Request, res: Response) => {
   try {
     const { contacts } = req.body as { contacts: CsvContact[] };
@@ -24,112 +33,85 @@ router.post("/contacts", async (req: Request, res: Response) => {
     }
 
     const db = getDb();
+    const valid = contacts.filter(c => c.name?.trim() && c.crunchbaseUrl?.trim());
 
-    // Check which ones already exist by crunchbaseUrl to avoid duplicates
-    const existing = await db.collection(COLLECTIONS.CONTACTS)
-      .where("source", "==", "crunchbase")
-      .get();
-    const existingUrls = new Set(existing.docs.map(d => d.data().crunchbaseUrl as string));
+    // Write in Firestore batches of 500 — using slug as doc ID for auto-deduplication
+    const BATCH_SIZE = 400;
+    let written = 0;
 
-    const toImport = contacts.filter(c => c.name && !existingUrls.has(c.crunchbaseUrl));
-
-    if (toImport.length === 0) {
-      res.json({ success: true, data: { imported: 0, skipped: contacts.length, message: "All contacts already imported" } });
-      return;
-    }
-
-    // Batch write in chunks of 500 (Firestore limit)
-    const chunkSize = 500;
-    let imported = 0;
-
-    for (let i = 0; i < toImport.length; i += chunkSize) {
-      const chunk = toImport.slice(i, i + chunkSize);
+    for (let i = 0; i < valid.length; i += BATCH_SIZE) {
+      const chunk = valid.slice(i, i + BATCH_SIZE);
       const batch = db.batch();
 
       for (const c of chunk) {
-        const ref = db.collection(COLLECTIONS.CONTACTS).doc();
+        const docId = slugFromUrl(c.crunchbaseUrl);
+        const ref = db.collection(COLLECTIONS.CONTACTS).doc(docId);
+        // merge: true — won't overwrite email if contact already enriched
         batch.set(ref, {
-          name: c.name,
-          email: "",
-          oneLiner: "",
-          title: "Angel Investor",
-          company: "",
+          name: c.name.trim(),
           crunchbaseUrl: c.crunchbaseUrl,
           location: c.location || "",
           source: "crunchbase",
-          emailSent: false,
+          title: "Angel Investor",
           investorType: c.investorType || "",
           numInvestments: c.numInvestments || 0,
           numExits: c.numExits || 0,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
+        }, { merge: true });
       }
 
       await batch.commit();
-      imported += chunk.length;
+      written += chunk.length;
     }
 
     res.json({
       success: true,
-      data: {
-        imported,
-        skipped: contacts.length - toImport.length,
-        total: contacts.length,
-      },
+      data: { imported: written, skipped: contacts.length - valid.length, total: contacts.length },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Import error:", msg);
     res.status(500).json({ success: false, error: msg });
   }
 });
 
-// POST /api/import/find-emails — start background email finder job
+// POST /api/import/find-emails — start background email finder
 router.post("/find-emails", async (_req: Request, res: Response) => {
   try {
     const db = getDb();
     const jobRef = db.collection("emailFinderJobs").doc();
-
-    // Start async — don't await
+    // Fire and forget
     findEmailsForAllContacts(jobRef.id).catch(console.error);
-
     res.status(202).json({
       success: true,
       data: { jobId: jobRef.id },
-      message: "Email finder started — running in background. Poll /api/import/find-emails/:jobId for progress.",
+      message: "Email finder started in background.",
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    res.status(500).json({ success: false, error: msg });
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });
 
-// GET /api/import/find-emails/:jobId — poll job progress
+// GET /api/import/find-emails/:jobId
 router.get("/find-emails/:jobId", async (req: Request, res: Response) => {
   try {
     const db = getDb();
     const doc = await db.collection("emailFinderJobs").doc(req.params.jobId).get();
-    if (!doc.exists) {
-      res.status(404).json({ success: false, error: "Job not found" });
-      return;
-    }
+    if (!doc.exists) { res.status(404).json({ success: false, error: "Job not found" }); return; }
     res.json({ success: true, data: { id: doc.id, ...doc.data() } });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    res.status(500).json({ success: false, error: msg });
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });
 
-// GET /api/import/find-emails — list all finder jobs
+// GET /api/import/find-emails
 router.get("/find-emails", async (_req: Request, res: Response) => {
   try {
     const db = getDb();
     const snap = await db.collection("emailFinderJobs").orderBy("startedAt", "desc").limit(10).get();
-    const jobs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json({ success: true, data: jobs });
+    res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    res.status(500).json({ success: false, error: msg });
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });
 

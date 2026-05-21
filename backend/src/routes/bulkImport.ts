@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { findEmailsForAllContacts } from "../services/emailFinder";
-import { apolloMatchPerson } from "../services/apollo";
+import { apolloMatchPerson, apolloTestConnection } from "../services/apollo";
 
 interface IdParams extends Record<string, string> { jobId: string }
 
@@ -151,6 +151,16 @@ router.get("/find-emails", async (_req: Request, res: Response) => {
     const db = getDb();
     const snap = await db.collection("emailFinderJobs").orderBy("startedAt", "desc").limit(10).get();
     res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// GET /api/import/apollo-test — verify API key works
+router.get("/apollo-test", async (_req: Request, res: Response) => {
+  try {
+    const result = await apolloTestConnection();
+    res.json({ success: result.ok, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }

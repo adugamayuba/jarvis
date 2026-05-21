@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bulkImportContacts, startEmailFinder, getEmailFinderJob,
   getEmailFinderJobs, patchMissingEmails, startApolloEnrich,
-  getApolloJobs, CsvContact, EmailFinderJob,
+  getApolloJobs, testApolloConnection, CsvContact, EmailFinderJob,
 } from "@/lib/api";
 import { toast } from "sonner";
 import {
@@ -127,6 +127,8 @@ export default function ImportPage() {
   const [importing, setImporting] = useState(false);
   const [patching, setPatching] = useState(false);
   const [apolloRunning, setApolloRunning] = useState(false);
+  const [apolloTestResult, setApolloTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [apolloTesting, setApolloTesting] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -206,6 +208,18 @@ export default function ImportPage() {
       toast.error("Patch failed");
     } finally {
       setPatching(false);
+    }
+  }
+
+  async function handleTestApollo() {
+    setApolloTesting(true);
+    try {
+      const res = await testApolloConnection();
+      setApolloTestResult(res.data || { ok: false, message: "No response" });
+    } catch {
+      setApolloTestResult({ ok: false, message: "Could not reach backend" });
+    } finally {
+      setApolloTesting(false);
     }
   }
 
@@ -409,7 +423,21 @@ export default function ImportPage() {
           <p className="text-[12px] text-neutral-600 mb-4">
             Free plan: 50 requests/min · ~22 min for 1,004 contacts · requires <code className="font-mono">APOLLO_API_KEY</code> in Railway
           </p>
-          <div className="flex gap-2">
+          {apolloTestResult && (
+            <div className={cn("flex items-center gap-2 mb-3 p-2.5 rounded-lg border text-[12px]",
+              apolloTestResult.ok
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                : "bg-red-500/10 border-red-500/20 text-red-400"
+            )}>
+              {apolloTestResult.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+              {apolloTestResult.message}
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={handleTestApollo} disabled={apolloTesting}
+              variant="outline" className="border-neutral-700 text-neutral-400 hover:text-white text-[13px] h-9 gap-1.5">
+              {apolloTesting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Testing...</> : "Test API key"}
+            </Button>
             <Button onClick={handleStartApollo}
               disabled={apolloJobs.some(j => j.status === "running")}
               className="bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] h-9 gap-1.5">

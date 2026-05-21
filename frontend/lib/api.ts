@@ -248,6 +248,11 @@ export async function startApolloEnrich(): Promise<ApiResponse<{ jobId: string }
   return res.data;
 }
 
+export async function testApolloConnection(): Promise<ApiResponse<{ ok: boolean; message: string }>> {
+  const res = await api.get("/api/import/apollo-test");
+  return res.data;
+}
+
 export async function getApolloJobs(): Promise<ApiResponse<EmailFinderJob[]>> {
   const res = await api.get("/api/import/apollo-enrich");
   return res.data;

@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const APOLLO_BASE = "https://api.apollo.io/v1";
+// Apollo base URL with /api/ prefix as per official docs
+const APOLLO_BASE = "https://api.apollo.io/api/v1";
 const APOLLO_KEY = process.env.APOLLO_API_KEY;
 
 export interface ApolloPersonResult {
@@ -15,10 +16,15 @@ export interface ApolloPersonResult {
 function splitName(fullName: string): { first: string; last: string } {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length === 1) return { first: parts[0], last: "" };
-  const last = parts[parts.length - 1];
-  const first = parts.slice(0, -1).join(" ");
-  return { first, last };
+  return { first: parts.slice(0, -1).join(" "), last: parts[parts.length - 1] };
 }
+
+const HEADERS = () => ({
+  "Content-Type": "application/json",
+  "X-Api-Key": APOLLO_KEY || "",
+  "Cache-Control": "no-cache",
+  "accept": "application/json",
+});
 
 export async function apolloMatchPerson(
   name: string,
@@ -28,21 +34,14 @@ export async function apolloMatchPerson(
 
   const { first, last } = splitName(name);
 
-  const headers = {
-    "Content-Type": "application/json",
-    "X-Api-Key": APOLLO_KEY,
-    "Cache-Control": "no-cache",
-  };
-
-  // Strategy 1: people/match with org name (most accurate)
-  if (organizationName) {
+  // Strategy 1: people/match — most accurate when we have org
+  if (organizationName && last) {
     try {
-      const res = await axios.post(`${APOLLO_BASE}/people/match`, {
-        first_name: first,
-        last_name: last,
-        organization_name: organizationName,
-        reveal_personal_emails: true,
-      }, { headers, timeout: 15_000 });
+      const res = await axios.post(
+        `${APOLLO_BASE}/people/match`,
+        { first_name: first, last_name: last, organization_name: organizationName, reveal_personal_emails: true },
+        { headers: HEADERS(), timeout: 15_000 }
+      );
       const result = extractPerson(res.data?.person, name, organizationName);
       if (result) return result;
     } catch (err) {
@@ -50,19 +49,26 @@ export async function apolloMatchPerson(
     }
   }
 
-  // Strategy 2: people/search by keyword (works without org)
+  // Strategy 2: api_search with q_keywords (paid plan endpoint)
   try {
-    const res = await axios.post(`${APOLLO_BASE}/mixed_people/search`, {
-      q_keywords: name,
-      page: 1,
-      per_page: 3,
-    }, { headers, timeout: 15_000 });
+    const res = await axios.post(
+      `${APOLLO_BASE}/mixed_people/search`,
+      { q_keywords: name, per_page: 5 },
+      { headers: HEADERS(), timeout: 15_000 }
+    );
 
-    const people: Array<Record<string, unknown>> = res.data?.people || res.data?.contacts || [];
-    // Find the best match by name similarity
+    const people: Array<Record<string, unknown>> = res.data?.people || [];
     for (const p of people) {
-      const pName = `${p.first_name || ""} ${p.last_name || ""}`.trim().toLowerCase();
-      if (pName === name.toLowerCase() || pName.includes(last.toLowerCase())) {
+      const pFirst = (p.first_name as string || "").toLowerCase();
+      const pLast = (p.last_name as string || "").toLowerCase();
+      const pFullName = `${pFirst} ${pLast}`.trim();
+      if (pFullName === name.toLowerCase() || pLast === last.toLowerCase()) {
+        // Get full details via bulk_match with ID
+        const personId = p.id as string;
+        if (personId) {
+          const enriched = await apolloEnrichById(personId);
+          if (enriched) return enriched;
+        }
         const result = extractPerson(p, name, organizationName);
         if (result) return result;
       }
@@ -72,8 +78,24 @@ export async function apolloMatchPerson(
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;
       if (status === 429) throw new Error("RATE_LIMIT");
-      console.error(`Apollo search ${status} for ${name}:`, err.response?.data?.message || err.message);
+      console.error(`Apollo search ${status} for ${name}:`, JSON.stringify(err.response?.data));
     }
+    return null;
+  }
+}
+
+// Enrich a single person by Apollo ID to get their email
+async function apolloEnrichById(apolloId: string): Promise<ApolloPersonResult | null> {
+  try {
+    const res = await axios.post(
+      `${APOLLO_BASE}/people/bulk_match`,
+      { details: [{ id: apolloId }], reveal_personal_emails: true },
+      { headers: HEADERS(), timeout: 15_000 }
+    );
+    const people = res.data?.matches || res.data?.people || [];
+    const person = people[0];
+    return person ? extractPerson(person, "", undefined) : null;
+  } catch {
     return null;
   }
 }
@@ -86,46 +108,51 @@ function extractPerson(
   if (!person) return null;
 
   const emails: string[] = [];
-  if (person.email && typeof person.email === "string") emails.push(person.email);
+  if (typeof person.email === "string" && person.email) emails.push(person.email);
   if (Array.isArray(person.personal_emails)) {
-    emails.push(...(person.personal_emails as string[]).filter(Boolean));
+    emails.push(...(person.personal_emails as string[]).filter(e => typeof e === "string" && e.includes("@")));
   }
 
-  const unique = [...new Set(emails.filter(e => typeof e === "string" && e.includes("@")))];
+  const unique = [...new Set(emails)];
   if (unique.length === 0) return null;
 
-  const org = (person.organization as Record<string, unknown>)?.name as string | undefined;
-
+  const orgObj = person.organization as Record<string, unknown> | undefined;
   return {
-    name: [`${person.first_name || ""}`, `${person.last_name || ""}`].join(" ").trim() || fallbackName,
+    name: [person.first_name, person.last_name].filter(Boolean).join(" ") as string || fallbackName,
     email: unique[0],
     emails: unique,
     title: person.title as string | undefined,
-    organization: org || fallbackOrg,
+    organization: orgObj?.name as string | undefined || fallbackOrg,
     linkedin: person.linkedin_url as string | undefined,
   };
 }
 
-// Quick test to verify the API key works
 export async function apolloTestConnection(): Promise<{ ok: boolean; message: string }> {
   if (!APOLLO_KEY) return { ok: false, message: "APOLLO_API_KEY not set in Railway" };
+
   try {
-    const res = await axios.post(`${APOLLO_BASE}/mixed_people/search`, {
-      q_keywords: "Mark Cuban",
-      page: 1,
-      per_page: 1,
-    }, {
-      headers: { "Content-Type": "application/json", "X-Api-Key": APOLLO_KEY, "Cache-Control": "no-cache" },
-      timeout: 15_000,
-    });
-    const people = res.data?.people || res.data?.contacts || [];
-    const person = people[0];
-    if (person?.email) return { ok: true, message: `✅ API key works — found ${person.first_name} ${person.last_name} <${person.email}>` };
-    if (person) return { ok: true, message: `✅ API key works — found ${person.first_name} ${person.last_name} (no email on free plan)` };
-    return { ok: true, message: "✅ API key valid — no results for test query (normal)" };
+    // Test people/match with a well-known person + org
+    const res = await axios.post(
+      `${APOLLO_BASE}/people/match`,
+      { first_name: "Mark", last_name: "Cuban", organization_name: "Dallas Mavericks", reveal_personal_emails: true },
+      { headers: HEADERS(), timeout: 15_000 }
+    );
+    const person = res.data?.person;
+    if (person?.email) return { ok: true, message: `✅ Apollo working — found ${person.first_name} ${person.last_name} <${person.email}>` };
+    if (person) return { ok: true, message: `✅ Apollo key valid — found person but no email revealed` };
+
+    // Fallback test: search endpoint
+    const res2 = await axios.post(
+      `${APOLLO_BASE}/mixed_people/search`,
+      { q_keywords: "Mark Cuban", per_page: 1 },
+      { headers: HEADERS(), timeout: 15_000 }
+    );
+    const count = res2.data?.people?.length || 0;
+    return { ok: true, message: `✅ Apollo working — search returned ${count} results` };
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      return { ok: false, message: `Apollo error ${err.response?.status}: ${JSON.stringify(err.response?.data) || err.message}` };
+      const data = err.response?.data;
+      return { ok: false, message: `Apollo ${err.response?.status}: ${data?.error || err.message}` };
     }
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }

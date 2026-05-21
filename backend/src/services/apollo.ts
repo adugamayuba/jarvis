@@ -28,78 +28,108 @@ export async function apolloMatchPerson(
 
   const { first, last } = splitName(name);
 
-  const body: Record<string, unknown> = {
-    api_key: APOLLO_KEY,
-    first_name: first,
-    last_name: last,
-    reveal_personal_emails: true,
-    reveal_phone_number: false,
-  };
-  if (organizationName) body.organization_name = organizationName;
+  // Strategy 1: people/match with org name (most accurate)
+  if (organizationName) {
+    try {
+      const res = await axios.post(`${APOLLO_BASE}/people/match`, {
+        api_key: APOLLO_KEY,
+        first_name: first,
+        last_name: last,
+        organization_name: organizationName,
+        reveal_personal_emails: true,
+      }, {
+        headers: { "Content-Type": "application/json" },
+        timeout: 15_000,
+      });
+      const result = extractPerson(res.data?.person, name, organizationName);
+      if (result) return result;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 429) throw new Error("RATE_LIMIT");
+    }
+  }
 
+  // Strategy 2: people/search by keyword (works without org)
   try {
-    const res = await axios.post(`${APOLLO_BASE}/people/match`, body, {
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
-      timeout: 20_000,
+    const res = await axios.post(`${APOLLO_BASE}/mixed_people/search`, {
+      api_key: APOLLO_KEY,
+      q_keywords: name,
+      page: 1,
+      per_page: 3,
+    }, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 15_000,
     });
 
-    const person = res.data?.person;
-    if (!person) {
-      return null; // not found
+    const people: Array<Record<string, unknown>> = res.data?.people || res.data?.contacts || [];
+    // Find the best match by name similarity
+    for (const p of people) {
+      const pName = `${p.first_name || ""} ${p.last_name || ""}`.trim().toLowerCase();
+      if (pName === name.toLowerCase() || pName.includes(last.toLowerCase())) {
+        const result = extractPerson(p, name, organizationName);
+        if (result) return result;
+      }
     }
-
-    const emails: string[] = [];
-    if (person.email) emails.push(person.email);
-    if (Array.isArray(person.personal_emails)) {
-      emails.push(...person.personal_emails);
-    }
-
-    const unique = [...new Set(emails.filter(Boolean))];
-
-    if (unique.length === 0) return null;
-
-    return {
-      name: [person.first_name, person.last_name].filter(Boolean).join(" ") || name,
-      email: unique[0],
-      emails: unique,
-      title: person.title || undefined,
-      organization: person.organization?.name || organizationName,
-      linkedin: person.linkedin_url || undefined,
-    };
+    return null;
   } catch (err) {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;
-      if (status === 404) return null;
-      if (status === 422) return null; // person not found / invalid
       if (status === 429) throw new Error("RATE_LIMIT");
-      console.error(`Apollo ${status} for ${name}:`, err.response?.data?.message || err.message);
-    } else {
-      console.error(`Apollo error for ${name}:`, err instanceof Error ? err.message : err);
+      console.error(`Apollo search ${status} for ${name}:`, err.response?.data?.message || err.message);
     }
     return null;
   }
+}
+
+function extractPerson(
+  person: Record<string, unknown> | null | undefined,
+  fallbackName: string,
+  fallbackOrg?: string
+): ApolloPersonResult | null {
+  if (!person) return null;
+
+  const emails: string[] = [];
+  if (person.email && typeof person.email === "string") emails.push(person.email);
+  if (Array.isArray(person.personal_emails)) {
+    emails.push(...(person.personal_emails as string[]).filter(Boolean));
+  }
+
+  const unique = [...new Set(emails.filter(e => typeof e === "string" && e.includes("@")))];
+  if (unique.length === 0) return null;
+
+  const org = (person.organization as Record<string, unknown>)?.name as string | undefined;
+
+  return {
+    name: [`${person.first_name || ""}`, `${person.last_name || ""}`].join(" ").trim() || fallbackName,
+    email: unique[0],
+    emails: unique,
+    title: person.title as string | undefined,
+    organization: org || fallbackOrg,
+    linkedin: person.linkedin_url as string | undefined,
+  };
 }
 
 // Quick test to verify the API key works
 export async function apolloTestConnection(): Promise<{ ok: boolean; message: string }> {
   if (!APOLLO_KEY) return { ok: false, message: "APOLLO_API_KEY not set in Railway" };
   try {
-    const res = await axios.post(`${APOLLO_BASE}/people/match`, {
+    // Test with search endpoint — most permissive
+    const res = await axios.post(`${APOLLO_BASE}/mixed_people/search`, {
       api_key: APOLLO_KEY,
-      first_name: "Mark",
-      last_name: "Cuban",
-      reveal_personal_emails: true,
+      q_keywords: "Mark Cuban",
+      page: 1,
+      per_page: 1,
     }, {
       headers: { "Content-Type": "application/json" },
       timeout: 15_000,
     });
-    const person = res.data?.person;
-    if (person?.email) return { ok: true, message: `API key works — found ${person.email}` };
-    if (person) return { ok: true, message: "API key works — person found but email not in Apollo database" };
-    return { ok: true, message: "API key works — test person not found (normal)" };
+    const people = res.data?.people || res.data?.contacts || [];
+    const person = people[0];
+    if (person?.email) return { ok: true, message: `✅ API key works — found ${person.first_name} ${person.last_name} <${person.email}>` };
+    if (person) return { ok: true, message: `✅ API key works — found ${person.first_name} ${person.last_name} (no email on free plan)` };
+    return { ok: true, message: "✅ API key valid — no results for test query (normal)" };
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      return { ok: false, message: `Apollo API error ${err.response?.status}: ${err.response?.data?.message || err.message}` };
+      return { ok: false, message: `Apollo error ${err.response?.status}: ${JSON.stringify(err.response?.data) || err.message}` };
     }
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }

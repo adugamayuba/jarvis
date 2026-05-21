@@ -115,7 +115,7 @@ export async function findEmailsForAllContacts(jobId: string): Promise<void> {
       progress: 0,
       startedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    }, { merge: true });
 
     if (total === 0) {
       await jobRef.update({ status: "completed", completedAt: new Date().toISOString() });

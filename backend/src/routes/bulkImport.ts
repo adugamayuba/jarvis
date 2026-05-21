@@ -122,6 +122,8 @@ router.post("/find-emails", async (_req: Request, res: Response) => {
   try {
     const db = getDb();
     const jobRef = db.collection("emailFinderJobs").doc();
+    // Create document first so the job can update it safely
+    await jobRef.set({ status: "pending", total: 0, processed: 0, found: 0, startedAt: new Date().toISOString() });
     // Fire and forget
     findEmailsForAllContacts(jobRef.id).catch(console.error);
     res.status(202).json({
@@ -196,6 +198,15 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
     const db = getDb();
     const jobRef = db.collection("apolloJobs").doc();
 
+    // Create the document FIRST so update() calls don't fail
+    await jobRef.set({
+      status: "pending",
+      total: 0,
+      processed: 0,
+      found: 0,
+      startedAt: new Date().toISOString(),
+    });
+
     // Fire and forget
     (async () => {
       try {
@@ -211,12 +222,9 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
           existingEmail: (d.data().email as string) || "",
         })).filter(c => c.name);
 
-        await jobRef.set({
+        await jobRef.update({
           status: "running",
           total: contacts.length,
-          processed: 0,
-          found: 0,
-          startedAt: new Date().toISOString(),
         });
 
         let processed = 0;

@@ -2,6 +2,8 @@ export interface Contact {
   id: string;
   name: string;
   email: string;
+  emails?: string[];
+  apolloEmails?: string[];
   oneLiner: string;
   title?: string;
   company?: string;

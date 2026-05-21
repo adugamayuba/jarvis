@@ -90,9 +90,23 @@ function ContactRow({
       </td>
       <td className="px-4 py-3">
         {contact.email ? (
-          <a href={`mailto:${contact.email}`} className="text-[12px] text-neutral-400 hover:text-white font-mono transition-colors">
-            {contact.email}
-          </a>
+          <div className="space-y-0.5">
+            <a href={`mailto:${contact.email}`}
+              className="text-[12px] text-neutral-400 hover:text-white font-mono transition-colors block">
+              {contact.email}
+            </a>
+            {contact.emails?.filter(e => e !== contact.email).map(e => (
+              <a key={e} href={`mailto:${e}`}
+                className="text-[11px] text-neutral-600 hover:text-neutral-400 font-mono transition-colors block">
+                {e}
+              </a>
+            ))}
+            {(contact.emails?.length ?? 0) > 1 && (
+              <span className="text-[10px] text-neutral-700">
+                +{(contact.emails?.length ?? 1) - 1} more
+              </span>
+            )}
+          </div>
         ) : (
           <span className="text-[12px] text-neutral-700">No email</span>
         )}

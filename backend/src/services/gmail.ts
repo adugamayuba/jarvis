@@ -132,6 +132,7 @@ export async function sendBulkEmails(
   contacts: Array<{
     name: string;
     email: string;
+    emails?: string[];   // all known emails — sends to each one
     company?: string;
     title?: string;
   }>,
@@ -146,8 +147,14 @@ export async function sendBulkEmails(
   const results: BulkEmailResult[] = [];
 
   for (const contact of contacts) {
-    if (!contact.email) {
-      results.push({ email: contact.email, success: false, error: "No email address" });
+    // Collect all unique emails for this contact
+    const allEmails = [...new Set([
+      ...(contact.email ? [contact.email] : []),
+      ...(contact.emails || []),
+    ])].filter(Boolean);
+
+    if (allEmails.length === 0) {
+      results.push({ email: "", success: false, error: "No email address" });
       continue;
     }
 
@@ -158,24 +165,29 @@ export async function sendBulkEmails(
       title: contact.title || "",
     };
 
-    const result = await sendEmail({
-      to: contact.email,
-      fromName: template.fromName,
-      fromEmail: template.fromEmail,
-      subject: interpolate(template.subject, vars),
-      body: interpolate(template.body, vars),
-    });
+    const subject = interpolate(template.subject, vars);
+    const body = interpolate(template.body, vars);
 
-    results.push({
-      email: contact.email,
-      success: result.success,
-      messageId: result.messageId,
-      error: result.error,
-    });
+    // Send to each known email address
+    for (const emailAddr of allEmails) {
+      const result = await sendEmail({
+        to: emailAddr,
+        fromName: template.fromName,
+        fromEmail: template.fromEmail,
+        subject,
+        body,
+      });
 
-    // Respect Gmail sending limits (~100/day free, 500 with Workspace)
-    if (delayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      results.push({
+        email: emailAddr,
+        success: result.success,
+        messageId: result.messageId,
+        error: result.error,
+      });
+
+      if (delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 

@@ -145,9 +145,11 @@ export async function findEmailsForAllContacts(jobId: string): Promise<void> {
         const result = results[j];
         const contact = batch[j];
         if (result.status === "fulfilled" && result.value) {
-          console.log(`✉️  ${contact.name}: ${result.value}`);
+          const email = result.value;
+          console.log(`✉️  ${contact.name}: ${email}`);
           dbBatch.update(db.collection(COLLECTIONS.CONTACTS).doc(contact.id), {
-            email: result.value,
+            email,
+            emails: [email],   // start the emails array
             updatedAt: new Date().toISOString(),
           });
           found++;

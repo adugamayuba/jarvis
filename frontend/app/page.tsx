@@ -71,7 +71,7 @@ export default function DashboardPage() {
   const jobs = jobsData?.data || [];
 
   const emailsSent = contacts.filter((c) => c.emailSent).length;
-  const withEmail = contacts.filter((c) => c.email).length;
+  const withEmail = contacts.filter((c) => c.email || (c.emails && c.emails.length > 0)).length;
   const totalSent = campaigns.reduce((s, c) => s + (c.sentCount || 0), 0);
   const pct = ((RAISED / RAISE_GOAL) * 100).toFixed(2);
 

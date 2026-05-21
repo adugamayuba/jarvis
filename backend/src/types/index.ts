@@ -1,7 +1,9 @@
 export interface Contact {
   id?: string;
   name: string;
-  email?: string;
+  email?: string;            // primary email
+  emails?: string[];         // all known emails
+  apolloEmails?: string[];   // emails from Apollo specifically
   oneLiner?: string;
   title?: string;
   company?: string;
@@ -13,6 +15,7 @@ export interface Contact {
   emailSent?: boolean;
   emailSentAt?: string;
   campaignId?: string;
+  apolloEnriched?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

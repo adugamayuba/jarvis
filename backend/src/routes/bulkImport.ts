@@ -227,20 +227,28 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
             const result = await apolloMatchPerson(contact.name, contact.company || undefined);
             processed++;
 
-            if (result?.email || (result?.emails && result.emails.length > 0)) {
-              const primaryEmail = result.email || result.emails![0];
-              const allEmails = result.emails || [primaryEmail];
+            if (result?.emails && result.emails.length > 0) {
+              // Merge with any existing emails from Google search
+              const existingEmail = contact.existingEmail || "";
+              const apolloEmails = result.emails;
+              const merged = [...new Set([
+                ...(existingEmail ? [existingEmail] : []),
+                ...apolloEmails,
+              ])].filter(Boolean);
+
+              const primaryEmail = apolloEmails[0]; // Apollo's best is primary
 
               await db.collection(COLLECTIONS.CONTACTS).doc(contact.id).update({
                 email: primaryEmail,
-                apolloEmails: allEmails,
+                emails: merged,           // all known emails
+                apolloEmails: apolloEmails,
                 title: result.title || undefined,
                 linkedinUrl: result.linkedin || undefined,
                 apolloEnriched: true,
                 updatedAt: new Date().toISOString(),
               });
               found++;
-              console.log(`✅ Apollo: ${contact.name} → ${primaryEmail}`);
+              console.log(`✅ Apollo: ${contact.name} → ${merged.join(", ")}`);
             }
 
             // Update progress every 10

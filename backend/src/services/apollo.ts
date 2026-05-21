@@ -127,49 +127,35 @@ function extractPerson(
   };
 }
 
-export async function apolloTestConnection(): Promise<{ ok: boolean; message: string; plan?: string }> {
+export async function apolloTestConnection(): Promise<{ ok: boolean; message: string }> {
   if (!APOLLO_KEY) return { ok: false, message: "APOLLO_API_KEY not set in Railway" };
 
-  // Test 1: Account info (works on all plans)
   try {
-    const acct = await axios.get(`${APOLLO_BASE}/auth/health`, { headers: HEADERS(), timeout: 10_000 });
-    const user = acct.data?.user;
-    if (user) {
-      const plan = user.account?.plan_tier || user.plan_tier || "unknown";
-      // Test 2: Can we hit enrichment?
-      try {
-        await axios.post(`${APOLLO_BASE}/people/match`,
-          { first_name: "Mark", last_name: "Cuban", organization_name: "Dallas Mavericks" },
-          { headers: HEADERS(), timeout: 10_000 }
-        );
-        return { ok: true, message: `✅ Apollo working — plan: ${plan}, enrichment access confirmed`, plan };
-      } catch (enrichErr) {
-        if (axios.isAxiosError(enrichErr) && enrichErr.response?.status === 403) {
-          return {
-            ok: false,
-            plan,
-            message: `API key valid (plan: ${plan}) but enrichment endpoints blocked. Go to apollo.io → Settings → API Keys → regenerate key with "People Search" + "Enrichment" permissions enabled. You may need Professional ($99/mo) plan.`,
-          };
-        }
-        return { ok: true, message: `✅ Apollo key valid (plan: ${plan})`, plan };
-      }
-    }
-  } catch { /* try next */ }
-
-  // Test 2: Basic contacts endpoint (available on all paid plans)
-  try {
-    await axios.get(`${APOLLO_BASE}/contacts`, { headers: HEADERS(), params: { per_page: 1 }, timeout: 10_000 });
-    return {
-      ok: false,
-      message: `API key connects but enrichment endpoints (people/match, people/search) are blocked. Your plan may not include API enrichment — requires Apollo Professional ($99/mo). Check apollo.io → Settings → API Keys for permissions.`,
-    };
+    const res = await axios.post(
+      `${APOLLO_BASE}/people/match`,
+      { first_name: "Mark", last_name: "Cuban", organization_name: "Dallas Mavericks", reveal_personal_emails: true },
+      { headers: HEADERS(), timeout: 15_000 }
+    );
+    const person = res.data?.person;
+    if (person?.email) return { ok: true, message: `✅ Working — found ${person.first_name} ${person.last_name} <${person.email}>` };
+    if (person) return { ok: true, message: `✅ API key valid — connected but email not revealed for this person` };
+    return { ok: true, message: `✅ API key accepted — no person found for test query (normal)` };
   } catch (err) {
-    if (axios.isAxiosError(err) && err.response?.status === 403) {
-      return { ok: false, message: `403 Forbidden on all endpoints — API key likely doesn't have enrichment permissions. Regenerate at apollo.io → Settings → Integrations → API Keys and enable all scopes.` };
+    if (!axios.isAxiosError(err)) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) };
     }
-    if (axios.isAxiosError(err) && err.response?.status === 401) {
-      return { ok: false, message: `401 — Invalid API key. Copy a fresh key from apollo.io → Settings → Integrations → API Keys.` };
+
+    const status = err.response?.status;
+    const code = err.response?.data?.error_code || "";
+    const msg = err.response?.data?.error || err.message;
+
+    if (status === 401) return { ok: false, message: `❌ Invalid API key — copy a fresh key from apollo.io → Settings → Integrations → API Keys` };
+    if (status === 403 && code === "API_INACCESSIBLE") {
+      return { ok: false, message: `❌ Plan doesn't include API enrichment. Apollo requires Professional plan ($99/mo) for people/match. Go to apollo.io → Upgrade, then regenerate your API key.` };
     }
-    return { ok: false, message: `Connection error: ${err instanceof Error ? err.message : String(err)}` };
+    if (status === 403) return { ok: false, message: `❌ 403 Forbidden — regenerate key at apollo.io → Settings → Integrations → API Keys and enable all permissions` };
+    if (status === 422) return { ok: false, message: `❌ 422 — API key format issue. Make sure you copied the full key from apollo.io` };
+
+    return { ok: false, message: `❌ Apollo error ${status}: ${msg}` };
   }
 }

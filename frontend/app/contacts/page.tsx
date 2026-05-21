@@ -202,7 +202,7 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8 h-full overflow-y-auto">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold text-white">Contacts</h1>

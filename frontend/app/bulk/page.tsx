@@ -108,7 +108,7 @@ export default function BulkSendPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 sm:p-8 max-w-4xl h-full overflow-y-auto">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-white">Bulk Send</h1>
         <p className="text-[13px] text-neutral-500 mt-0.5">

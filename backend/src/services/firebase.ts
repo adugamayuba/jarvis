@@ -38,4 +38,5 @@ export const COLLECTIONS = {
   SCRAPE_JOBS: "scrapeJobs",
   CONVERSATIONS: "conversations",
   PROFILE: "profile",
+  INVESTORS: "investors",
 } as const;

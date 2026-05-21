@@ -57,7 +57,11 @@ FUNDRAISING STRATEGY:
 - Primary target: Angel investors writing $3K–$500K checks for Reelin AI
 - Story: Mark Cuban backed us at pre-seed ($100K). Now scaling to $10M seed.
 - Pitch: AI social networking is the next platform shift. Reelin gives everyone an AI twin.
-- Previously found investors via LinkedIn (lost account) → now using Crunchbase, web research, cold email
+- TARGET INVESTORS: US-based angels and seed funds (primary focus), UK and Singapore angels (secondary)
+- NOT focused on Africa — Reelin AI is a global product targeting US market first
+- Pre-seed DONE: $100K from Mark Cuban ✓ 
+- Seed round in progress: $20K verbal commitment from Dominik so far
+- Previously found investors via LinkedIn (lost account) → now using Crunchbase, Twitter, web research, cold email
 - Jarvis should find investors, research them, personalize outreach, and send emails from adugamhq@gmail.com
 `.trim();
 
@@ -313,7 +317,7 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<str
       case "find_angel_investors": {
         if (!APIFY_TOKEN) return "APIFY_API_TOKEN not set — cannot search web";
         const { focus, geography, checkSize } = args as { focus: string; geography?: string; checkSize?: string };
-        const query = `angel investor ${focus} ${geography || ""} ${checkSize ? `check size ${checkSize}` : ""} site:linkedin.com OR site:crunchbase.com OR site:angellist.com`.trim();
+        const query = `angel investor ${focus} ${geography || "USA"} ${checkSize ? `check size ${checkSize}` : ""} site:linkedin.com OR site:crunchbase.com OR site:angellist.com OR site:angel.co`.trim();
 
         const runRes = await axios.post(
           `${APIFY_BASE}/acts/apify~google-search-scraper/runs`,

@@ -276,7 +276,7 @@ function CampaignsInner() {
   const campaigns = campaignsData?.data || [];
 
   return (
-    <div className="p-8">
+      <div className="p-4 sm:p-8 h-full overflow-y-auto">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-white">Campaigns</h1>
         <p className="text-[13px] text-neutral-500 mt-0.5">Write a template, pick contacts, send via your Gmail</p>

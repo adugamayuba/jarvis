@@ -141,3 +141,57 @@ export async function aiResearch(query: string): Promise<ApiResponse<{ result: s
   const res = await api.post("/api/ai/research", { query });
   return res.data;
 }
+
+// ── Investors ─────────────────────────────────────────────────────────────────
+export type InvestorStatus = "prospect" | "contacted" | "interested" | "verbal" | "committed" | "closed" | "passed";
+
+export interface Investor {
+  id?: string;
+  name: string;
+  email?: string;
+  company?: string;
+  title?: string;
+  location?: string;
+  status: InvestorStatus;
+  amount?: number;
+  notes?: string;
+  source?: string;
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  checkSize?: string;
+  round?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface InvestorStats {
+  total: number;
+  committed: number;
+  count: number;
+  byStatus: Record<string, number>;
+}
+
+export async function getInvestors(): Promise<ApiResponse<Investor[]>> {
+  const res = await api.get("/api/investors");
+  return res.data;
+}
+
+export async function createInvestor(investor: Omit<Investor, "id">): Promise<ApiResponse<Investor>> {
+  const res = await api.post("/api/investors", investor);
+  return res.data;
+}
+
+export async function updateInvestor(id: string, updates: Partial<Investor>): Promise<ApiResponse<Investor>> {
+  const res = await api.patch(`/api/investors/${id}`, updates);
+  return res.data;
+}
+
+export async function deleteInvestor(id: string): Promise<ApiResponse<void>> {
+  const res = await api.delete(`/api/investors/${id}`);
+  return res.data;
+}
+
+export async function getInvestorStats(): Promise<ApiResponse<InvestorStats>> {
+  const res = await api.get("/api/investors/stats");
+  return res.data;
+}

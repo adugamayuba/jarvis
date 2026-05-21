@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
-
-interface IdParams extends Record<string, string> { jobId: string }
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { findEmailsForAllContacts } from "../services/emailFinder";
+import { apolloMatchPerson } from "../services/apollo";
+
+interface IdParams extends Record<string, string> { jobId: string }
 
 const router = Router();
 
@@ -149,6 +150,114 @@ router.get("/find-emails", async (_req: Request, res: Response) => {
   try {
     const db = getDb();
     const snap = await db.collection("emailFinderJobs").orderBy("startedAt", "desc").limit(10).get();
+    res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/import/apollo-enrich — run Apollo enrichment on all contacts
+router.post("/apollo-enrich", async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const jobRef = db.collection("apolloJobs").doc();
+
+    // Fire and forget
+    (async () => {
+      try {
+        const snap = await db.collection(COLLECTIONS.CONTACTS)
+          .where("source", "==", "crunchbase")
+          .limit(1500)
+          .get();
+
+        const contacts = snap.docs.map(d => ({
+          id: d.id,
+          name: (d.data().name as string) || "",
+          company: (d.data().company as string) || "",
+          existingEmail: (d.data().email as string) || "",
+        })).filter(c => c.name);
+
+        await jobRef.set({
+          status: "running",
+          total: contacts.length,
+          processed: 0,
+          found: 0,
+          startedAt: new Date().toISOString(),
+        });
+
+        let processed = 0;
+        let found = 0;
+
+        for (const contact of contacts) {
+          try {
+            const result = await apolloMatchPerson(contact.name, contact.company || undefined);
+            processed++;
+
+            if (result?.email || (result?.emails && result.emails.length > 0)) {
+              const primaryEmail = result.email || result.emails![0];
+              const allEmails = result.emails || [primaryEmail];
+
+              await db.collection(COLLECTIONS.CONTACTS).doc(contact.id).update({
+                email: primaryEmail,
+                apolloEmails: allEmails,
+                title: result.title || undefined,
+                linkedinUrl: result.linkedin || undefined,
+                apolloEnriched: true,
+                updatedAt: new Date().toISOString(),
+              });
+              found++;
+              console.log(`✅ Apollo: ${contact.name} → ${primaryEmail}`);
+            }
+
+            // Update progress every 10
+            if (processed % 10 === 0) {
+              await jobRef.update({ processed, found, progress: Math.round((processed / contacts.length) * 100) });
+            }
+
+            // Apollo free: 50 req/min = 1.2s between calls
+            await new Promise(r => setTimeout(r, 1300));
+          } catch (err) {
+            processed++;
+            console.error(`Apollo error for ${contact.name}:`, err instanceof Error ? err.message : err);
+          }
+        }
+
+        await jobRef.update({
+          status: "completed",
+          processed,
+          found,
+          progress: 100,
+          completedAt: new Date().toISOString(),
+        });
+        console.log(`✅ Apollo enrichment done: ${found}/${contacts.length} emails`);
+      } catch (err) {
+        await jobRef.update({ status: "failed", error: err instanceof Error ? err.message : String(err) });
+      }
+    })();
+
+    res.status(202).json({ success: true, data: { jobId: jobRef.id }, message: "Apollo enrichment started" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// GET /api/import/apollo-enrich/:jobId
+router.get("/apollo-enrich/:jobId", async (req: Request<IdParams>, res: Response) => {
+  try {
+    const db = getDb();
+    const doc = await db.collection("apolloJobs").doc(req.params.jobId).get();
+    if (!doc.exists) { res.status(404).json({ success: false, error: "Not found" }); return; }
+    res.json({ success: true, data: { id: doc.id, ...doc.data() } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// GET /api/import/apollo-enrich
+router.get("/apollo-enrich", async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const snap = await db.collection("apolloJobs").orderBy("startedAt", "desc").limit(10).get();
     res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });

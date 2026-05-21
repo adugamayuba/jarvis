@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bulkImportContacts, startEmailFinder, getEmailFinderJob,
-  getEmailFinderJobs, patchMissingEmails, CsvContact, EmailFinderJob,
+  getEmailFinderJobs, patchMissingEmails, startApolloEnrich,
+  getApolloJobs, CsvContact, EmailFinderJob,
 } from "@/lib/api";
 import { toast } from "sonner";
 import {
@@ -125,6 +126,7 @@ export default function ImportPage() {
   const [files, setFiles] = useState<{ name: string; contacts: CsvContact[] }[]>([]);
   const [importing, setImporting] = useState(false);
   const [patching, setPatching] = useState(false);
+  const [apolloRunning, setApolloRunning] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -137,7 +139,14 @@ export default function ImportPage() {
     refetchInterval: activeJobId ? 8_000 : false,
   });
 
+  const { data: apolloJobsData, refetch: refetchApolloJobs } = useQuery({
+    queryKey: ["apolloJobs"],
+    queryFn: getApolloJobs,
+    refetchInterval: apolloRunning ? 8_000 : false,
+  });
+
   const jobs = jobsData?.data || [];
+  const apolloJobs = apolloJobsData?.data || [];
 
   function handleFiles(fileList: FileList | null) {
     if (!fileList) return;
@@ -197,6 +206,22 @@ export default function ImportPage() {
       toast.error("Patch failed");
     } finally {
       setPatching(false);
+    }
+  }
+
+  async function handleStartApollo() {
+    setApolloRunning(true);
+    try {
+      const res = await startApolloEnrich();
+      if (res.success) {
+        toast.success("Apollo enrichment started!", {
+          description: "Enriching all 1,004 investors — ~22 minutes at 1 req/1.3s"
+        });
+        refetchApolloJobs();
+      }
+    } catch {
+      toast.error("Failed to start Apollo enrichment");
+      setApolloRunning(false);
     }
   }
 
@@ -369,6 +394,42 @@ export default function ImportPage() {
           </div>
         </div>
       )}
+
+      {/* Apollo enrichment */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-neutral-900">4</div>
+          <h2 className="text-[13px] font-medium text-neutral-300">Apollo enrichment <span className="text-neutral-600 font-normal">(best quality — gets work emails)</span></h2>
+        </div>
+        <div className="border border-neutral-800 rounded-xl p-4">
+          <p className="text-[13px] text-neutral-400 mb-1">
+            Apollo.io has a database of 270M+ professionals with verified work emails.
+            Much better coverage than Google search.
+          </p>
+          <p className="text-[12px] text-neutral-600 mb-4">
+            Free plan: 50 requests/min · ~22 min for 1,004 contacts · requires <code className="font-mono">APOLLO_API_KEY</code> in Railway
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={handleStartApollo}
+              disabled={apolloJobs.some(j => j.status === "running")}
+              className="bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] h-9 gap-1.5">
+              {apolloJobs.some(j => j.status === "running") ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" />Running...</>
+              ) : (
+                <><Mail className="w-3.5 h-3.5" />Start Apollo enrichment</>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {apolloJobs.length > 0 && (
+          <div className="mt-3 space-y-3">
+            {apolloJobs.map(job => (
+              <JobCard key={job.id} job={job} onRefresh={() => refetchApolloJobs()} />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Info box */}
       <div className="mt-8 border border-neutral-800/60 rounded-xl p-4 bg-neutral-900/20">

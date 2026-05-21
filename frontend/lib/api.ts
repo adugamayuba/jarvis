@@ -242,3 +242,13 @@ export async function patchMissingEmails(): Promise<ApiResponse<{ patched: numbe
   const res = await api.post("/api/import/patch-emails");
   return res.data;
 }
+
+export async function startApolloEnrich(): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/import/apollo-enrich");
+  return res.data;
+}
+
+export async function getApolloJobs(): Promise<ApiResponse<EmailFinderJob[]>> {
+  const res = await api.get("/api/import/apollo-enrich");
+  return res.data;
+}

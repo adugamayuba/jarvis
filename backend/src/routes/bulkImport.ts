@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { findEmailsForAllContacts } from "../services/emailFinder";
 import { apolloMatchPerson, apolloTestConnection } from "../services/apollo";
+import { hunterTestConnection } from "../services/hunter";
 
 interface IdParams extends Record<string, string> { jobId: string }
 
@@ -133,6 +134,19 @@ router.post("/find-emails", async (_req: Request, res: Response) => {
   }
 });
 
+// POST /api/import/find-emails/:jobId/cancel
+router.post("/find-emails/:jobId/cancel", async (req: Request<IdParams>, res: Response) => {
+  try {
+    const db = getDb();
+    await db.collection("emailFinderJobs").doc(req.params.jobId).update({
+      status: "cancelled", updatedAt: new Date().toISOString(),
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // GET /api/import/find-emails/:jobId
 router.get("/find-emails/:jobId", async (req: Request<IdParams>, res: Response) => {
   try {
@@ -151,6 +165,16 @@ router.get("/find-emails", async (_req: Request, res: Response) => {
     const db = getDb();
     const snap = await db.collection("emailFinderJobs").orderBy("startedAt", "desc").limit(10).get();
     res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// GET /api/import/hunter-test
+router.get("/hunter-test", async (_req: Request, res: Response) => {
+  try {
+    const result = await hunterTestConnection();
+    res.json({ success: result.ok, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
@@ -246,6 +270,20 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
     })();
 
     res.status(202).json({ success: true, data: { jobId: jobRef.id }, message: "Apollo enrichment started" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/import/apollo-enrich/:jobId/cancel — mark stuck job as cancelled
+router.post("/apollo-enrich/:jobId/cancel", async (req: Request<IdParams>, res: Response) => {
+  try {
+    const db = getDb();
+    await db.collection("apolloJobs").doc(req.params.jobId).update({
+      status: "cancelled",
+      updatedAt: new Date().toISOString(),
+    });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }

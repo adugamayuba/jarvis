@@ -253,6 +253,21 @@ export async function testApolloConnection(): Promise<ApiResponse<{ ok: boolean;
   return res.data;
 }
 
+export async function testHunterConnection(): Promise<ApiResponse<{ ok: boolean; message: string; credits?: number }>> {
+  const res = await api.get("/api/import/hunter-test");
+  return res.data;
+}
+
+export async function cancelApolloJob(jobId: string): Promise<ApiResponse<void>> {
+  const res = await api.post(`/api/import/apollo-enrich/${jobId}/cancel`);
+  return res.data;
+}
+
+export async function cancelEmailFinderJob(jobId: string): Promise<ApiResponse<void>> {
+  const res = await api.post(`/api/import/find-emails/${jobId}/cancel`);
+  return res.data;
+}
+
 export async function getApolloJobs(): Promise<ApiResponse<EmailFinderJob[]>> {
   const res = await api.get("/api/import/apollo-enrich");
   return res.data;

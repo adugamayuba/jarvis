@@ -3,14 +3,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  bulkImportContacts, startEmailFinder, getEmailFinderJob,
+  bulkImportContacts, startEmailFinder,
   getEmailFinderJobs, patchMissingEmails, startApolloEnrich,
-  getApolloJobs, testApolloConnection, CsvContact, EmailFinderJob,
+  getApolloJobs, testApolloConnection, testHunterConnection,
+  cancelApolloJob, cancelEmailFinderJob, CsvContact, EmailFinderJob,
 } from "@/lib/api";
 import { toast } from "sonner";
 import {
   Upload, Play, RefreshCw, CheckCircle2, Loader2,
-  AlertCircle, FileText, Mail,
+  AlertCircle, FileText, Mail, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ function parseCsvContacts(csv: string): CsvContact[] {
   });
 }
 
-function JobCard({ job, onRefresh }: { job: EmailFinderJob; onRefresh: () => void }) {
+function JobCard({ job, onRefresh, onCancel }: { job: EmailFinderJob; onRefresh: () => void; onCancel?: (id: string) => void }) {
   useEffect(() => {
     if (job.status !== "running") return;
     const t = setInterval(onRefresh, 10_000);
@@ -69,6 +70,7 @@ function JobCard({ job, onRefresh }: { job: EmailFinderJob; onRefresh: () => voi
   }, [job.status, onRefresh]);
 
   const pct = job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0;
+  const isCancelled = (job.status as string) === "cancelled";
 
   return (
     <div className="border border-neutral-800 rounded-xl p-5">
@@ -79,13 +81,22 @@ function JobCard({ job, onRefresh }: { job: EmailFinderJob; onRefresh: () => voi
               <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
             ) : job.status === "completed" ? (
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            ) : isCancelled ? (
+              <X className="w-3.5 h-3.5 text-neutral-500" />
             ) : (
               <AlertCircle className="w-3.5 h-3.5 text-red-400" />
             )}
             <span className={cn("text-[12px] font-medium capitalize",
               job.status === "running" ? "text-amber-400" :
-              job.status === "completed" ? "text-emerald-400" : "text-red-400"
+              job.status === "completed" ? "text-emerald-400" :
+              isCancelled ? "text-neutral-500" : "text-red-400"
             )}>{job.status}</span>
+            {job.status === "running" && onCancel && job.id && (
+              <button onClick={() => onCancel(job.id!)}
+                className="ml-2 text-[11px] text-neutral-600 hover:text-red-400 transition-colors underline underline-offset-2">
+                Cancel
+              </button>
+            )}
           </div>
           <p className="text-[13px] text-neutral-300">
             {job.status === "running" ? `Finding emails... ${pct}% complete` :
@@ -129,6 +140,7 @@ export default function ImportPage() {
   const [apolloRunning, setApolloRunning] = useState(false);
   const [apolloTestResult, setApolloTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [apolloTesting, setApolloTesting] = useState(false);
+  const [hunterTestResult, setHunterTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -208,6 +220,15 @@ export default function ImportPage() {
       toast.error("Patch failed");
     } finally {
       setPatching(false);
+    }
+  }
+
+  async function handleTestHunter() {
+    try {
+      const res = await testHunterConnection();
+      setHunterTestResult(res.data || { ok: false, message: "No response" });
+    } catch {
+      setHunterTestResult({ ok: false, message: "Could not reach backend" });
     }
   }
 
@@ -403,17 +424,46 @@ export default function ImportPage() {
           </div>
           <div className="space-y-3">
             {jobs.map((job) => (
-              <JobCard key={job.id} job={job} onRefresh={() => refetchJobs()} />
+              <JobCard key={job.id} job={job} onRefresh={() => refetchJobs()}
+                onCancel={async (id) => { await cancelEmailFinderJob(id); refetchJobs(); }} />
             ))}
           </div>
         </div>
       )}
 
+      {/* Hunter.io enrichment */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-neutral-900">4</div>
+          <h2 className="text-[13px] font-medium text-neutral-300">Hunter.io enrichment <span className="text-neutral-600 font-normal">(free tier available)</span></h2>
+        </div>
+        <div className="border border-neutral-800 rounded-xl p-4">
+          <p className="text-[13px] text-neutral-400 mb-1">
+            Hunter.io finds professional emails by domain + name. Works for investors at known companies.
+          </p>
+          <p className="text-[12px] text-neutral-600 mb-3">
+            Free: 25 searches/month · Starter: $49/month for 500 · Add <code className="font-mono">HUNTER_API_KEY</code> to Railway
+          </p>
+          {hunterTestResult && (
+            <div className={cn("flex items-center gap-2 mb-3 p-2.5 rounded-lg border text-[12px]",
+              hunterTestResult.ok ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"
+            )}>
+              {hunterTestResult.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+              {hunterTestResult.message}
+            </div>
+          )}
+          <Button onClick={handleTestHunter} variant="outline"
+            className="border-neutral-700 text-neutral-400 hover:text-white text-[13px] h-8 gap-1.5">
+            Test Hunter API key
+          </Button>
+        </div>
+      </div>
+
       {/* Apollo enrichment */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-neutral-900">4</div>
-          <h2 className="text-[13px] font-medium text-neutral-300">Apollo enrichment <span className="text-neutral-600 font-normal">(best quality — gets work emails)</span></h2>
+          <div className="w-5 h-5 rounded-full bg-neutral-700 flex items-center justify-center text-[10px] font-bold text-neutral-400">5</div>
+          <h2 className="text-[13px] font-medium text-neutral-400">Apollo enrichment <span className="text-neutral-600 font-normal">(requires paid plan — $49/mo)</span></h2>
         </div>
         <div className="border border-neutral-800 rounded-xl p-4">
           <p className="text-[13px] text-neutral-400 mb-1">
@@ -453,7 +503,8 @@ export default function ImportPage() {
         {apolloJobs.length > 0 && (
           <div className="mt-3 space-y-3">
             {apolloJobs.map(job => (
-              <JobCard key={job.id} job={job} onRefresh={() => refetchApolloJobs()} />
+              <JobCard key={job.id} job={job} onRefresh={() => refetchApolloJobs()}
+                onCancel={async (id) => { await cancelApolloJob(id); refetchApolloJobs(); }} />
             ))}
           </div>
         )}

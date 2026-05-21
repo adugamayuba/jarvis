@@ -28,19 +28,21 @@ export async function apolloMatchPerson(
 
   const { first, last } = splitName(name);
 
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Api-Key": APOLLO_KEY,
+    "Cache-Control": "no-cache",
+  };
+
   // Strategy 1: people/match with org name (most accurate)
   if (organizationName) {
     try {
       const res = await axios.post(`${APOLLO_BASE}/people/match`, {
-        api_key: APOLLO_KEY,
         first_name: first,
         last_name: last,
         organization_name: organizationName,
         reveal_personal_emails: true,
-      }, {
-        headers: { "Content-Type": "application/json" },
-        timeout: 15_000,
-      });
+      }, { headers, timeout: 15_000 });
       const result = extractPerson(res.data?.person, name, organizationName);
       if (result) return result;
     } catch (err) {
@@ -51,14 +53,10 @@ export async function apolloMatchPerson(
   // Strategy 2: people/search by keyword (works without org)
   try {
     const res = await axios.post(`${APOLLO_BASE}/mixed_people/search`, {
-      api_key: APOLLO_KEY,
       q_keywords: name,
       page: 1,
       per_page: 3,
-    }, {
-      headers: { "Content-Type": "application/json" },
-      timeout: 15_000,
-    });
+    }, { headers, timeout: 15_000 });
 
     const people: Array<Record<string, unknown>> = res.data?.people || res.data?.contacts || [];
     // Find the best match by name similarity
@@ -112,14 +110,12 @@ function extractPerson(
 export async function apolloTestConnection(): Promise<{ ok: boolean; message: string }> {
   if (!APOLLO_KEY) return { ok: false, message: "APOLLO_API_KEY not set in Railway" };
   try {
-    // Test with search endpoint — most permissive
     const res = await axios.post(`${APOLLO_BASE}/mixed_people/search`, {
-      api_key: APOLLO_KEY,
       q_keywords: "Mark Cuban",
       page: 1,
       per_page: 1,
     }, {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Api-Key": APOLLO_KEY, "Cache-Control": "no-cache" },
       timeout: 15_000,
     });
     const people = res.data?.people || res.data?.contacts || [];

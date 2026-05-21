@@ -237,3 +237,8 @@ export async function getEmailFinderJobs(): Promise<ApiResponse<EmailFinderJob[]
   const res = await api.get("/api/import/find-emails");
   return res.data;
 }
+
+export async function patchMissingEmails(): Promise<ApiResponse<{ patched: number; total: number }>> {
+  const res = await api.post("/api/import/patch-emails");
+  return res.data;
+}

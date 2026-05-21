@@ -12,183 +12,180 @@ export interface ContactToEnrich {
 }
 
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-const SPAM_DOMAINS = ["example.com", "test.com", "sentry.io", "wix.com", "squarespace.com", "adobe.com", "google.com", "facebook.com", "twitter.com", "placeholder"];
+const SKIP_DOMAINS = [
+  "example.com", "test.com", "sentry.io", "wix.com", "squarespace.com",
+  "adobe.com", "google.com", "facebook.com", "twitter.com", "placeholder",
+  "yoursite.com", "domain.com", "email.com", "user.com", "company.com",
+];
 
 function cleanEmails(text: string): string[] {
   const matches = text.match(EMAIL_REGEX) || [];
   return [...new Set(matches.filter(e =>
-    !SPAM_DOMAINS.some(d => e.includes(d)) &&
+    !SKIP_DOMAINS.some(d => e.includes(d)) &&
     e.length < 80 &&
-    !e.startsWith(".")
+    !e.startsWith(".") &&
+    e.includes(".")
   ))];
 }
 
-// Run Google search for multiple queries in one Apify call
-async function batchGoogleSearch(queries: string[]): Promise<Map<string, string>> {
-  if (!APIFY_TOKEN) throw new Error("APIFY_API_TOKEN not set");
-
-  const runRes = await axios.post(
-    `${APIFY_BASE}/acts/apify~google-search-scraper/runs`,
-    {
-      queries: queries.join("\n"),
-      maxPagesPerQuery: 1,
-      resultsPerPage: 5,
-    },
-    { params: { token: APIFY_TOKEN }, timeout: 60_000 }
-  );
-
-  const runId: string = runRes.data.data.id;
-  let status = "RUNNING";
-  let attempts = 0;
-
-  while ((status === "RUNNING" || status === "READY") && attempts < 36) {
+async function waitForRun(runId: string, maxWaitMs = 120_000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 5000));
-    const s = await axios.get(`${APIFY_BASE}/actor-runs/${runId}`, {
-      params: { token: APIFY_TOKEN }, timeout: 10_000,
-    });
-    status = s.data.data.status;
-    attempts++;
-    console.log(`Email finder batch: ${status} (${attempts * 5}s)`);
+    try {
+      const s = await axios.get(`${APIFY_BASE}/actor-runs/${runId}`, {
+        params: { token: APIFY_TOKEN }, timeout: 10_000,
+      });
+      const status: string = s.data.data.status;
+      if (status === "SUCCEEDED") return true;
+      if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") return false;
+    } catch { /* keep polling */ }
   }
-
-  if (status !== "SUCCEEDED") {
-    throw new Error(`Batch search failed: ${status}`);
-  }
-
-  const datasetId: string = runRes.data.data.defaultDatasetId;
-  const items = await axios.get(`${APIFY_BASE}/datasets/${datasetId}/items`, {
-    params: { token: APIFY_TOKEN, format: "json", clean: true },
-  });
-
-  // Map query index → emails found
-  const results = new Map<string, string>();
-  const pages = items.data as Array<{
-    searchQuery?: { term?: string };
-    organicResults?: Array<{ title?: string; url?: string; description?: string }>;
-  }>;
-
-  for (const page of pages) {
-    const query = page.searchQuery?.term || "";
-    const text = (page.organicResults || [])
-      .map(r => `${r.title} ${r.description} ${r.url}`)
-      .join(" ");
-    const emails = cleanEmails(text);
-    if (emails.length > 0) {
-      results.set(query, emails[0]);
-    }
-  }
-
-  return results;
+  return false;
 }
 
-// Process one batch of contacts, find their emails, update Firebase
-export async function enrichBatch(contacts: ContactToEnrich[]): Promise<number> {
-  const queries = contacts.map(c =>
-    `"${c.name}" ${c.company || ""} angel investor email contact -site:linkedin.com`.trim()
-  );
+// Search Google for ONE investor's email — simple, reliable
+async function findEmailForContact(contact: ContactToEnrich): Promise<string | null> {
+  if (!APIFY_TOKEN) return null;
 
-  let emailsFound = 0;
+  const query = `"${contact.name}" angel investor email -site:linkedin.com`;
 
   try {
-    const results = await batchGoogleSearch(queries);
+    const runRes = await axios.post(
+      `${APIFY_BASE}/acts/apify~google-search-scraper/runs`,
+      { queries: query, maxPagesPerQuery: 1, resultsPerPage: 5 },
+      { params: { token: APIFY_TOKEN }, timeout: 15_000 }
+    );
 
-    const db = getDb();
-    const batch = db.batch();
+    const succeeded = await waitForRun(runRes.data.data.id, 60_000);
+    if (!succeeded) return null;
 
-    for (let i = 0; i < contacts.length; i++) {
-      const contact = contacts[i];
-      const query = queries[i];
-      const email = results.get(query);
+    const datasetId: string = runRes.data.data.defaultDatasetId;
+    const items = await axios.get(`${APIFY_BASE}/datasets/${datasetId}/items`, {
+      params: { token: APIFY_TOKEN, format: "json", clean: true },
+    });
 
-      if (email && contact.id) {
-        console.log(`✉️  Found email for ${contact.name}: ${email}`);
-        batch.update(db.collection(COLLECTIONS.CONTACTS).doc(contact.id), {
-          email,
-          updatedAt: new Date().toISOString(),
-        });
-        emailsFound++;
-      }
-    }
+    const results = (items.data as Array<{
+      organicResults?: Array<{ title?: string; url?: string; description?: string }>;
+    }>);
 
-    await batch.commit();
+    const allText = results
+      .flatMap(r => r.organicResults || [])
+      .map(r => `${r.title || ""} ${r.description || ""} ${r.url || ""}`)
+      .join(" ");
+
+    const emails = cleanEmails(allText);
+    return emails[0] || null;
   } catch (err) {
-    console.error("Batch enrich error:", err instanceof Error ? err.message : err);
+    console.error(`Email search failed for ${contact.name}:`, err instanceof Error ? err.message : err);
+    return null;
   }
-
-  return emailsFound;
 }
 
-// Main function — finds emails for all contacts without one, in batches
-export async function findEmailsForAllContacts(
-  jobId: string,
-  batchSize = 50
-): Promise<void> {
+// Main: find emails for all contacts missing one
+export async function findEmailsForAllContacts(jobId: string): Promise<void> {
   const db = getDb();
-
-  // Update job status
   const jobRef = db.collection("emailFinderJobs").doc(jobId);
 
   try {
-    // Get all contacts without emails (email field is "" for imported contacts)
+    // Fetch crunchbase contacts — filter for no email in memory (avoids index issues)
     const snap = await db.collection(COLLECTIONS.CONTACTS)
-      .where("email", "==", "")
-      .limit(2000)
+      .where("source", "==", "crunchbase")
+      .limit(2500)
       .get();
 
     const contacts: ContactToEnrich[] = snap.docs
+      .filter(d => !d.data().email)  // missing or empty email
       .map(d => ({
         id: d.id,
         name: (d.data().name as string) || "",
         crunchbaseUrl: (d.data().crunchbaseUrl as string) || "",
         company: (d.data().company as string) || "",
       }))
-      .filter(c => c.name);
+      .filter(c => c.name.trim());
 
     const total = contacts.length;
-    let processed = 0;
-    let totalFound = 0;
+    console.log(`🔍 Email finder: ${total} contacts to enrich`);
 
     await jobRef.set({
       status: "running",
       total,
       processed: 0,
       found: 0,
+      progress: 0,
       startedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
-    console.log(`🔍 Starting email finder for ${total} contacts`);
+    if (total === 0) {
+      await jobRef.update({ status: "completed", completedAt: new Date().toISOString() });
+      console.log("No contacts need email enrichment");
+      return;
+    }
 
-    // Process in batches
-    for (let i = 0; i < contacts.length; i += batchSize) {
-      const batch = contacts.slice(i, i + batchSize);
-      const found = await enrichBatch(batch);
-      processed += batch.length;
-      totalFound += found;
+    let processed = 0;
+    let found = 0;
 
-      await jobRef.update({
-        processed,
-        found: totalFound,
-        progress: Math.round((processed / total) * 100),
-        updatedAt: new Date().toISOString(),
-      });
+    // Process one at a time — reliable but slower
+    // For 2000 contacts at ~5s each = ~2.5 hours. Use concurrency of 3 to speed up.
+    const CONCURRENCY = 3;
 
-      console.log(`📊 Progress: ${processed}/${total} (${totalFound} emails found)`);
+    for (let i = 0; i < contacts.length; i += CONCURRENCY) {
+      const batch = contacts.slice(i, i + CONCURRENCY);
 
-      // Small delay between batches to avoid rate limits
-      await new Promise((r) => setTimeout(r, 2000));
+      const results = await Promise.allSettled(
+        batch.map(c => findEmailForContact(c))
+      );
+
+      // Save any found emails
+      const dbBatch = db.batch();
+      let batchHasUpdates = false;
+
+      for (let j = 0; j < batch.length; j++) {
+        const result = results[j];
+        const contact = batch[j];
+        if (result.status === "fulfilled" && result.value) {
+          console.log(`✉️  ${contact.name}: ${result.value}`);
+          dbBatch.update(db.collection(COLLECTIONS.CONTACTS).doc(contact.id), {
+            email: result.value,
+            updatedAt: new Date().toISOString(),
+          });
+          found++;
+          batchHasUpdates = true;
+        }
+        processed++;
+      }
+
+      if (batchHasUpdates) await dbBatch.commit();
+
+      // Update job progress every 10 contacts
+      if (processed % 10 === 0 || processed === total) {
+        await jobRef.update({
+          processed,
+          found,
+          progress: Math.round((processed / total) * 100),
+          updatedAt: new Date().toISOString(),
+        });
+        console.log(`📊 ${processed}/${total} — ${found} emails found so far`);
+      }
+
+      // Small delay to avoid hammering Apify
+      await new Promise((r) => setTimeout(r, 500));
     }
 
     await jobRef.update({
       status: "completed",
       processed,
-      found: totalFound,
+      found,
+      progress: 100,
       completedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
-    console.log(`✅ Email finder done: ${totalFound}/${total} emails found`);
+    console.log(`✅ Email finder complete: ${found}/${total} emails found`);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    await jobRef.update({ status: "failed", error: msg });
-    console.error("Email finder failed:", msg);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Email finder error:", msg);
+    await jobRef.update({ status: "failed", error: msg, updatedAt: new Date().toISOString() });
   }
 }

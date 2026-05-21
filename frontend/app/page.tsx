@@ -57,7 +57,7 @@ export default function DashboardPage() {
     queryKey: ["health"], queryFn: checkHealth, refetchInterval: 30_000,
   });
   const { data: contactsData } = useQuery({
-    queryKey: ["contacts"], queryFn: () => getContacts({ limit: 1000 }), enabled: isHealthy === true,
+    queryKey: ["contacts"], queryFn: () => getContacts({ limit: 5000 }), enabled: isHealthy === true,
   });
   const { data: campaignsData } = useQuery({
     queryKey: ["campaigns"], queryFn: getCampaigns, enabled: isHealthy === true,

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bulkImportContacts, startEmailFinder, getEmailFinderJob,
-  getEmailFinderJobs, CsvContact, EmailFinderJob,
+  getEmailFinderJobs, patchMissingEmails, CsvContact, EmailFinderJob,
 } from "@/lib/api";
 import { toast } from "sonner";
 import {
@@ -124,7 +124,9 @@ function JobCard({ job, onRefresh }: { job: EmailFinderJob; onRefresh: () => voi
 export default function ImportPage() {
   const [files, setFiles] = useState<{ name: string; contacts: CsvContact[] }[]>([]);
   const [importing, setImporting] = useState(false);
+  const [patching, setPatching] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -180,6 +182,21 @@ export default function ImportPage() {
       toast.error("Import failed", { description: msg });
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handlePatch() {
+    setPatching(true);
+    try {
+      const res = await patchMissingEmails();
+      if (res.success && res.data) {
+        setPatchResult({ patched: res.data.patched });
+        toast.success(`Fixed ${res.data.patched} contacts`, { description: "Now ready for email finder" });
+      }
+    } catch {
+      toast.error("Patch failed");
+    } finally {
+      setPatching(false);
     }
   }
 
@@ -280,6 +297,30 @@ export default function ImportPage() {
             ) : (
               <><Upload className="w-3.5 h-3.5" />Import {totalContacts.toLocaleString()} contacts</>
             )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Step 2b: Patch existing contacts (one-time fix) */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-5 h-5 rounded-full bg-neutral-700 flex items-center justify-center text-[10px] font-bold text-neutral-300">2b</div>
+          <h2 className="text-[13px] font-medium text-neutral-300">Fix existing contacts <span className="text-neutral-600 font-normal">(one-time — if you imported before today)</span></h2>
+        </div>
+        <div className="border border-neutral-800 rounded-xl p-4">
+          <p className="text-[13px] text-neutral-400 mb-3">
+            If you imported contacts before this fix, they&apos;re missing the <code className="text-neutral-500 font-mono text-[12px]">email</code> field.
+            This patches them so the email finder can find them.
+          </p>
+          {patchResult && (
+            <div className="flex items-center gap-2 mb-3 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <p className="text-[12px] text-emerald-400">{patchResult.patched} contacts patched and ready</p>
+            </div>
+          )}
+          <Button onClick={handlePatch} disabled={patching}
+            variant="outline" className="border-neutral-700 text-neutral-400 hover:text-white text-[13px] h-8 gap-1.5">
+            {patching ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Patching...</> : "Patch existing contacts"}
           </Button>
         </div>
       </div>

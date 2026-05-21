@@ -51,14 +51,19 @@ router.post("/contacts", async (req: Request, res: Response) => {
         // merge: true — won't overwrite email if contact already enriched
         batch.set(ref, {
           name: c.name.trim(),
+          email: "",            // required for email finder query
+          oneLiner: "",
           crunchbaseUrl: c.crunchbaseUrl,
           location: c.location || "",
           source: "crunchbase",
           title: "Angel Investor",
+          company: "",
+          emailSent: false,
           investorType: c.investorType || "",
           numInvestments: c.numInvestments || 0,
           numExits: c.numExits || 0,
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }, { merge: true });
       }
 
@@ -74,6 +79,39 @@ router.post("/contacts", async (req: Request, res: Response) => {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Import error:", msg);
     res.status(500).json({ success: false, error: msg });
+  }
+});
+
+// POST /api/import/patch-emails — backfill email:"" on contacts missing the field
+router.post("/patch-emails", async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const snap = await db.collection(COLLECTIONS.CONTACTS)
+      .where("source", "==", "crunchbase")
+      .limit(3000)
+      .get();
+
+    const needsPatch = snap.docs.filter(d => d.data().email === undefined);
+    if (needsPatch.length === 0) {
+      res.json({ success: true, data: { patched: 0, message: "All contacts already have email field" } });
+      return;
+    }
+
+    const BATCH_SIZE = 400;
+    let patched = 0;
+    for (let i = 0; i < needsPatch.length; i += BATCH_SIZE) {
+      const chunk = needsPatch.slice(i, i + BATCH_SIZE);
+      const batch = db.batch();
+      for (const doc of chunk) {
+        batch.update(doc.ref, { email: "", emailSent: false, updatedAt: new Date().toISOString() });
+      }
+      await batch.commit();
+      patched += chunk.length;
+    }
+
+    res.json({ success: true, data: { patched, total: snap.size } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });
 

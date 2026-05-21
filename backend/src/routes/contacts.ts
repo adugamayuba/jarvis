@@ -27,7 +27,7 @@ const ContactSchema = z.object({
 router.get("/", async (req: Request, res: Response) => {
   try {
     const db = getDb();
-    const { campaignId, emailSent, source, limit = "100" } = req.query;
+    const { campaignId, emailSent, source, limit = "5000" } = req.query;
 
     let query: admin.firestore.Query = db
       .collection(COLLECTIONS.CONTACTS)

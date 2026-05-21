@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const APOLLO_BASE = "https://api.apollo.io/api/v1";
+const APOLLO_BASE = "https://api.apollo.io/v1";
 const APOLLO_KEY = process.env.APOLLO_API_KEY;
 
 export interface ApolloPersonResult {
@@ -25,7 +25,11 @@ export async function apolloMatchPerson(
   }
 
   try {
-    const body: Record<string, string> = { name };
+    const body: Record<string, string> = {
+      api_key: APOLLO_KEY,  // Apollo requires key in body
+      name,
+      reveal_personal_emails: "true",
+    };
     if (organizationName) body.organization_name = organizationName;
 
     const res = await axios.post(
@@ -34,7 +38,7 @@ export async function apolloMatchPerson(
       {
         headers: {
           "Content-Type": "application/json",
-          "X-Api-Key": APOLLO_KEY,
+          "Cache-Control": "no-cache",
         },
         timeout: 15_000,
       }

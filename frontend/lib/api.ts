@@ -195,3 +195,45 @@ export async function getInvestorStats(): Promise<ApiResponse<InvestorStats>> {
   const res = await api.get("/api/investors/stats");
   return res.data;
 }
+
+// ── Bulk Import ───────────────────────────────────────────────────────────────
+export interface CsvContact {
+  name: string;
+  crunchbaseUrl: string;
+  location?: string;
+  investorType?: string;
+  numInvestments?: number;
+  numExits?: number;
+}
+
+export interface EmailFinderJob {
+  id: string;
+  status: "running" | "completed" | "failed";
+  total: number;
+  processed: number;
+  found: number;
+  progress: number;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+}
+
+export async function bulkImportContacts(contacts: CsvContact[]): Promise<ApiResponse<{ imported: number; skipped: number; total: number }>> {
+  const res = await api.post("/api/import/contacts", { contacts });
+  return res.data;
+}
+
+export async function startEmailFinder(): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/import/find-emails");
+  return res.data;
+}
+
+export async function getEmailFinderJob(jobId: string): Promise<ApiResponse<EmailFinderJob>> {
+  const res = await api.get(`/api/import/find-emails/${jobId}`);
+  return res.data;
+}
+
+export async function getEmailFinderJobs(): Promise<ApiResponse<EmailFinderJob[]>> {
+  const res = await api.get("/api/import/find-emails");
+  return res.data;
+}

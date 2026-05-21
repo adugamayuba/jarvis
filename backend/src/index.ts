@@ -9,6 +9,7 @@ import emailRoutes from "./routes/email";
 import authRoutes from "./routes/auth";
 import aiRoutes from "./routes/ai";
 import investorsRoutes from "./routes/investors";
+import bulkImportRoutes from "./routes/bulkImport";
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/investors", investorsRoutes);
+app.use("/api/import", bulkImportRoutes);
 app.use("/api/scrape", scrapeRoutes);
 app.use("/api/contacts", contactsRoutes);
 app.use("/api/email", emailRoutes);

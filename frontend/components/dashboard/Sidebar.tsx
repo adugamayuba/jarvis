@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Search, Users, Mail,
-  Send, LogOut, Zap, TrendingUp, Menu, X,
+  Send, LogOut, Zap, TrendingUp, Menu, X, Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearToken } from "@/lib/auth";
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/jarvis", icon: Zap, label: "Jarvis AI" },
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/investors", icon: TrendingUp, label: "Investors" },
+  { href: "/import", icon: Upload, label: "Import & Emails" },
   { href: "/scraper", icon: Search, label: "Scraper" },
   { href: "/contacts", icon: Users, label: "Contacts" },
   { href: "/campaigns", icon: Mail, label: "Campaigns" },

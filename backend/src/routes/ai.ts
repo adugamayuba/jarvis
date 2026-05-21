@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 
 interface IdParams extends Record<string, string> { id: string }
 import { z } from "zod";
-import { chat, listConversations, getConversation, ABEL_PROFILE, research } from "../services/ai";
+import { chat, listConversations, getConversation, ABEL_PROFILE, research, ToolCall } from "../services/ai";
 import { getDb, COLLECTIONS } from "../services/firebase";
 
 const router = Router();

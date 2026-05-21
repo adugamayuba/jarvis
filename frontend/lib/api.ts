@@ -115,7 +115,9 @@ export async function bulkSend(payload: { contacts: Array<{ name: string; email:
 export interface ChatMessage { role: "user" | "assistant" | "system"; content: string; }
 export interface Conversation { id: string; title: string; messages: ChatMessage[]; createdAt: string; updatedAt: string; }
 
-export async function sendChat(message: string, conversationId?: string): Promise<ApiResponse<{ reply: string; conversationId: string }>> {
+export interface ToolCall { tool: string; args: Record<string, unknown>; result: string; }
+
+export async function sendChat(message: string, conversationId?: string): Promise<ApiResponse<{ reply: string; conversationId: string; toolCalls: ToolCall[] }>> {
   const res = await api.post("/api/ai/chat", { message, conversationId });
   return res.data;
 }

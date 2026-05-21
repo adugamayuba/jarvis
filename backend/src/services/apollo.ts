@@ -34,71 +34,40 @@ export async function apolloMatchPerson(
 
   const { first, last } = splitName(name);
 
-  // Strategy 1: people/match — most accurate when we have org
-  if (organizationName && last) {
+  // Try people/match with org if available, then without
+  const attempts = organizationName
+    ? [
+        { first_name: first, last_name: last, organization_name: organizationName, reveal_personal_emails: true },
+        { first_name: first, last_name: last, reveal_personal_emails: true },
+      ]
+    : [
+        { first_name: first, last_name: last, reveal_personal_emails: true },
+      ];
+
+  for (const body of attempts) {
     try {
       const res = await axios.post(
         `${APOLLO_BASE}/people/match`,
-        { first_name: first, last_name: last, organization_name: organizationName, reveal_personal_emails: true },
+        body,
         { headers: HEADERS(), timeout: 15_000 }
       );
       const result = extractPerson(res.data?.person, name, organizationName);
       if (result) return result;
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 429) throw new Error("RATE_LIMIT");
-    }
-  }
-
-  // Strategy 2: api_search with q_keywords (paid plan endpoint)
-  try {
-    const res = await axios.post(
-      `${APOLLO_BASE}/mixed_people/search`,
-      { q_keywords: name, per_page: 5 },
-      { headers: HEADERS(), timeout: 15_000 }
-    );
-
-    const people: Array<Record<string, unknown>> = res.data?.people || [];
-    for (const p of people) {
-      const pFirst = (p.first_name as string || "").toLowerCase();
-      const pLast = (p.last_name as string || "").toLowerCase();
-      const pFullName = `${pFirst} ${pLast}`.trim();
-      if (pFullName === name.toLowerCase() || pLast === last.toLowerCase()) {
-        // Get full details via bulk_match with ID
-        const personId = p.id as string;
-        if (personId) {
-          const enriched = await apolloEnrichById(personId);
-          if (enriched) return enriched;
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        if (status === 429) throw new Error("RATE_LIMIT");
+        if (status === 422 || status === 404) continue; // try next attempt
+        if (status === 403) {
+          console.error(`Apollo 403 for ${name} — endpoint not accessible on this plan`);
+          return null;
         }
-        const result = extractPerson(p, name, organizationName);
-        if (result) return result;
       }
     }
-    return null;
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      const status = err.response?.status;
-      if (status === 429) throw new Error("RATE_LIMIT");
-      console.error(`Apollo search ${status} for ${name}:`, JSON.stringify(err.response?.data));
-    }
-    return null;
   }
+  return null;
 }
 
-// Enrich a single person by Apollo ID to get their email
-async function apolloEnrichById(apolloId: string): Promise<ApolloPersonResult | null> {
-  try {
-    const res = await axios.post(
-      `${APOLLO_BASE}/people/bulk_match`,
-      { details: [{ id: apolloId }], reveal_personal_emails: true },
-      { headers: HEADERS(), timeout: 15_000 }
-    );
-    const people = res.data?.matches || res.data?.people || [];
-    const person = people[0];
-    return person ? extractPerson(person, "", undefined) : null;
-  } catch {
-    return null;
-  }
-}
 
 function extractPerson(
   person: Record<string, unknown> | null | undefined,

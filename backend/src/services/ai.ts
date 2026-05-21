@@ -71,13 +71,20 @@ ${ABEL_PROFILE}
 
 YOU DON'T JUST ANSWER — YOU EXECUTE. When Abel gives you a command:
 - Use search_web to research investors, companies, news, opportunities
-- Use find_angel_investors to find people who write checks
+- Use find_angel_investors to find people who write checks (returns names + links)
+- Use find_investor_email to get the actual email for a specific investor (searches their personal site, AngelList, Crunchbase — NOT LinkedIn)
 - Use scrape_crunchbase to extract investor lists from Crunchbase
 - Use scrape_linkedin_jobs to find job opportunities
-- Use scrape_social_media to research people on Twitter/LinkedIn
-- Use extract_contacts to find emails from websites
+- Use scrape_twitter to find investors on Twitter/X
+- Use extract_contacts to find emails from personal websites or VC firm sites (NOT linkedin.com — it blocks scrapers)
 - Use send_email to send personalized outreach from adugamhq@gmail.com
 - Use save_contacts to build the investor pipeline
+
+IMPORTANT RULES:
+- NEVER call extract_contacts on linkedin.com URLs — LinkedIn blocks scrapers, it will always fail
+- To find an investor's email: first use find_investor_email which searches their personal site and AngelList
+- When finding investors, always try to get their email before saving to pipeline
+- Deduplicate tool calls — never call the same tool with the same args twice in one response
 
 PRIORITIES (in order):
 1. Raise $10M seed for Reelin AI — find angels, research them, craft the pitch, send emails
@@ -246,13 +253,29 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "extract_contacts",
-      description: "Extract email addresses and contact info from any website URL — great for investor portfolio pages, VC firm sites",
+      description: "Extract email addresses from a website. Works on personal sites, VC firm pages, AngelList profiles. DOES NOT work on linkedin.com — never use this with LinkedIn URLs.",
       parameters: {
         type: "object",
         properties: {
-          url: { type: "string", description: "Website URL to extract contacts from" },
+          url: { type: "string", description: "Website URL (NOT linkedin.com). Use personal sites, VC firm pages, angel.co profiles, crunchbase.com pages." },
         },
         required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "find_investor_email",
+      description: "Find the email address for a specific named investor by searching their personal website, AngelList, Crunchbase, and other public sources. Use this after you have an investor's name.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Full name of the investor e.g. 'Jason Calacanis'" },
+          company: { type: "string", description: "Their fund or company name if known e.g. 'LAUNCH Fund'" },
+          extraContext: { type: "string", description: "Any extra info like their website or Twitter handle" },
+        },
+        required: ["name"],
       },
     },
   },
@@ -505,9 +528,76 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<str
         ).join("\n\n")}`;
       }
 
+      case "find_investor_email": {
+        if (!APIFY_TOKEN) return "APIFY_API_TOKEN not set";
+        const { name: invName, company: invCompany, extraContext } = args as { name: string; company?: string; extraContext?: string };
+
+        // Step 1: Search for their personal website / AngelList / contact page
+        const searchQuery = `"${invName}" ${invCompany || ""} ${extraContext || ""} email contact angel investor site:angel.co OR site:crunchbase.com OR site:linkedin.com/in contact email`;
+        const runRes = await axios.post(
+          `${APIFY_BASE}/acts/apify~google-search-scraper/runs`,
+          { queries: `"${invName}" ${invCompany || ""} angel investor email contact OR "@gmail.com" OR "@" -site:linkedin.com`, maxPagesPerQuery: 1, resultsPerPage: 5 },
+          { params: { token: APIFY_TOKEN }, timeout: 30_000 }
+        );
+        const runId = runRes.data.data.id;
+        let status = "RUNNING"; let attempts = 0;
+        while ((status === "RUNNING" || status === "READY") && attempts < 12) {
+          await new Promise((r) => setTimeout(r, 5000));
+          const s = await axios.get(`${APIFY_BASE}/actor-runs/${runId}`, { params: { token: APIFY_TOKEN } });
+          status = s.data.data.status; attempts++;
+        }
+        if (status !== "SUCCEEDED") return `Email search failed for ${invName}`;
+
+        const datasetId = runRes.data.data.defaultDatasetId;
+        const items = await axios.get(`${APIFY_BASE}/datasets/${datasetId}/items`, { params: { token: APIFY_TOKEN, format: "json", clean: true } });
+        const results = (items.data[0]?.organicResults || []) as Array<{ title?: string; url?: string; description?: string }>;
+
+        // Extract any emails from snippets
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+        const allText = results.map(r => `${r.title} ${r.description} ${r.url}`).join(" ");
+        const foundEmails = [...new Set(allText.match(emailRegex) || [])].filter(e => !e.includes("example") && !e.includes("test"));
+
+        // Find best non-LinkedIn URL to scrape for contact info
+        const targetUrl = results.find(r => r.url && !r.url.includes("linkedin.com") && (r.url.includes("angel.co") || r.url.includes("crunchbase") || r.url.includes(invName.toLowerCase().replace(" ", ""))))?.url;
+
+        let scrapedEmails: string[] = [];
+        if (targetUrl && foundEmails.length === 0) {
+          try {
+            const scrapeRun = await axios.post(
+              `${APIFY_BASE}/acts/vdrmota~contact-info-scraper/runs`,
+              { startUrls: [{ url: targetUrl }], maxDepth: 0, maxPages: 1 },
+              { params: { token: APIFY_TOKEN }, timeout: 30_000 }
+            );
+            let scrapeStatus = "RUNNING"; let sa = 0;
+            while ((scrapeStatus === "RUNNING" || scrapeStatus === "READY") && sa < 12) {
+              await new Promise((r) => setTimeout(r, 5000));
+              const ss = await axios.get(`${APIFY_BASE}/actor-runs/${scrapeRun.data.data.id}`, { params: { token: APIFY_TOKEN } });
+              scrapeStatus = ss.data.data.status; sa++;
+            }
+            if (scrapeStatus === "SUCCEEDED") {
+              const sd = scrapeRun.data.data.defaultDatasetId;
+              const si = await axios.get(`${APIFY_BASE}/datasets/${sd}/items`, { params: { token: APIFY_TOKEN, format: "json", clean: true } });
+              scrapedEmails = (si.data || []).flatMap((c: { emails?: string[] }) => c.emails || []);
+            }
+          } catch { /* ignore */ }
+        }
+
+        const allEmails = [...new Set([...foundEmails, ...scrapedEmails])];
+        const topLinks = results.slice(0, 3).map(r => r.url).join("\n");
+
+        return allEmails.length > 0
+          ? `Found for ${invName}: ${allEmails.join(", ")}\nSources searched:\n${topLinks}`
+          : `No email found in public sources for ${invName}. Top links found:\n${topLinks}\n\nSuggestion: manually check ${targetUrl || results[0]?.url || "their website"}`;
+      }
+
       case "extract_contacts": {
         if (!APIFY_TOKEN) return "APIFY_API_TOKEN not set";
         const { url: contactUrl } = args as { url: string };
+
+        // Block LinkedIn — it doesn't expose emails
+        if (contactUrl.includes("linkedin.com")) {
+          return "LinkedIn blocks contact scrapers. Use find_investor_email instead, or extract_contacts on their personal website / VC firm page.";
+        }
 
         const runRes = await axios.post(
           `${APIFY_BASE}/acts/vdrmota~contact-info-scraper/runs`,

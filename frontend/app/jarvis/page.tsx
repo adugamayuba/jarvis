@@ -38,7 +38,8 @@ const TOOL_META: Record<string, { icon: React.ElementType; label: string; color:
   scrape_linkedin_jobs: { icon: Search, label: "Scraping LinkedIn jobs", color: "text-blue-300" },
   scrape_linkedin_posts: { icon: Search, label: "Scraping LinkedIn posts", color: "text-blue-400" },
   scrape_twitter: { icon: Globe, label: "Searching Twitter/X", color: "text-sky-400" },
-  extract_contacts: { icon: Mail, label: "Extracting contact emails", color: "text-amber-300" },
+  extract_contacts: { icon: Mail, label: "Extracting emails from site", color: "text-amber-300" },
+  find_investor_email: { icon: Mail, label: "Finding investor email", color: "text-emerald-300" },
 };
 
 const SUGGESTED = [

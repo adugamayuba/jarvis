@@ -257,10 +257,10 @@ export default function ContactsPage() {
         name: contact.name,
         email: contact.email || "",
         company: contact.company || "",
-        status: "replied" as const,
+        status: "contacted",
         source: contact.source,
         linkedinUrl: contact.linkedinUrl,
-        notes: `Moved from contacts on ${new Date().toLocaleDateString()}`,
+        notes: `Moved from contacts on ${new Date().toLocaleDateString()}. Originally reached out.`,
       });
       
       if (res.success) {

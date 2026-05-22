@@ -48,7 +48,7 @@ export function parseLinkedInSearchUrl(url: string): LinkedInSearchOptions {
 async function waitForRun(runId: string): Promise<boolean> {
   let status = "RUNNING";
   let attempts = 0;
-  while ((status === "RUNNING" || status === "READY") && attempts < 120) {
+  while ((status === "RUNNING" || status === "READY") && attempts < 240) { // 20 min max
     await new Promise(r => setTimeout(r, 5000));
     try {
       const s = await axios.get(`${APIFY_BASE}/actor-runs/${runId}`, { params: { token: APIFY_TOKEN } });
@@ -65,11 +65,15 @@ async function waitForRun(runId: string): Promise<boolean> {
 export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Promise<ScrapedContact[]> {
   if (!APIFY_TOKEN) throw new Error("APIFY_API_TOKEN not set");
 
+  const maxItems = options.maxItems || 1000;
+  const takePages = Math.min(Math.ceil(maxItems / 25), 100); // 25 profiles per page
+
   const input: Record<string, unknown> = {
-    searchQuery: options.searchQuery,
-    profileScraperMode: options.includeEmailSearch ? "Full + email search" : "Short",
-    takePages: 100,
-    maxItems: options.maxItems || 2500,
+    searchQuery: options.searchQuery || "",
+    profileScraperMode: "Short", // cheapest — $0.10/page, gets name + LinkedIn URL for Apollo
+    takePages,
+    startPage: 1,
+    maxItems,
   };
 
   if (options.locations && options.locations.length > 0) {

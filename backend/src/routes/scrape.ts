@@ -46,6 +46,8 @@ router.post("/", async (req: Request, res: Response) => {
           contacts = await scrapeCrunchbaseDirect(url);
         } else if (source === "linkedin") {
           const options = parseLinkedInSearchUrl(url);
+          // Default: scrape 1000 profiles
+          options.maxItems = 1000;
           contacts = await scrapeLinkedInSearch(options);
         } else {
           throw new Error(`Source '${source}' not yet supported`);

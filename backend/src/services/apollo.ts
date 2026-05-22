@@ -28,21 +28,26 @@ const HEADERS = () => ({
 
 export async function apolloMatchPerson(
   name: string,
-  organizationName?: string
+  organizationName?: string,
+  linkedinUrl?: string
 ): Promise<ApolloPersonResult | null> {
   if (!APOLLO_KEY) throw new Error("APOLLO_API_KEY not set");
 
   const { first, last } = splitName(name);
 
-  // Try people/match with org if available, then without
-  const attempts = organizationName
-    ? [
-        { first_name: first, last_name: last, organization_name: organizationName, reveal_personal_emails: true },
-        { first_name: first, last_name: last, reveal_personal_emails: true },
-      ]
-    : [
-        { first_name: first, last_name: last, reveal_personal_emails: true },
-      ];
+  // Build attempts in order of confidence
+  const attempts: Record<string, unknown>[] = [];
+
+  if (linkedinUrl) {
+    // Most reliable: LinkedIn URL uniquely identifies the person
+    attempts.push({ linkedin_url: linkedinUrl, reveal_personal_emails: true });
+    attempts.push({ first_name: first, last_name: last, linkedin_url: linkedinUrl, reveal_personal_emails: true });
+  }
+  if (organizationName) {
+    attempts.push({ first_name: first, last_name: last, organization_name: organizationName, reveal_personal_emails: true });
+  }
+  // Last resort: name only
+  attempts.push({ first_name: first, last_name: last, reveal_personal_emails: true });
 
   for (const body of attempts) {
     try {

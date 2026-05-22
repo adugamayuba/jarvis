@@ -3,35 +3,7 @@ import { getDb, COLLECTIONS } from "../services/firebase";
 import { findEmailsForAllContacts } from "../services/emailFinder";
 import { apolloMatchPerson, apolloTestConnection } from "../services/apollo";
 import { hunterTestConnection } from "../services/hunter";
-import axios from "axios";
-
-// Fetch primary organization from Crunchbase profile using cookies
-async function getOrgFromCrunchbase(crunchbaseUrl: string): Promise<string> {
-  if (!crunchbaseUrl || !process.env.CRUNCHBASE_COOKIES) return "";
-  try {
-    const slug = crunchbaseUrl.split("/person/")[1]?.split("?")[0];
-    if (!slug) return "";
-
-    const cookies = JSON.parse(process.env.CRUNCHBASE_COOKIES) as Array<{ name: string; value: string }>;
-    const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join("; ");
-
-    const res = await axios.get(
-      `https://www.crunchbase.com/v4/data/entities/people/${slug}?field_ids=primary_organization`,
-      {
-        headers: {
-          "cookie": cookieHeader,
-          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-          "x-requested-with": "XMLHttpRequest",
-          ...(process.env.CRUNCHBASE_USER_KEY ? { "x-cb-client-app-instance-id": process.env.CRUNCHBASE_USER_KEY } : {}),
-        },
-        timeout: 8_000,
-      }
-    );
-    return res.data?.properties?.primary_organization?.value || "";
-  } catch {
-    return "";
-  }
-}
+import { findLinkedInUrls } from "../services/linkedinFinder";
 
 interface IdParams extends Record<string, string> { jobId: string }
 
@@ -250,30 +222,51 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
           company: (d.data().company as string) || "",
           existingEmail: (d.data().email as string) || "",
           crunchbaseUrl: (d.data().crunchbaseUrl as string) || "",
+          linkedinUrl: (d.data().linkedinUrl as string) || "",
           location: (d.data().location as string) || "",
         })).filter(c => c.name);
 
         await jobRef.update({
-          status: "running",
+          status: "finding_linkedin",
           total: contacts.length,
         });
+
+        // Phase 1: Batch-find LinkedIn URLs for contacts that don't have one
+        const needsLinkedIn = contacts.filter(c => !c.linkedinUrl);
+        console.log(`🔍 Finding LinkedIn URLs for ${needsLinkedIn.length} contacts...`);
+
+        const LINKEDIN_BATCH = 20; // 20 names per Apify Google Search run
+        for (let i = 0; i < needsLinkedIn.length; i += LINKEDIN_BATCH) {
+          const batch = needsLinkedIn.slice(i, i + LINKEDIN_BATCH);
+          const linkedinMap = await findLinkedInUrls(batch.map(c => c.name));
+
+          // Save LinkedIn URLs to contacts + local array
+          const firestoreBatch = db.batch();
+          for (const c of batch) {
+            const linkedinUrl = linkedinMap.get(c.name);
+            if (linkedinUrl) {
+              c.linkedinUrl = linkedinUrl;
+              firestoreBatch.update(db.collection(COLLECTIONS.CONTACTS).doc(c.id), {
+                linkedinUrl, updatedAt: new Date().toISOString(),
+              });
+            }
+          }
+          await firestoreBatch.commit();
+
+          console.log(`LinkedIn batch ${Math.floor(i / LINKEDIN_BATCH) + 1}/${Math.ceil(needsLinkedIn.length / LINKEDIN_BATCH)}: found ${linkedinMap.size} URLs`);
+          await new Promise(r => setTimeout(r, 1000)); // small delay between batches
+        }
+
+        await jobRef.update({ status: "running" });
 
         let processed = 0;
         let found = 0;
 
         for (const contact of contacts) {
           try {
-            // Get org from Crunchbase if not already stored
-            let org = contact.company || "";
-            if (!org && contact.crunchbaseUrl) {
-              org = await getOrgFromCrunchbase(contact.crunchbaseUrl);
-              if (org) {
-                // Save org back to contact for future use
-                await db.collection(COLLECTIONS.CONTACTS).doc(contact.id).update({ company: org });
-              }
-            }
-
-            const result = await apolloMatchPerson(contact.name, org || undefined);
+            const org = contact.company || undefined;
+            const linkedin = contact.linkedinUrl || undefined;
+            const result = await apolloMatchPerson(contact.name, org, linkedin);
             processed++;
 
             if (result?.emails && result.emails.length > 0) {

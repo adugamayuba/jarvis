@@ -3,6 +3,8 @@ import { ScrapedContact } from "./apify";
 
 const APIFY_BASE = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
+// linkedin-profile-search-by-services: cheaper, no rate limits, large scale
+// linkedin-profile-search: supports more filters but hits LinkedIn rate limits
 const ACTOR = "harvestapi~linkedin-profile-search";
 
 export interface LinkedInSearchOptions {
@@ -111,13 +113,54 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
   const succeeded = await waitForRun(runId);
   if (!succeeded) throw new Error("LinkedIn scrape actor failed or timed out");
 
-  // Fetch all items — default limit is 999, use limit=0 or large number
+  // Log run stats to diagnose page count
+  try {
+    const runStats = await axios.get(`${APIFY_BASE}/actor-runs/${runId}`, { params: { token: APIFY_TOKEN } });
+    const stats = runStats.data?.data?.stats;
+    console.log(`LinkedIn run stats: requests=${stats?.requestsTotal}, items=${stats?.datasetItems}, computeUnits=${stats?.computeUnits}`);
+  } catch { /* ignore */ }
+
   const items = await axios.get(`${APIFY_BASE}/datasets/${datasetId}/items`, {
     params: { token: APIFY_TOKEN, format: "json", clean: true, limit: 10000 },
   });
 
-  const profiles = items.data as Array<Record<string, unknown>>;
+  let profiles = items.data as Array<Record<string, unknown>>;
   console.log(`LinkedIn scrape complete: ${profiles.length} profiles in dataset (expected up to ${maxItems})`);
+
+  // If only 1 page returned despite requesting more, paginate manually
+  if (profiles.length <= 25 && takePages > 1) {
+    console.log(`Only 1 page returned — running paginated fallback for ${takePages} pages...`);
+    const allProfiles: Array<Record<string, unknown>> = [...profiles];
+
+    for (let page = 2; page <= Math.min(takePages, 10); page++) {
+      try {
+        const pageInput = { ...input, startPage: page, takePages: 1, maxItems: 25 };
+        const pageRun = await axios.post(
+          `${APIFY_BASE}/acts/${ACTOR}/runs`,
+          pageInput,
+          { params: { token: APIFY_TOKEN }, timeout: 30_000 }
+        );
+        const pageRunId: string = pageRun.data.data.id;
+        const pageDatasetId: string = pageRun.data.data.defaultDatasetId;
+        const pageSucceeded = await waitForRun(pageRunId);
+        if (!pageSucceeded) break;
+
+        const pageItems = await axios.get(`${APIFY_BASE}/datasets/${pageDatasetId}/items`, {
+          params: { token: APIFY_TOKEN, format: "json", clean: true, limit: 50 },
+        });
+        const pageProfiles = pageItems.data as Array<Record<string, unknown>>;
+        if (pageProfiles.length === 0) break; // no more results
+        allProfiles.push(...pageProfiles);
+        console.log(`Page ${page}: ${pageProfiles.length} profiles (total: ${allProfiles.length})`);
+        await new Promise(r => setTimeout(r, 2000)); // small delay between runs
+      } catch (err) {
+        console.error(`Page ${page} failed:`, err instanceof Error ? err.message : err);
+        break;
+      }
+    }
+    profiles = allProfiles;
+    console.log(`Paginated total: ${profiles.length} profiles`);
+  }
 
   return profiles.map(p => {
     const firstName = (p.firstName as string) || "";

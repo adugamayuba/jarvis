@@ -20,6 +20,14 @@ export function parseLinkedInSearchUrl(url: string): LinkedInSearchOptions {
     const keywords = parsed.searchParams.get("keywords") || "";
     const geoUrn = parsed.searchParams.get("geoUrn") || "";
 
+    // IMPORTANT: Ignore the page parameter from the URL - always start from page 1
+    // LinkedIn URLs often have page=100 or other high numbers that don't work with scraping
+    console.log(`Parsing LinkedIn URL: ${url}`);
+    const pageParam = parsed.searchParams.get("page");
+    if (pageParam && parseInt(pageParam) > 1) {
+      console.log(`⚠️  URL has page=${pageParam} - ignoring and starting from page 1`);
+    }
+
     const geoMap: Record<string, string> = {
       "103644278": "United States",
       "101165590": "United Kingdom",
@@ -38,8 +46,11 @@ export function parseLinkedInSearchUrl(url: string): LinkedInSearchOptions {
       if (geoMap[id.trim()]) locations.push(geoMap[id.trim()]);
     }
 
+    console.log(`Parsed keywords: "${keywords}", locations: ${locations.join(", ") || "none"}`);
+
     const angelTerms = ["angel investor", "angel", "angel investing"];
     if (angelTerms.some(t => keywords.toLowerCase().includes(t))) {
+      console.log(`Using job title filter for angel investor search`);
       return {
         searchQuery: "",
         jobTitles: ["Angel Investor", "Angel Investor & Advisor", "Angel", "Angel Investor and Advisor", "Startup Investor"],
@@ -161,14 +172,19 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
 
       // Empty page = definitely no more results
       if (pageProfiles.length === 0) {
-        console.log(`LinkedIn scrape stopping: page ${page} returned 0 profiles`);
+        console.log(`LinkedIn scrape stopping: page ${page} returned 0 profiles (likely reached end of available results)`);
         break;
       }
       
       // Partial page = likely end of results, but continue for a few more tries
       if (pageProfiles.length < PROFILES_PER_PAGE) {
-        console.log(`LinkedIn scrape: page ${page} returned ${pageProfiles.length}/${PROFILES_PER_PAGE} (may be last page)`);
+        console.log(`LinkedIn scrape: page ${page} returned ${pageProfiles.length}/${PROFILES_PER_PAGE} (may be last page, continuing...)`);
         // Don't break immediately - the actor might have more on next page
+      }
+      
+      // If we got 0 new profiles (all duplicates), warn
+      if (added === 0 && pageProfiles.length > 0) {
+        console.log(`⚠️  Page ${page} had ${pageProfiles.length} profiles but all were duplicates`);
       }
 
       if (page < takePages) {

@@ -49,18 +49,27 @@ export async function apolloMatchPerson(
   // Last resort: name only
   attempts.push({ first_name: first, last_name: last, reveal_personal_emails: true });
 
-  for (const body of attempts) {
+  console.log(`Apollo matching: ${name} (LinkedIn: ${linkedinUrl ? "yes" : "no"}, Org: ${organizationName || "none"})`);
+
+  for (let i = 0; i < attempts.length; i++) {
+    const body = attempts[i];
     try {
+      console.log(`  Attempt ${i + 1}/${attempts.length}:`, JSON.stringify(body).substring(0, 150));
       const res = await axios.post(
         `${APOLLO_BASE}/people/match`,
         body,
         { headers: HEADERS(), timeout: 15_000 }
       );
       const result = extractPerson(res.data?.person, name, organizationName);
-      if (result) return result;
+      if (result) {
+        console.log(`  ✅ Match found: ${result.emails.join(", ")}`);
+        return result;
+      }
+      console.log(`  ⚠️  Response OK but no emails extracted`);
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
+        console.log(`  ❌ Attempt ${i + 1} failed: ${status} ${err.response?.data?.error || err.message}`);
         if (status === 429) throw new Error("RATE_LIMIT");
         if (status === 422 || status === 404) continue; // try next attempt
         if (status === 403) {
@@ -70,6 +79,7 @@ export async function apolloMatchPerson(
       }
     }
   }
+  console.log(`  ❌ No match found after ${attempts.length} attempts`);
   return null;
 }
 

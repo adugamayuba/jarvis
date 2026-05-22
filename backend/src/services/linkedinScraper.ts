@@ -116,9 +116,11 @@ async function fetchLinkedInPage(
   const runId: string = runRes.data.data.id;
   const datasetId: string = runRes.data.data.defaultDatasetId;
 
+  console.log(`LinkedIn page ${page}: run ${runId} started`);
+
   const succeeded = await waitForRun(runId);
   if (!succeeded) {
-    console.error(`LinkedIn page ${page}: actor run failed or timed out`);
+    console.error(`LinkedIn page ${page}: actor run ${runId} failed or timed out`);
     return [];
   }
 
@@ -157,9 +159,17 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
 
       console.log(`LinkedIn page ${page}: ${pageProfiles.length} raw, ${added} new (total: ${allProfiles.length})`);
 
-      // Empty page or partial page = no more results
-      if (pageProfiles.length === 0) break;
-      if (pageProfiles.length < PROFILES_PER_PAGE) break;
+      // Empty page = definitely no more results
+      if (pageProfiles.length === 0) {
+        console.log(`LinkedIn scrape stopping: page ${page} returned 0 profiles`);
+        break;
+      }
+      
+      // Partial page = likely end of results, but continue for a few more tries
+      if (pageProfiles.length < PROFILES_PER_PAGE) {
+        console.log(`LinkedIn scrape: page ${page} returned ${pageProfiles.length}/${PROFILES_PER_PAGE} (may be last page)`);
+        // Don't break immediately - the actor might have more on next page
+      }
 
       if (page < takePages) {
         await new Promise(r => setTimeout(r, 2000));

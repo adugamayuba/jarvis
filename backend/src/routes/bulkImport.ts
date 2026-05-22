@@ -225,9 +225,9 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
     // Fire and forget
     (async () => {
       try {
+        // Get ALL contacts (crunchbase + linkedin) that need enrichment
         const snap = await db.collection(COLLECTIONS.CONTACTS)
-          .where("source", "==", "crunchbase")
-          .limit(1500)
+          .limit(2500)
           .get();
 
         const contacts = snap.docs.map(d => ({

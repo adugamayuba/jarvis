@@ -1,0 +1,121 @@
+import axios from "axios";
+import { ScrapedContact } from "./apify";
+
+const APIFY_BASE = "https://api.apify.com/v2";
+const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
+const ACTOR = "harvestapi~linkedin-profile-search";
+
+export interface LinkedInSearchOptions {
+  searchQuery: string;
+  locations?: string[];
+  jobTitles?: string[];
+  maxItems?: number;
+  includeEmailSearch?: boolean; // $0.01/profile extra
+}
+
+// Parse LinkedIn search URL to extract keywords and location
+export function parseLinkedInSearchUrl(url: string): LinkedInSearchOptions {
+  try {
+    const parsed = new URL(url);
+    const keywords = parsed.searchParams.get("keywords") || "";
+    const geoUrn = parsed.searchParams.get("geoUrn") || "";
+
+    // Map common geoUrns to location names
+    const geoMap: Record<string, string> = {
+      "103644278": "United States",
+      "101165590": "United Kingdom",
+      "102454443": "Australia",
+      "101452733": "Canada",
+      "105646813": "India",
+      "90009549": "New York",
+      "102095887": "California",
+      "100473105": "Texas",
+      "100364837": "Singapore",
+    };
+
+    const locations: string[] = [];
+    const geoIds = geoUrn.replace(/[\[\]"]/g, "").split(",").filter(Boolean);
+    for (const id of geoIds) {
+      if (geoMap[id.trim()]) locations.push(geoMap[id.trim()]);
+    }
+
+    return { searchQuery: keywords, locations: locations.length > 0 ? locations : undefined };
+  } catch {
+    return { searchQuery: url };
+  }
+}
+
+async function waitForRun(runId: string): Promise<boolean> {
+  let status = "RUNNING";
+  let attempts = 0;
+  while ((status === "RUNNING" || status === "READY") && attempts < 120) {
+    await new Promise(r => setTimeout(r, 5000));
+    try {
+      const s = await axios.get(`${APIFY_BASE}/actor-runs/${runId}`, { params: { token: APIFY_TOKEN } });
+      status = s.data.data.status;
+    } catch { /* keep polling */ }
+    attempts++;
+    if (attempts % 6 === 0) {
+      console.log(`LinkedIn scrape: ${status} (${attempts * 5}s elapsed)`);
+    }
+  }
+  return status === "SUCCEEDED";
+}
+
+export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Promise<ScrapedContact[]> {
+  if (!APIFY_TOKEN) throw new Error("APIFY_API_TOKEN not set");
+
+  const input: Record<string, unknown> = {
+    searchQuery: options.searchQuery,
+    profileScraperMode: options.includeEmailSearch ? "Full + email search" : "Short",
+    takePages: 100,
+    maxItems: options.maxItems || 2500,
+  };
+
+  if (options.locations && options.locations.length > 0) {
+    input.locations = options.locations;
+  }
+  if (options.jobTitles && options.jobTitles.length > 0) {
+    input.currentJobTitles = options.jobTitles;
+  }
+
+  console.log(`🔍 LinkedIn scrape: "${options.searchQuery}" in ${options.locations?.join(", ") || "worldwide"}`);
+
+  const runRes = await axios.post(
+    `${APIFY_BASE}/acts/${ACTOR}/runs`,
+    input,
+    { params: { token: APIFY_TOKEN }, timeout: 30_000 }
+  );
+
+  const runId: string = runRes.data.data.id;
+  const datasetId: string = runRes.data.data.defaultDatasetId;
+  console.log(`LinkedIn actor started: ${runId}`);
+
+  const succeeded = await waitForRun(runId);
+  if (!succeeded) throw new Error("LinkedIn scrape actor failed or timed out");
+
+  const items = await axios.get(`${APIFY_BASE}/datasets/${datasetId}/items`, {
+    params: { token: APIFY_TOKEN, format: "json", clean: true },
+  });
+
+  const profiles = items.data as Array<Record<string, unknown>>;
+  console.log(`LinkedIn scrape complete: ${profiles.length} profiles found`);
+
+  return profiles.map(p => {
+    const firstName = (p.firstName as string) || "";
+    const lastName = (p.lastName as string) || "";
+    const currentPos = (p.currentPosition as Array<{ companyName?: string }>) || [];
+    const company = currentPos[0]?.companyName || "";
+
+    return {
+      name: [firstName, lastName].filter(Boolean).join(" ") || "Unknown",
+      email: (p.email as string) || "",
+      oneLiner: (p.headline as string) || "",
+      title: (p.headline as string) || "",
+      company,
+      linkedinUrl: (p.linkedinUrl as string) || "",
+      crunchbaseUrl: "",
+      profileImageUrl: (p.photo as string) || (p.profilePicture as Record<string, string>)?.url || "",
+    };
+  });
+}

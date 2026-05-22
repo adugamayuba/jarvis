@@ -143,7 +143,7 @@ export default function ScraperPage() {
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.crunchbase.com/lists/..."
+              placeholder="Crunchbase list URL or LinkedIn search URL..."
               className="flex-1 bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-9"
             />
             <Button

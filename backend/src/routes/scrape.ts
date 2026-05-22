@@ -3,6 +3,7 @@ import { Router, Request, Response } from "express";
 interface JobIdParams extends Record<string, string> { jobId: string }
 import { z } from "zod";
 import { scrapeCrunchbaseDirect } from "../services/crunchbase";
+import { scrapeLinkedInSearch, parseLinkedInSearchUrl } from "../services/linkedinScraper";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { Contact, ScrapeJob } from "../types";
 
@@ -43,6 +44,9 @@ router.post("/", async (req: Request, res: Response) => {
 
         if (source === "crunchbase") {
           contacts = await scrapeCrunchbaseDirect(url);
+        } else if (source === "linkedin") {
+          const options = parseLinkedInSearchUrl(url);
+          contacts = await scrapeLinkedInSearch(options);
         } else {
           throw new Error(`Source '${source}' not yet supported`);
         }

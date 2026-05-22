@@ -60,12 +60,19 @@ export async function apolloMatchPerson(
         body,
         { headers: HEADERS(), timeout: 15_000 }
       );
-      const result = extractPerson(res.data?.person, name, organizationName);
+      
+      // Log what we got back
+      const person = res.data?.person;
+      if (person) {
+        console.log(`  📋 Person found: ${person.first_name} ${person.last_name}, email: ${person.email || "NONE"}, personal_emails: ${person.personal_emails?.length || 0}`);
+      }
+      
+      const result = extractPerson(person, name, organizationName);
       if (result) {
         console.log(`  ✅ Match found: ${result.emails.join(", ")}`);
         return result;
       }
-      console.log(`  ⚠️  Response OK but no emails extracted`);
+      console.log(`  ⚠️  Person found but no emails extracted`);
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;

@@ -3,7 +3,10 @@ import { ScrapedContact } from "./apify";
 
 const APIFY_BASE = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
+// Primary actor - best quality but has free tier limits
 const ACTOR = "harvestapi~linkedin-profile-search";
+// Fallback actor if primary hits limits
+const FALLBACK_ACTOR = "curious_coder~linkedin-jobs-scraper";
 const PROFILES_PER_PAGE = 25;
 
 export interface LinkedInSearchOptions {

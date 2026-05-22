@@ -48,10 +48,12 @@ cp .env.example .env.local  # set NEXT_PUBLIC_API_URL=http://localhost:8080
 
 ### 3. Get API keys
 
-| Service | Where to get it |
-|---------|----------------|
-| Apify | [console.apify.com](https://console.apify.com/account/integrations) |
-| Gmail OAuth2 | See below |
+| Service | Where to get it | Notes |
+|---------|----------------|-------|
+| Apify | [console.apify.com](https://console.apify.com/account/integrations) | **Paid plan required** for LinkedIn scraping (free tier limits to 10 runs) |
+| Gmail OAuth2 | See below | Free |
+| Apollo.io | [apollo.io](https://app.apollo.io/#/settings/integrations/api) | **Paid plan required** for email enrichment (Basic $49/mo minimum) |
+| Hunter.io | [hunter.io](https://hunter.io/api) | Free tier available (25 searches/month) |
 
 ### 4. Set up Gmail OAuth2 (one-time)
 
@@ -92,6 +94,14 @@ Open [http://localhost:3000](http://localhost:3000)
 ---
 
 ## Deployment
+
+### Important: API Requirements
+
+Before deploying, ensure you have:
+- ✅ **Apify Paid Plan** ($49+/mo) — Free tier limits to 10 actor runs, blocking LinkedIn scraping
+- ✅ **Apollo.io Basic Plan** ($49/mo) — Required for email enrichment via `people/match` endpoint
+- ✅ **Gmail OAuth2** (free) — For sending emails
+- ⚠️ **Hunter.io** (optional) — Free tier works but limited to 25 searches/month
 
 ### Backend → Railway
 

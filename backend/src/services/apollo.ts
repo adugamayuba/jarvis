@@ -36,28 +36,45 @@ export async function apolloMatchPerson(
   const { first, last } = splitName(name);
 
   // Build attempts in order of confidence
-  const attempts: Record<string, unknown>[] = [];
+  // According to Apollo docs, params should be query parameters, not body
+  const attempts: Array<{ params: Record<string, string> }> = [];
 
   if (linkedinUrl) {
     // Most reliable: LinkedIn URL uniquely identifies the person
-    attempts.push({ linkedin_url: linkedinUrl, reveal_personal_emails: true });
-    attempts.push({ first_name: first, last_name: last, linkedin_url: linkedinUrl, reveal_personal_emails: true });
+    attempts.push({ 
+      params: { 
+        linkedin_url: linkedinUrl, 
+        reveal_personal_emails: "true" 
+      } 
+    });
   }
-  if (organizationName) {
-    attempts.push({ first_name: first, last_name: last, organization_name: organizationName, reveal_personal_emails: true });
+  if (first && last) {
+    const baseParams: Record<string, string> = { 
+      first_name: first, 
+      last_name: last, 
+      reveal_personal_emails: "true" 
+    };
+    if (linkedinUrl) {
+      attempts.push({ params: { ...baseParams, linkedin_url: linkedinUrl } });
+    }
+    if (organizationName) {
+      attempts.push({ params: { ...baseParams, organization_name: organizationName } });
+    }
+    // Last resort: name only
+    attempts.push({ params: baseParams });
   }
-  // Last resort: name only
-  attempts.push({ first_name: first, last_name: last, reveal_personal_emails: true });
 
   console.log(`Apollo matching: ${name} (LinkedIn: ${linkedinUrl ? "yes" : "no"}, Org: ${organizationName || "none"})`);
 
   for (let i = 0; i < attempts.length; i++) {
-    const body = attempts[i];
+    const { params } = attempts[i];
     try {
-      console.log(`  Attempt ${i + 1}/${attempts.length}:`, JSON.stringify(body).substring(0, 150));
+      const paramsStr = new URLSearchParams(params).toString();
+      console.log(`  Attempt ${i + 1}/${attempts.length}: ${paramsStr.substring(0, 120)}`);
+      
       const res = await axios.post(
-        `${APOLLO_BASE}/people/match`,
-        body,
+        `${APOLLO_BASE}/people/match?${paramsStr}`,
+        {},  // Empty body - all params go in URL
         { headers: HEADERS(), timeout: 15_000 }
       );
       
@@ -122,9 +139,16 @@ export async function apolloTestConnection(): Promise<{ ok: boolean; message: st
   if (!APOLLO_KEY) return { ok: false, message: "APOLLO_API_KEY not set in Railway" };
 
   try {
+    const params = new URLSearchParams({
+      first_name: "Mark",
+      last_name: "Cuban",
+      organization_name: "Dallas Mavericks",
+      reveal_personal_emails: "true"
+    });
+    
     const res = await axios.post(
-      `${APOLLO_BASE}/people/match`,
-      { first_name: "Mark", last_name: "Cuban", organization_name: "Dallas Mavericks", reveal_personal_emails: true },
+      `${APOLLO_BASE}/people/match?${params.toString()}`,
+      {},
       { headers: HEADERS(), timeout: 15_000 }
     );
     const person = res.data?.person;

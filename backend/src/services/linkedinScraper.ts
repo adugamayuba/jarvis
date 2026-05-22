@@ -201,10 +201,12 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
 
   console.log(`LinkedIn scrape complete: ${allProfiles.length} unique profiles`);
 
-  // Debug: log first profile to see what fields we're getting
+  // Debug: log sample profile to see what fields we're getting
   if (allProfiles.length > 0) {
-    console.log(`Sample profile fields:`, JSON.stringify(Object.keys(allProfiles[0]), null, 2));
-    console.log(`Sample profile data:`, JSON.stringify(allProfiles[0], null, 2));
+    const sample = allProfiles[0];
+    console.log(`Sample LinkedIn profile keys:`, Object.keys(sample));
+    console.log(`Sample linkedinUrl:`, sample.linkedinUrl || sample.profileUrl || "NONE");
+    console.log(`Sample data:`, JSON.stringify(sample, null, 2));
   }
 
   return allProfiles.slice(0, maxItems).map(p => {
@@ -212,6 +214,13 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
     const lastName = (p.lastName as string) || "";
     const currentPos = (p.currentPosition as Array<{ companyName?: string }>) || [];
     const company = currentPos[0]?.companyName || "";
+    
+    // Extract LinkedIn URL - try multiple field names
+    const linkedinUrl = (p.linkedinUrl as string) || 
+                        (p.profileUrl as string) || 
+                        (p.url as string) || 
+                        (p.linkedin as string) || 
+                        "";
 
     return {
       name: [firstName, lastName].filter(Boolean).join(" ") || "Unknown",
@@ -219,7 +228,7 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
       oneLiner: (p.headline as string) || "",
       title: (p.headline as string) || "",
       company,
-      linkedinUrl: (p.linkedinUrl as string) || (p.profileUrl as string) || "",
+      linkedinUrl,
       crunchbaseUrl: "",
       profileImageUrl: (p.photo as string) || (p.profilePicture as Record<string, string>)?.url || "",
     };

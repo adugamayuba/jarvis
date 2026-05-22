@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getContacts, deleteContact, deleteContacts } from "@/lib/api";
+import { getContacts, deleteContact, deleteContacts, updateContact, createInvestor } from "@/lib/api";
 import { Contact } from "@/types";
 import { toast } from "sonner";
 import {
@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   Download,
   Mail,
+  Copy,
+  Send,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -59,11 +62,17 @@ function ContactRow({
   selected,
   onSelect,
   onDelete,
+  onCopyEmails,
+  onMarkReachedOut,
+  onMoveToInvestors,
 }: {
   contact: Contact;
   selected: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onCopyEmails: () => void;
+  onMarkReachedOut: () => void;
+  onMoveToInvestors: () => void;
 }) {
   return (
     <tr className={cn(
@@ -128,14 +137,48 @@ function ContactRow({
         )}
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {contact.email && (
+            <button
+              onClick={onCopyEmails}
+              className="text-neutral-600 hover:text-white transition-colors p-1 hover:bg-neutral-700 rounded"
+              title="Copy all emails"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {!contact.emailSent && contact.email && (
+            <button
+              onClick={onMarkReachedOut}
+              className="text-neutral-600 hover:text-blue-400 transition-colors p-1 hover:bg-neutral-700 rounded"
+              title="Mark as reached out"
+            >
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {contact.emailSent && (
+            <button
+              onClick={onMoveToInvestors}
+              className="text-neutral-600 hover:text-emerald-400 transition-colors p-1 hover:bg-neutral-700 rounded"
+              title="Move to investor pipeline"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+            </button>
+          )}
           {contact.crunchbaseUrl && (
             <a href={contact.crunchbaseUrl} target="_blank" rel="noreferrer"
-              className="text-neutral-600 hover:text-neutral-400 transition-colors">
+              className="text-neutral-600 hover:text-neutral-400 transition-colors p-1">
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
-          <button onClick={onDelete} className="text-neutral-600 hover:text-red-400 transition-colors">
+          {contact.linkedinUrl && (
+            <a href={contact.linkedinUrl} target="_blank" rel="noreferrer"
+              className="text-neutral-600 hover:text-blue-400 transition-colors p-1"
+              title="LinkedIn profile">
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          <button onClick={onDelete} className="text-neutral-600 hover:text-red-400 transition-colors p-1">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -152,7 +195,7 @@ export default function ContactsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["contacts"],
-    queryFn: () => getContacts({ limit: 1000 }),
+    queryFn: () => getContacts({ limit: 5000 }),
   });
 
   const deleteMutation = useMutation({
@@ -171,6 +214,64 @@ export default function ContactsPage() {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Contact> }) => 
+      updateContact(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+
+  function copyEmails(contact: Contact) {
+    const emails = contact.emails && contact.emails.length > 0 
+      ? contact.emails.join(", ") 
+      : contact.email || "";
+    
+    if (!emails) {
+      toast.error("No emails to copy");
+      return;
+    }
+
+    navigator.clipboard.writeText(emails);
+    toast.success("Emails copied to clipboard", {
+      description: emails.length > 60 ? `${emails.substring(0, 60)}...` : emails
+    });
+  }
+
+  function markReachedOut(contact: Contact) {
+    updateMutation.mutate(
+      { id: contact.id, updates: { emailSent: true } },
+      {
+        onSuccess: () => {
+          toast.success(`Marked ${contact.name} as reached out`);
+        }
+      }
+    );
+  }
+
+  async function moveToInvestors(contact: Contact) {
+    // Create investor from contact
+    try {
+      const res = await createInvestor({
+        name: contact.name,
+        email: contact.email || "",
+        company: contact.company || "",
+        status: "replied" as const,
+        source: contact.source,
+        linkedinUrl: contact.linkedinUrl,
+        notes: `Moved from contacts on ${new Date().toLocaleDateString()}`,
+      });
+      
+      if (res.success) {
+        toast.success(`${contact.name} moved to investor pipeline`);
+        // Optionally delete from contacts
+        // deleteMutation.mutate(contact.id);
+      }
+    } catch (err) {
+      toast.error("Failed to move to investors");
+    }
+  }
 
   const contacts = data?.data || [];
 
@@ -317,6 +418,9 @@ export default function ContactsPage() {
                     selected={selected.has(contact.id)}
                     onSelect={() => toggleSelect(contact.id)}
                     onDelete={() => deleteMutation.mutate(contact.id)}
+                    onCopyEmails={() => copyEmails(contact)}
+                    onMarkReachedOut={() => markReachedOut(contact)}
+                    onMoveToInvestors={() => moveToInvestors(contact)}
                   />
                 ))}
               </tbody>

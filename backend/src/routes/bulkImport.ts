@@ -315,6 +315,12 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
           try {
             const org = contact.company || undefined;
             const linkedin = contact.linkedinUrl || undefined;
+            
+            // Debug log for contacts from LinkedIn source
+            if (!linkedin) {
+              console.log(`⚠️  Contact "${contact.name}" (${contact.id}) has no LinkedIn URL - will match by name only`);
+            }
+            
             const result = await apolloMatchPerson(contact.name, org, linkedin);
             processed++;
 

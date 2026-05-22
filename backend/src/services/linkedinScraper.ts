@@ -182,6 +182,12 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
 
   console.log(`LinkedIn scrape complete: ${allProfiles.length} unique profiles`);
 
+  // Debug: log first profile to see what fields we're getting
+  if (allProfiles.length > 0) {
+    console.log(`Sample profile fields:`, JSON.stringify(Object.keys(allProfiles[0]), null, 2));
+    console.log(`Sample profile data:`, JSON.stringify(allProfiles[0], null, 2));
+  }
+
   return allProfiles.slice(0, maxItems).map(p => {
     const firstName = (p.firstName as string) || "";
     const lastName = (p.lastName as string) || "";
@@ -194,7 +200,7 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
       oneLiner: (p.headline as string) || "",
       title: (p.headline as string) || "",
       company,
-      linkedinUrl: (p.linkedinUrl as string) || "",
+      linkedinUrl: (p.linkedinUrl as string) || (p.profileUrl as string) || "",
       crunchbaseUrl: "",
       profileImageUrl: (p.photo as string) || (p.profilePicture as Record<string, string>)?.url || "",
     };

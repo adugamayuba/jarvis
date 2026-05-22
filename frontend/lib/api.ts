@@ -208,7 +208,7 @@ export interface CsvContact {
 
 export interface EmailFinderJob {
   id: string;
-  status: "running" | "completed" | "failed";
+  status: "pending" | "finding_linkedin" | "running" | "completed" | "failed" | "cancelled";
   total: number;
   processed: number;
   found: number;

@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import axios from "axios";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { findEmailsForAllContacts } from "../services/emailFinder";
 import { apolloMatchPerson, apolloTestConnection } from "../services/apollo";
@@ -8,6 +9,19 @@ import { findLinkedInUrls } from "../services/linkedinFinder";
 interface IdParams extends Record<string, string> { jobId: string }
 
 const router = Router();
+
+function formatJobError(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { error?: { message?: string } | string } | undefined;
+    if (typeof data?.error === "string") return data.error;
+    if (data?.error && typeof data.error === "object" && data.error.message) {
+      return data.error.message;
+    }
+    return err.message || `HTTP ${err.response?.status ?? "error"}`;
+  }
+  return String(err ?? "Unknown error");
+}
 
 interface CsvContact {
   name: string;
@@ -235,13 +249,17 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
         const needsLinkedIn = contacts.filter(c => !c.linkedinUrl);
         console.log(`🔍 Finding LinkedIn URLs for ${needsLinkedIn.length} contacts...`);
 
-        const LINKEDIN_BATCH = 20; // 20 names per Apify Google Search run
+        const LINKEDIN_BATCH = 10; // 10 names per Apify Google Search run (more reliable)
+        let linkedinProcessed = 0;
+        let linkedinFound = 0;
+
         for (let i = 0; i < needsLinkedIn.length; i += LINKEDIN_BATCH) {
           const batch = needsLinkedIn.slice(i, i + LINKEDIN_BATCH);
           const linkedinMap = await findLinkedInUrls(batch.map(c => c.name));
 
-          // Save LinkedIn URLs to contacts + local array
+          // Save LinkedIn URLs — skip commit if batch is empty (empty batch throws)
           const firestoreBatch = db.batch();
+          let writes = 0;
           for (const c of batch) {
             const linkedinUrl = linkedinMap.get(c.name);
             if (linkedinUrl) {
@@ -249,12 +267,26 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
               firestoreBatch.update(db.collection(COLLECTIONS.CONTACTS).doc(c.id), {
                 linkedinUrl, updatedAt: new Date().toISOString(),
               });
+              writes++;
+              linkedinFound++;
             }
           }
-          await firestoreBatch.commit();
+          if (writes > 0) {
+            await firestoreBatch.commit();
+          }
 
-          console.log(`LinkedIn batch ${Math.floor(i / LINKEDIN_BATCH) + 1}/${Math.ceil(needsLinkedIn.length / LINKEDIN_BATCH)}: found ${linkedinMap.size} URLs`);
-          await new Promise(r => setTimeout(r, 1000)); // small delay between batches
+          linkedinProcessed += batch.length;
+          const batchNum = Math.floor(i / LINKEDIN_BATCH) + 1;
+          const totalBatches = Math.ceil(needsLinkedIn.length / LINKEDIN_BATCH);
+          console.log(`LinkedIn batch ${batchNum}/${totalBatches}: found ${linkedinMap.size}/${batch.length} URLs`);
+
+          await jobRef.update({
+            processed: linkedinProcessed,
+            found: linkedinFound,
+            progress: Math.round((linkedinProcessed / needsLinkedIn.length) * 50),
+          });
+
+          await new Promise(r => setTimeout(r, 1500));
         }
 
         await jobRef.update({ status: "running" });
@@ -315,7 +347,9 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
         });
         console.log(`✅ Apollo enrichment done: ${found}/${contacts.length} emails`);
       } catch (err) {
-        await jobRef.update({ status: "failed", error: err instanceof Error ? err.message : String(err) });
+        const error = formatJobError(err);
+        console.error("Apollo enrichment job failed:", error);
+        await jobRef.update({ status: "failed", error, completedAt: new Date().toISOString() });
       }
     })();
 

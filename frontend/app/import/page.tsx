@@ -63,21 +63,36 @@ function parseCsvContacts(csv: string): CsvContact[] {
 }
 
 function JobCard({ job, onRefresh, onCancel }: { job: EmailFinderJob; onRefresh: () => void; onCancel?: (id: string) => void }) {
+  const isActive = job.status === "running" || job.status === "finding_linkedin" || job.status === "pending";
+
   useEffect(() => {
-    if (job.status !== "running") return;
+    if (!isActive) return;
     const t = setInterval(onRefresh, 10_000);
     return () => clearInterval(t);
-  }, [job.status, onRefresh]);
+  }, [isActive, onRefresh]);
 
-  const pct = job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0;
+  const pct = job.progress ?? (job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0);
   const isCancelled = (job.status as string) === "cancelled";
+
+  const statusLabel =
+    job.status === "finding_linkedin" ? "Finding LinkedIn URLs" :
+    job.status === "running" ? "Enriching with Apollo" :
+    job.status;
+
+  const statusMessage =
+    job.status === "finding_linkedin" ? `Looking up LinkedIn profiles... ${pct}%` :
+    job.status === "running" ? `Finding emails via Apollo... ${pct}%` :
+    job.status === "completed" ? `Done — ${job.found} emails found out of ${job.total} contacts` :
+    job.status === "failed" ? `Failed: ${job.error || "Unknown error"}` :
+    job.status === "cancelled" ? "Cancelled" :
+    job.status;
 
   return (
     <div className="border border-neutral-800 rounded-xl p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            {job.status === "running" ? (
+            {isActive ? (
               <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
             ) : job.status === "completed" ? (
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -86,23 +101,19 @@ function JobCard({ job, onRefresh, onCancel }: { job: EmailFinderJob; onRefresh:
             ) : (
               <AlertCircle className="w-3.5 h-3.5 text-red-400" />
             )}
-            <span className={cn("text-[12px] font-medium capitalize",
-              job.status === "running" ? "text-amber-400" :
+            <span className={cn("text-[12px] font-medium",
+              isActive ? "text-amber-400" :
               job.status === "completed" ? "text-emerald-400" :
               isCancelled ? "text-neutral-500" : "text-red-400"
-            )}>{job.status}</span>
-            {job.status === "running" && onCancel && job.id && (
+            )}>{statusLabel}</span>
+            {isActive && onCancel && job.id && (
               <button onClick={() => onCancel(job.id!)}
                 className="ml-2 text-[11px] text-neutral-600 hover:text-red-400 transition-colors underline underline-offset-2">
                 Cancel
               </button>
             )}
           </div>
-          <p className="text-[13px] text-neutral-300">
-            {job.status === "running" ? `Finding emails... ${pct}% complete` :
-             job.status === "completed" ? `Done — ${job.found} emails found out of ${job.total} contacts` :
-             `Failed: ${job.error}`}
-          </p>
+          <p className="text-[13px] text-neutral-300">{statusMessage}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-2xl font-semibold text-white tabular-nums">{job.found ?? 0}</p>
@@ -489,9 +500,9 @@ export default function ImportPage() {
               {apolloTesting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Testing...</> : "Test API key"}
             </Button>
             <Button onClick={handleStartApollo}
-              disabled={apolloJobs.some(j => j.status === "running")}
+              disabled={apolloJobs.some(j => j.status === "running" || j.status === "finding_linkedin" || j.status === "pending")}
               className="bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] h-9 gap-1.5">
-              {apolloJobs.some(j => j.status === "running") ? (
+              {apolloJobs.some(j => j.status === "running" || j.status === "finding_linkedin" || j.status === "pending") ? (
                 <><Loader2 className="w-3.5 h-3.5 animate-spin" />Running...</>
               ) : (
                 <><Mail className="w-3.5 h-3.5" />Start Apollo enrichment</>

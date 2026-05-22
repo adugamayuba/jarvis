@@ -225,12 +225,12 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
     // Fire and forget
     (async () => {
       try {
-        // Get ALL contacts (crunchbase + linkedin) that need enrichment
+        // Get contacts that need enrichment (no email or empty email)
         const snap = await db.collection(COLLECTIONS.CONTACTS)
           .limit(2500)
           .get();
 
-        const contacts = snap.docs.map(d => ({
+        const allContacts = snap.docs.map(d => ({
           id: d.id,
           name: (d.data().name as string) || "",
           company: (d.data().company as string) || "",
@@ -239,6 +239,23 @@ router.post("/apollo-enrich", async (_req: Request, res: Response) => {
           linkedinUrl: (d.data().linkedinUrl as string) || "",
           location: (d.data().location as string) || "",
         })).filter(c => c.name);
+
+        // Only enrich contacts without an email
+        const contacts = allContacts.filter(c => !c.existingEmail || c.existingEmail.trim() === "");
+        console.log(`Apollo enrichment: ${contacts.length} contacts need emails (out of ${allContacts.length} total)`);
+
+        if (contacts.length === 0) {
+          await jobRef.update({
+            status: "completed",
+            total: 0,
+            processed: 0,
+            found: 0,
+            progress: 100,
+            completedAt: new Date().toISOString(),
+          });
+          console.log("Apollo enrichment: no contacts need enrichment");
+          return;
+        }
 
         await jobRef.update({
           status: "finding_linkedin",

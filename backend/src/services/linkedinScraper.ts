@@ -39,6 +39,16 @@ export function parseLinkedInSearchUrl(url: string): LinkedInSearchOptions {
       if (geoMap[id.trim()]) locations.push(geoMap[id.trim()]);
     }
 
+    // If the keyword is "angel investor", use job title filter instead (more results)
+    const angelTerms = ["angel investor", "angel", "angel investing"];
+    if (angelTerms.some(t => keywords.toLowerCase().includes(t))) {
+      return {
+        searchQuery: "",
+        jobTitles: ["Angel Investor", "Angel Investor & Advisor", "Angel", "Angel Investor and Advisor", "Startup Investor"],
+        locations: locations.length > 0 ? locations : undefined,
+      };
+    }
+
     return { searchQuery: keywords, locations: locations.length > 0 ? locations : undefined };
   } catch {
     return { searchQuery: url };
@@ -66,24 +76,27 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
   if (!APIFY_TOKEN) throw new Error("APIFY_API_TOKEN not set");
 
   const maxItems = options.maxItems || 1000;
-  const takePages = Math.min(Math.ceil(maxItems / 25), 100); // 25 profiles per page
+  const takePages = Math.min(Math.ceil(maxItems / 25), 100);
 
   const input: Record<string, unknown> = {
-    searchQuery: options.searchQuery || "",
-    profileScraperMode: "Short", // cheapest — $0.10/page, gets name + LinkedIn URL for Apollo
+    profileScraperMode: "Short",
     takePages,
     startPage: 1,
     maxItems,
   };
 
+  // Use job title filter for angel investors — more targeted than keyword search
+  if (options.jobTitles && options.jobTitles.length > 0) {
+    input.currentJobTitles = options.jobTitles;
+  } else if (options.searchQuery) {
+    input.searchQuery = options.searchQuery;
+  }
+
   if (options.locations && options.locations.length > 0) {
     input.locations = options.locations;
   }
-  if (options.jobTitles && options.jobTitles.length > 0) {
-    input.currentJobTitles = options.jobTitles;
-  }
 
-  console.log(`🔍 LinkedIn scrape: "${options.searchQuery}" in ${options.locations?.join(", ") || "worldwide"}`);
+  console.log(`🔍 LinkedIn scrape input:`, JSON.stringify(input, null, 2));
 
   const runRes = await axios.post(
     `${APIFY_BASE}/acts/${ACTOR}/runs`,
@@ -98,12 +111,13 @@ export async function scrapeLinkedInSearch(options: LinkedInSearchOptions): Prom
   const succeeded = await waitForRun(runId);
   if (!succeeded) throw new Error("LinkedIn scrape actor failed or timed out");
 
+  // Fetch all items — default limit is 999, use limit=0 or large number
   const items = await axios.get(`${APIFY_BASE}/datasets/${datasetId}/items`, {
-    params: { token: APIFY_TOKEN, format: "json", clean: true },
+    params: { token: APIFY_TOKEN, format: "json", clean: true, limit: 10000 },
   });
 
   const profiles = items.data as Array<Record<string, unknown>>;
-  console.log(`LinkedIn scrape complete: ${profiles.length} profiles found`);
+  console.log(`LinkedIn scrape complete: ${profiles.length} profiles in dataset (expected up to ${maxItems})`);
 
   return profiles.map(p => {
     const firstName = (p.firstName as string) || "";

@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Search, Star, Copy, ExternalLink, Instagram, Twitter, Download, RefreshCw } from "lucide-react";
+import { Loader2, Search, Star, Copy, ExternalLink, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import api from "@/lib/api";
+import axios from "axios";
 
 interface Influencer {
   id: string;
@@ -43,8 +43,8 @@ const NICHES = [
 ];
 
 function PlatformIcon({ platform }: { platform: string }) {
-  if (platform === "instagram") return <Instagram className="w-3.5 h-3.5 text-pink-400" />;
-  if (platform === "twitter") return <Twitter className="w-3.5 h-3.5 text-sky-400" />;
+  if (platform === "instagram") return <span className="text-[10px] font-bold text-pink-400">IG</span>;
+  if (platform === "twitter") return <span className="text-[10px] font-bold text-sky-400">X</span>;
   return <Star className="w-3.5 h-3.5 text-neutral-400" />;
 }
 
@@ -68,7 +68,7 @@ export default function InfluencerFinderPage() {
     queryKey: ["influencerJob", activeJobId],
     queryFn: async () => {
       if (!activeJobId) return null;
-      const res = await api.get(`/api/influencers/jobs/${activeJobId}`);
+      const res = await axios.get(`/api/influencers/jobs/${activeJobId}`);
       return res.data.data as SearchJob;
     },
     enabled: !!activeJobId,
@@ -82,7 +82,7 @@ export default function InfluencerFinderPage() {
   const { data: influencersData, refetch: refetchInfluencers } = useQuery({
     queryKey: ["influencers"],
     queryFn: async () => {
-      const res = await api.get("/api/influencers");
+      const res = await axios.get("/api/influencers");
       return res.data.data as Influencer[];
     },
   });
@@ -106,7 +106,7 @@ export default function InfluencerFinderPage() {
     if (platforms.length === 0) { toast.error("Select at least one platform"); return; }
     setSearching(true);
     try {
-      const res = await api.post("/api/influencers/search", {
+      const res = await axios.post("/api/influencers/search", {
         niche: niche.trim(),
         platforms,
         minFollowers: parseInt(minFollowers) || 10000,
@@ -191,16 +191,16 @@ export default function InfluencerFinderPage() {
           <label className="text-[11px] text-neutral-500 uppercase tracking-wider block mb-1.5">Platforms</label>
           <div className="flex gap-2">
             {[
-              { id: "instagram", label: "Instagram", icon: Instagram, color: "text-pink-400" },
-              { id: "twitter", label: "Twitter / X", icon: Twitter, color: "text-sky-400" },
-            ].map(({ id, label, icon: Icon, color }) => (
+              { id: "instagram", label: "Instagram", badge: "IG", color: "text-pink-400" },
+              { id: "twitter", label: "Twitter / X", badge: "X", color: "text-sky-400" },
+            ].map(({ id, label, badge, color }) => (
               <button key={id} onClick={() => togglePlatform(id)}
                 className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-medium transition-colors",
                   platforms.includes(id)
                     ? "border-white bg-neutral-800 text-white"
                     : "border-neutral-700 text-neutral-500 hover:border-neutral-600"
                 )}>
-                <Icon className={cn("w-3.5 h-3.5", platforms.includes(id) ? color : "text-neutral-600")} />
+                <span className={cn("text-[10px] font-bold", platforms.includes(id) ? color : "text-neutral-600")}>{badge}</span>
                 {label}
               </button>
             ))}

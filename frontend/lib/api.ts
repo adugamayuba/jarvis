@@ -24,7 +24,7 @@ api.interceptors.response.use(
 );
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export async function login(password: string): Promise<ApiResponse<{ token: string }>> {
+export async function login(password: string): Promise<ApiResponse<{ token: string; role: string }>> {
   const res = await api.post("/api/auth/login", { password });
   return res.data;
 }

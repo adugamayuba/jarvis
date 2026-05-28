@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { isLoggedIn } from "@/lib/auth";
+import { isLoggedIn, getRole } from "@/lib/auth";
+
+// Pages co-founders can access
+const COFOUNDER_ALLOWED = ["/influencers-finder", "/login"];
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -16,9 +19,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
     if (!isLoggedIn()) {
       router.replace("/login");
-    } else {
-      setChecked(true);
+      return;
     }
+    const role = getRole();
+    if (role === "cofounder" && !COFOUNDER_ALLOWED.some(p => pathname.startsWith(p))) {
+      router.replace("/influencers-finder");
+      return;
+    }
+    setChecked(true);
   }, [pathname, router]);
 
   if (!checked) return null;

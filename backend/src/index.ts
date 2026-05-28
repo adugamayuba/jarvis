@@ -10,6 +10,7 @@ import authRoutes from "./routes/auth";
 import aiRoutes from "./routes/ai";
 import investorsRoutes from "./routes/investors";
 import bulkImportRoutes from "./routes/bulkImport";
+import influencerRoutes from "./routes/influencers";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use("/api/import", bulkImportRoutes);
 app.use("/api/scrape", scrapeRoutes);
 app.use("/api/contacts", contactsRoutes);
 app.use("/api/email", emailRoutes);
+app.use("/api/influencers", influencerRoutes);
 
 // 404 & error handler
 app.use(notFound);

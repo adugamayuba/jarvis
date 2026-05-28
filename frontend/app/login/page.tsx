@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { setToken, setRole } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -22,7 +22,10 @@ export default function LoginPage() {
       const res = await login(password);
       if (res.success && res.data?.token) {
         setToken(res.data.token);
-        router.replace("/");
+        const role = res.data.role || "admin";
+        setRole(role as "admin" | "cofounder");
+        // Co-founders go straight to influencer finder
+        router.replace(role === "cofounder" ? "/influencers-finder" : "/");
       } else {
         setError(res.error || "Invalid password");
       }

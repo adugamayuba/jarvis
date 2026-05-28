@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Search, Users, Mail,
-  Send, LogOut, Zap, TrendingUp, Menu, X, Upload,
+  Send, LogOut, Zap, TrendingUp, Menu, X, Upload, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { clearToken } from "@/lib/auth";
+import { clearToken, getRole } from "@/lib/auth";
 
-const navItems = [
+const adminNavItems = [
   { href: "/jarvis", icon: Zap, label: "Jarvis AI" },
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/investors", icon: TrendingUp, label: "Investors" },
@@ -19,11 +19,18 @@ const navItems = [
   { href: "/contacts", icon: Users, label: "Contacts" },
   { href: "/campaigns", icon: Mail, label: "Campaigns" },
   { href: "/bulk", icon: Send, label: "Bulk Send" },
+  { href: "/influencers-finder", icon: Star, label: "Influencers" },
+];
+
+const cofounderNavItems = [
+  { href: "/influencers-finder", icon: Star, label: "Influencer Finder" },
 ];
 
 function NavLinks({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const role = getRole();
+  const navItems = role === "cofounder" ? cofounderNavItems : adminNavItems;
 
   function handleLogout() {
     clearToken();
@@ -32,6 +39,11 @@ function NavLinks({ onClose }: { onClose?: () => void }) {
 
   return (
     <>
+      {role === "cofounder" && (
+        <div className="px-4 py-3 border-b border-neutral-800/60">
+          <p className="text-[11px] text-neutral-600 uppercase tracking-widest">Co-founder Access</p>
+        </div>
+      )}
       <nav className="flex-1 px-2 py-3 space-y-px">
         {navItems.map(({ href, icon: Icon, label }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);

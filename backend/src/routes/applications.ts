@@ -96,7 +96,78 @@ router.get("/accelerators", (_req: Request, res: Response) => {
   res.json({ success: true, data: list });
 });
 
-// POST /api/applications/analyze — analyze a form and return field preview
+// GET /api/applications/profile — return Reelin AI profile for extension
+router.get("/profile", (_req: Request, res: Response) => {
+  const { analyzeApplicationForm: _, submitApplicationForm: __, ...rest } = { analyzeApplicationForm: null, submitApplicationForm: null };
+  void rest;
+  const { REELIN_PROFILE } = require("../services/browser");
+  res.json({ success: true, data: REELIN_PROFILE });
+});
+
+// POST /api/applications/map-fields — used by Chrome extension to AI-map fields
+router.post("/map-fields", async (req: Request, res: Response) => {
+  try {
+    const { fields, pageTitle, pageText } = req.body as {
+      fields: Array<{ label: string; type: string; selector: string; required: boolean; options?: string[]; name?: string }>;
+      pageTitle: string;
+      pageText: string;
+    };
+
+    if (!fields || fields.length === 0) {
+      res.status(400).json({ success: false, error: "fields required" });
+      return;
+    }
+
+    const OpenAI = require("openai");
+    const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
+    const { REELIN_PROFILE } = require("../services/browser");
+
+    const profile = JSON.stringify(REELIN_PROFILE, null, 2);
+
+    // Batch map all fields in one OpenAI call
+    const fieldDescriptions = fields.map((f, i) =>
+      `${i}. Label: "${f.label}" | Type: ${f.type}${f.options?.length ? ` | Options: [${f.options.join(", ")}]` : ""}`
+    ).join("\n");
+
+    const prompt = `You are filling out an accelerator application for Reelin AI.
+
+REELIN AI PROFILE:
+${profile}
+
+PAGE: "${pageTitle}"
+CONTEXT: ${pageText.substring(0, 500)}
+
+FORM FIELDS:
+${fieldDescriptions}
+
+For each field (0 to ${fields.length - 1}), provide the best value to fill in.
+- For radio/select: choose the exact option text from the options list
+- For text: write concise, compelling answers using the profile
+- For checkboxes: return "true" or "false"
+
+Respond with JSON: { "values": ["value0", "value1", ...] }`;
+
+    const res2 = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+    });
+
+    const json = JSON.parse(res2.choices[0].message.content || "{}");
+    const values: string[] = json.values || [];
+
+    const mappedFields = fields.map((f, i) => ({
+      ...f,
+      suggestedValue: values[i] || "",
+    }));
+
+    res.json({ success: true, data: { fields: mappedFields } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 router.post("/analyze", async (req: Request, res: Response) => {
   const { url } = req.body as { url: string };
   if (!url) { res.status(400).json({ success: false, error: "url required" }); return; }

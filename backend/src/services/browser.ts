@@ -47,7 +47,7 @@ export const REELIN_PROFILE = {
 
   marketTiming: "The market is at an inflection point. Hardware acceleration breakthroughs make running dense, continuous agent simulations economically viable. Culturally, consumer fatigue with static feeds is driving a massive shift toward hyper-personalized, interactive synthetic media. Additionally, the recent venture capital momentum pouring into the consumer AI space signals massive market validation.",
 
-  founded: "2024",
+  founded: "December 2025",
   hq: "New York, United States",
   city: "New York",
   state: "New York",

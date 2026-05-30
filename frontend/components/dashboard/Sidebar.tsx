@@ -14,6 +14,7 @@ const adminNavItems = [
   { href: "/jarvis", icon: Zap, label: "Jarvis AI" },
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/investors", icon: TrendingUp, label: "Investors" },
+  { href: "/applications", icon: Send, label: "Applications" },
   { href: "/import", icon: Upload, label: "Import & Emails" },
   { href: "/scraper", icon: Search, label: "Scraper" },
   { href: "/contacts", icon: Users, label: "Contacts" },

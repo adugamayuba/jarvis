@@ -314,7 +314,7 @@ export default function ApplicationsPage() {
             <div className="border border-neutral-800 rounded-xl overflow-hidden">
               <div className="px-4 py-2 border-b border-neutral-800 flex items-center justify-between">
                 <p className="text-[12px] text-neutral-400 font-medium">{preview.title}</p>
-                <a href={url} target="_blank" rel="noreferrer"
+                <a href={resolvedUrl} target="_blank" rel="noreferrer"
                   className="text-[11px] text-neutral-600 hover:text-white flex items-center gap-1 transition-colors">
                   <ExternalLink className="w-3 h-3" /> Open page
                 </a>

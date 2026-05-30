@@ -10,7 +10,7 @@ const APIFY_BASE = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 
 export const ABEL_PROFILE = `
-ABOUT ABEL ADUGAM AYUBA NIBORI (your owner):
+ABOUT ABEL ADUGAM (your owner):
 - Full name: Abel Adugam Ayuba Nibori
 - Founder, Director & CEO of Softdroom Holdings (Singapore HQ, founded 2019)
 - GitHub Expert, GitLab Hero — led 144+ open source contributors
@@ -19,21 +19,26 @@ ABOUT ABEL ADUGAM AYUBA NIBORI (your owner):
 - Interests: chess, astrophysics, learning German
 - Email: adugamhq@gmail.com | abel@softdroom.com
 - Website: adugam.com | GitHub: github.com/adugamayuba
+- Previously founded and successfully exited Versuspay Inc (fintech)
 
-REELIN AI (Primary Focus — Raising $10M):
-- The world's first autonomous AI social network
-- Users share selfies, voice notes, messages → AI generates a high-fidelity digital twin in 60 seconds
-- The twin lives 24/7 in a persistent shared simulation, meets other twins, develops a social life autonomously
-- Daily 60–90 second cinematic 4K video reels show what your twin did
-- Users interact via one daily voice/text check-in
-- Features: Drama Feed, Daily Reels, WhatsApp updates, autopilot posting to TikTok/Instagram/X
-- Freemium: $34.99–$129.99/month subscription tiers
+REELIN AI (Primary Focus — Raising $10M Seed at $50M valuation):
+- One-liner: "The world's first autonomous AI social network powered by identity forking — users spawn AI Twins that live, network, and simulate interactions with zero manual control."
+- Core concept: Identity forking — users create autonomous AI Twins that are hyper-realistic digital extensions of themselves
+- Twins operate in a proprietary simulation architecture, interacting and networking 24/7 with zero manual user control
+- Twins generate viral digital assets independently, acting as organic customer acquisition nodes
+- Vertically integrating own inference engine to power millions of parallel agent simulations
 - App Store: live on iOS
 - Website: reelin.ai
-- Backed by early investors of Figure AI
+- Active users: 251, growing 100% organically through word-of-mouth
 - Pre-seed: $100K from Mark Cuban (Shark Tank / Dallas Mavericks owner)
-- NOW RAISING: $10M seed round — angel checks from $3K upwards
+- NOW RAISING: $10M seed round at $50M valuation — $500K already soft-circled from angels and follower funds
+- Angel checks from $3K upwards welcome
 - No LinkedIn access — using Crunchbase, email outreach, cold research
+- Competitors: Character.ai, Replika — but all are passive chat wrappers; Reelin AI is the ONLY autonomous synthetic social graph
+
+TEAM:
+- Abel Adugam — Founder & CEO. Serial founder (exited Versuspay Inc fintech). GitHub Expert, GitLab Hero. Unmatched execution velocity.
+- Ligia Tica — Co-founder & Operations. Originally invested in Abel's previous company. Expert in UI/UX, digital media, viral distribution.
 
 SOFTDROOM HOLDINGS (Cash Machine Strategy):
 - Global conglomerate HQ'd in Singapore (7 Temasek Blvd, Suntec Tower)
@@ -54,16 +59,15 @@ SUBSIDIARIES:
 9. Versuspay Inc — Fintech (SUCCESSFULLY EXITED 2025)
 
 FUNDRAISING STRATEGY:
-- Primary target: Angel investors writing $3K–$500K checks for Reelin AI
-- Story: Mark Cuban backed us at pre-seed ($100K). Now scaling to $10M seed.
-- Pitch: AI social networking is the next platform shift. Reelin gives everyone an AI twin.
+- Primary target: Angel investors writing $3K–$500K checks for Reelin AI seed round
+- Story: Mark Cuban backed us at pre-seed ($100K). Now structuring $10M seed at $50M valuation. $500K soft-circled.
+- Pitch: Identity forking is the next platform shift. Reelin gives everyone an autonomous AI twin.
 - TARGET INVESTORS: US-based angels and seed funds (primary focus), UK and Singapore angels (secondary)
-- NOT focused on Africa — Reelin AI is a global product targeting US market first
-- Pre-seed DONE: $100K from Mark Cuban ✓ 
-- Seed round in progress: $20K verbal commitment from Dominik so far
-- Previously found investors via LinkedIn (lost account) → now using Crunchbase, Twitter, web research, cold email
-- Jarvis should find investors, research them, personalize outreach, and send emails from adugamhq@gmail.com
-`.trim();
+- NO Africa-based investors (Abel's explicit instruction)
+`;
+
+
+
 
 const SYSTEM_PROMPT = `You are Jarvis — Abel Adugam's personal AI chief of staff and execution engine.
 

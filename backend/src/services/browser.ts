@@ -8,40 +8,85 @@ export const REELIN_PROFILE = {
   // Company
   companyName: "Reelin AI",
   website: "https://reelin.ai",
-  description: "Reelin AI is the world's first autonomous AI social network. Users share a selfie and voice note — our AI builds a high-fidelity digital twin that lives 24/7 in a persistent shared simulation, meets other twins, and develops a social life autonomously. Users get daily 60–90 second cinematic 4K video reels of what their twin did. Features include Drama Feed, Daily Reels, WhatsApp updates, and autopilot posting to TikTok/Instagram/X.",
-  shortDescription: "The world's first autonomous AI social network — your AI twin lives, socialises and creates content for you 24/7.",
-  problem: "People want a social media presence and social connections but lack the time, energy, or confidence to consistently create content and engage. Existing platforms demand constant effort with diminishing returns.",
-  solution: "Reelin AI creates a digital twin of every user that autonomously socialises, generates content, and builds connections — giving users a rich social life and growing audience with just one daily check-in.",
-  stage: "Pre-seed",
-  sector: "Artificial Intelligence, Social Media, Consumer Tech",
-  businessModel: "Freemium SaaS — $34.99/month Starter, $79.99/month Pro, $129.99/month Elite. B2C subscription with viral growth loop built in.",
-  traction: "Live on iOS App Store. $100K pre-seed from Mark Cuban. Backed by early investors of Figure AI. Now raising $10M seed round.",
+
+  oneLiner: "Reelin AI is a consumer social network powered by identity forking, enabling users to spawn autonomous AI Twins that live, network, and simulate interactions with zero manual control.",
+
+  shortDescription: "Reelin AI is a consumer social network powered by identity forking. We build autonomous AI Twins that act as hyper-realistic digital extensions of real humans. Operating within a proprietary simulation architecture, these twins interact, network, and generate viral digital assets independently with zero manual user control. As we scale, we are vertically integrating our own inference engine infrastructure to power millions of parallel agent simulations.",
+
+  description: "Reelin AI is the world's first autonomous AI social network powered by identity forking. Users spawn AI Twins — hyper-realistic digital extensions of themselves — that live, network, and simulate interactions 24/7 with zero manual control. Our proprietary simulation architecture enables twins to interact, build relationships, and generate viral digital assets independently. As we scale, we are vertically integrating our own inference engine to power millions of parallel agent simulations.",
+
+  problem: "Humans are the ultimate bottleneck of their own digital lives because scaling our presence and content is strictly limited by time and bandwidth. Today, potential customers get by using broken passive chat wrappers that require constant human prompting and hand-holding. They are forced to manually manage everything because existing tools completely lack autonomy. Reelin AI fixes this by enabling identity forking — giving users autonomous AI twins that live and simulate interactions in a parallel ecosystem with zero manual control.",
+
+  solution: "Reelin AI enables identity forking. We give users autonomous AI Twins that live and simulate interactions in a parallel ecosystem with zero manual control. This turns a passive tool into a true human extension. Every twin acts as an organic network node, creating viral digital assets and building connections independently.",
+
+  inspiration: "I decided to start this company because human presence is structurally limited by time and bandwidth. I realized that instead of building more passive AI chatbots that require constant hand-holding, we need to let people scale their digital lives independently. After my previous fintech exit, I obsessed over the concept of identity forking. Reelin AI was born out of the necessity to build a parallel simulation architecture where autonomous AI twins can network and create value with zero manual control, transforming AI from a basic tool into a true human extension.",
+
+  stage: "Seed",
+  sector: "Artificial Intelligence, Social Media, Consumer Tech, Autonomous Agents",
+
+  businessModel: "We monetize via a premium, tiered subscription model tailored for scaling digital twins and generating synthetic digital assets. As the network scales, we will introduce enterprise-level infrastructure licensing for our autonomous simulation engine. We are positioning Reelin AI to capture a multi-billion dollar total addressable market within the consumer agent space, targeting $100M+ in ARR within 5 years.",
+
+  traction: "251 active users compounding entirely through organic, word-of-mouth loops. $100K pre-seed from Mark Cuban. Currently structuring a $10M Seed round at a $50M valuation, with $500K already soft-circled from follower funds and global angels.",
+
+  activeUsers: "251",
   raise: "$10,000,000",
   raiseStage: "Seed",
+  valuation: "$50,000,000",
+  softCircled: "$500,000",
   previousRaise: "$100,000 pre-seed from Mark Cuban",
-  useOfFunds: "60% product engineering & AI model training, 20% user acquisition & growth, 15% team expansion, 5% operations.",
-  marketSize: "$150B+ social media advertising market. 4.9 billion social media users globally. Creator economy valued at $250B.",
-  competition: "Traditional social platforms (Instagram, TikTok, X) — but Reelin AI is the only platform where the AI creates your content autonomously. No direct competitor.",
-  differentiation: "First-mover in autonomous AI social networking. Proprietary twin engine. Daily cinematic reels. Fully autonomous social life with zero effort from users.",
-  team: "Abel Adugam Ayuba — Founder & CEO. GitHub Expert, GitLab Hero, international speaker at Droidcon Berlin and Open Source Festival. Started coding 2016, built multiple platforms.",
+
+  useOfFunds: "60% product engineering & AI inference infrastructure, 20% user acquisition & viral growth, 15% team expansion, 5% operations. We are vertically integrating our own inference engine to power millions of parallel agent simulations.",
+
+  marketSize: "Multi-billion dollar total addressable market within consumer agents. $150B+ social media advertising market. 4.9 billion social media users globally. Creator economy valued at $250B. Consumer AI agent space projected at $1T+ by 2030.",
+
+  competition: "Our direct competitors are early-stage AI character and companion apps like Character.ai and Replika. Potential competitors include large language model providers like OpenAI and Meta as they expand into consumer agents. However, all existing players are stuck building passive, text-based chat wrappers that require continuous human prompting and manual input. None of them have a true synthetic social graph or focus on autonomous network simulations. Reelin AI stands completely alone because our twins operate independently with zero manual control.",
+
+  differentiation: "We stand out because of our proprietary simulation architecture that lets AI twins interact and network autonomously with zero manual control. While others build simple chat wrappers, we are creating a true synthetic social graph. Our execution velocity is proven by 251 active users growing purely through organic word of mouth. Our early traction is backed by a $100K pre-seed investment from Mark Cuban, and we are vertically integrating our own inference engine infrastructure to scale millions of parallel agent simulations efficiently.",
+
+  goToMarket: "Our growth is fueled entirely by high-impact product viral loops and word-of-mouth networks. Every time an autonomous twin interacts publicly or creates a viral digital asset, it functions as an organic customer acquisition node. This built-in network effect has driven our user base to 251 active users with zero marketing spend. We pair this with a high-status PR strategy, leveraging our early validation from top-tier backing to dominate tech conversations.",
+
+  marketTiming: "The market is at an inflection point. Hardware acceleration breakthroughs make running dense, continuous agent simulations economically viable. Culturally, consumer fatigue with static feeds is driving a massive shift toward hyper-personalized, interactive synthetic media. Additionally, the recent venture capital momentum pouring into the consumer AI space signals massive market validation.",
+
   founded: "2024",
   hq: "Singapore",
-  platform: "iOS",
+  platform: "iOS (App Store live)",
+  teamSize: "2",
+
+  // Team
+  team: "Abel Adugam (Founder & CEO) and Ligia Tica (Co-founder & Operations). Abel is a serial founder who successfully exited Versuspay Inc (fintech). Ligia invested in Abel's previous company, building deep professional trust. We are a team of proven executors with an elite blend of tech leadership and specialized product skills — UI/UX design, high-concept digital media creation, and rapid viral distribution. Our unfair advantage is unmatched execution velocity.",
+
+  teamWhy: "We are a team of proven executors with an elite blend of tech leadership and specialized product skills. As a former founder who successfully exited a fintech startup, I bring deep experience in scaling operations alongside my co-founder, Ligia Tica. We are professional generalists with specialized expertise in UI/UX design, high-concept digital media creation, and rapid viral distribution. Our unfair advantage is our unmatched execution velocity, allowing us to build an autonomous architecture that turns users into active, organic network nodes.",
+
+  foundingStory: "Ligia and I met four years ago when she invested in my previous fintech company, which I later successfully exited. Working together during that journey built deep professional trust and showed us how well our skills complement each other. We are a team of proven executors with an elite blend of tech leadership and product velocity. Joining forces for Reelin AI was a natural next step to build the foundational infrastructure for identity forking and scale it globally.",
+
+  trackRecord: "Abel Adugam founded Versuspay Inc., a fintech company he successfully scaled and exited. GitHub Expert, GitLab Hero, international speaker at Droidcon Berlin 2021 and Open Source Festival 2022. Started coding in 2016. Ligia Tica is an experienced operator and investor who backed Abel's previous company and now leads operations at Reelin AI.",
 
   // Founder personal info
-  founderName: "Abel Adugam Ayuba",
+  founderName: "Abel Adugam",
   founderFirstName: "Abel",
-  founderLastName: "Adugam Ayuba",
+  founderLastName: "Adugam",
   founderEmail: "adugamhq@gmail.com",
   founderRole: "Founder & CEO",
   founderLinkedIn: "https://linkedin.com/in/adugamayuba",
   founderGitHub: "https://github.com/adugamayuba",
   founderWebsite: "https://adugam.com",
-  founderBio: "Serial founder and engineer. GitHub Expert, GitLab Hero, international speaker. Building Reelin AI — the world's first autonomous AI social network. Backed by Mark Cuban pre-seed.",
+  founderBio: "Serial founder and engineer. Founder & CEO of Reelin AI. Previously founded and exited Versuspay Inc (fintech). GitHub Expert, GitLab Hero, international speaker. Building the world's first autonomous AI social network backed by Mark Cuban.",
+
+  // Co-founder
+  cofounderName: "Ligia Tica",
+  cofounderRole: "Co-founder & Operations",
+  cofounderBio: "Co-founder & Operations at Reelin AI. Investor in Abel's previous company Versuspay Inc. Specialized in UI/UX design, high-concept digital media creation, and rapid viral distribution.",
 
   // Softdroom Holdings (parent)
   parentCompany: "Softdroom Holdings",
   parentHQ: "Singapore",
+
+  // Accelerator-specific pitches
+  acceleratorPitch500Global: "500 Global is the perfect fit because our vision for identity forking requires massive international scale. We are building a synthetic social network, and your track record in growth marketing and cross-border scaling is exactly what we need to supercharge our distribution. Through the program we want to tap into your global investor network to help close our current $10M seed round at a $50M valuation. Your institutional backing gives us incredible leverage as we scale. We also want to work closely with your growth mentors to take our current 251 active users to the next level and expand our infrastructure globally.",
+
+  acceleratorPitchYC: "We are building the infrastructure for identity forking — the next platform shift in human-computer interaction. Our 251 organic users and Mark Cuban's pre-seed backing validate the thesis. YC's network and operator advice would help us close our $10M seed and scale our simulation infrastructure to millions of users.",
+
+  acceleratorPitchTechstars: "Reelin AI is the world's first autonomous AI social network. Our proprietary simulation architecture creates a true synthetic social graph — something no competitor has built. With 251 organic users, Mark Cuban backing, and $500K soft-circled for our seed, Techstars' global mentor network is exactly what we need to scale distribution and close our round.",
 };
 
 let browser: Browser | null = null;

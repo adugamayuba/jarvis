@@ -185,14 +185,23 @@
 
   let mappedFields = [];
 
+  function isVisible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 || rect.height > 0 || el.tagName === "TEXTAREA";
+  }
+
   function extractFormFields() {
     const fields = [];
     const radioGroups = {};
     const inputs = document.querySelectorAll("input, textarea, select");
 
     inputs.forEach((el, idx) => {
-      const type = el.type || el.tagName.toLowerCase();
+      const type = (el.type || el.tagName.toLowerCase()).toLowerCase();
       if (["hidden", "submit", "button", "reset", "image", "file"].includes(type)) return;
+      if (!isVisible(el)) return; // skip invisible fields
 
       let label = "";
       if (el.id) {
@@ -206,14 +215,24 @@
           if (labelEl) label = labelEl.textContent?.trim() || "";
         }
       }
-      if (!label) label = el.placeholder || el.name || `Field ${idx}`;
+      // Walk up to find a nearby label/legend/heading
+      if (!label) {
+        let p = el.parentElement;
+        for (let i = 0; i < 4 && p; i++) {
+          const legend = p.querySelector("legend");
+          const span = p.querySelector("span, p, div > label");
+          if (legend && legend.textContent?.trim()) { label = legend.textContent.trim(); break; }
+          if (span && span.textContent?.trim()) { label = span.textContent.trim().split("\n")[0].trim(); break; }
+          p = p.parentElement;
+        }
+      }
+      if (!label) label = el.placeholder || el.name || el.getAttribute("aria-label") || `Field ${idx}`;
 
       if (type === "radio") {
         const groupName = el.name || el.id;
         if (!groupName || radioGroups[groupName]) return;
         radioGroups[groupName] = true;
 
-        // Find group label
         let groupLabel = "";
         let p = el.parentElement;
         for (let i = 0; i < 6 && p; i++) {
@@ -222,7 +241,6 @@
           p = p.parentElement;
         }
 
-        // Collect options
         const radios = document.querySelectorAll(`input[type="radio"][name="${groupName}"]`);
         const options = [];
         radios.forEach(r => {
@@ -239,7 +257,7 @@
         fields.push({
           label: (groupLabel || label || groupName).substring(0, 200),
           type: "radio",
-          selector: `[name="${groupName}"]`,
+          selector: `input[type="radio"][name="${groupName}"]`,
           required: el.required || false,
           options,
           name: groupName,
@@ -253,7 +271,21 @@
         el.querySelectorAll("option").forEach(opt => { if (opt.value) options.push(opt.text); });
       }
 
-      const selector = el.id ? `#${el.id}` : (el.name ? `[name="${el.name}"]` : `${el.tagName.toLowerCase()}:nth-of-type(${idx + 1})`);
+      // Build a precise selector using id first, then tag+name, then tag+type+index
+      let selector;
+      if (el.id) {
+        selector = `#${CSS.escape(el.id)}`;
+      } else if (el.name) {
+        const tag = el.tagName.toLowerCase();
+        const typeAttr = type !== "textarea" && type !== "select-one" ? `[type="${type}"]` : "";
+        selector = `${tag}${typeAttr}[name="${el.name}"]`;
+      } else {
+        const tag = el.tagName.toLowerCase();
+        const sameType = Array.from(document.querySelectorAll(`${tag}[placeholder="${el.placeholder}"]`));
+        const nthIdx = sameType.indexOf(el);
+        selector = nthIdx >= 0 ? `${tag}:nth-of-type(${idx + 1})` : `${tag}:nth-of-type(${idx + 1})`;
+      }
+
       fields.push({
         label: label.substring(0, 200),
         type,
@@ -427,8 +459,9 @@
   }
 
   async function fillSelect(field) {
-    const el = document.querySelector(field.selector);
-    if (!el) return;
+    let el = document.querySelector(field.selector);
+    if (!el && field.name) el = document.querySelector(`select[name="${field.name}"]`);
+    if (!el || !isVisible(el)) return;
     const val = field.suggestedValue;
     // Try by text, then by value
     for (const opt of el.options) {
@@ -441,17 +474,20 @@
   }
 
   async function fillCheckbox(field) {
-    const el = document.querySelector(field.selector);
-    if (!el) return;
+    let el = document.querySelector(field.selector);
+    if (!el && field.name) el = document.querySelector(`input[type="checkbox"][name="${field.name}"]`);
+    if (!el || !isVisible(el)) return;
     const checked = ["true", "yes", "1"].includes(field.suggestedValue.toLowerCase());
     el.checked = checked;
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
   async function fillText(field) {
-    const el = document.querySelector(field.selector);
-    if (!el) return;
-    // Clear and fill
+    let el = document.querySelector(field.selector);
+    if (!el && field.name) {
+      el = document.querySelector(`input[name="${field.name}"], textarea[name="${field.name}"]`);
+    }
+    if (!el || !isVisible(el)) return;
     el.focus();
     el.value = "";
     el.dispatchEvent(new Event("input", { bubbles: true }));
@@ -459,7 +495,7 @@
     for (const char of field.suggestedValue) {
       el.value += char;
       el.dispatchEvent(new Event("input", { bubbles: true }));
-      await sleep(10);
+      await sleep(8);
     }
     el.dispatchEvent(new Event("change", { bubbles: true }));
     el.blur();

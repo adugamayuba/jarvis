@@ -68,6 +68,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } else if (msg.type === "GET_TOKEN") {
         const { token, role } = await chrome.storage.local.get(["token", "role"]);
         sendResponse({ token: token || "", role: role || "" });
+      } else if (msg.type === "TEST_CONNECTION") {
+        // Just hit /health to see if backend is reachable
+        try {
+          const { apiBase } = await getConfig();
+          const res = await fetch(`${apiBase}/health`, { signal: AbortSignal.timeout(8000) });
+          const json = await res.json();
+          sendResponse({ success: true, data: json });
+        } catch (err) {
+          sendResponse({ success: false, error: err.message });
+        }
       } else if (msg.type === "SET_API_BASE") {
         await chrome.storage.local.set({ apiBase: msg.apiBase });
         sendResponse({ success: true });

@@ -2,7 +2,13 @@ const DEFAULT_API = "https://jarvis-production-42ed.up.railway.app";
 
 async function sendMsg(msg) {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage(msg, (r) => resolve(r || {}));
+    chrome.runtime.sendMessage(msg, (r) => {
+      if (chrome.runtime.lastError) {
+        resolve({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        resolve(r || { success: false, error: "No response from background" });
+      }
+    });
   });
 }
 
@@ -11,40 +17,58 @@ async function getActiveTab() {
   return tab;
 }
 
+function showError(msg) {
+  const el = document.getElementById("login-error");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
 async function init() {
-  const { token, role } = await sendMsg({ type: "GET_TOKEN" });
-  const { apiBase } = await chrome.storage.local.get("apiBase");
+  const { token } = await sendMsg({ type: "GET_TOKEN" });
+  const stored = await chrome.storage.local.get("apiBase");
+  const apiBase = stored.apiBase || DEFAULT_API;
 
   if (!token) {
     document.getElementById("login-view").style.display = "block";
-    const saved = apiBase || DEFAULT_API;
-    document.getElementById("api-base-input").value = saved;
+    document.getElementById("api-base-input").value = apiBase;
   } else {
     document.getElementById("main-view").style.display = "block";
-    document.getElementById("api-base-display").value = apiBase || DEFAULT_API;
+    document.getElementById("api-base-display").value = apiBase;
   }
 }
 
 // Login
 document.getElementById("login-btn")?.addEventListener("click", async () => {
-  const pw = document.getElementById("password-input").value;
-  const errEl = document.getElementById("login-error");
-  errEl.style.display = "none";
+  const pw = document.getElementById("password-input").value.trim();
+  const apiBaseRaw = document.getElementById("api-base-input").value.trim();
+  document.getElementById("login-error").style.display = "none";
 
-  if (!pw) { errEl.textContent = "Enter a password"; errEl.style.display = "block"; return; }
+  if (!pw) { showError("Enter a password"); return; }
+  if (!apiBaseRaw) { showError("Enter your Railway backend URL"); return; }
 
-  // Save API base first
-  const apiBase = document.getElementById("api-base-input").value.trim() || DEFAULT_API;
+  // Ensure URL has https://
+  const apiBase = apiBaseRaw.startsWith("http") ? apiBaseRaw : `https://${apiBaseRaw}`;
   await sendMsg({ type: "SET_API_BASE", apiBase });
 
+  document.getElementById("login-btn").textContent = "Signing in...";
+  document.getElementById("login-btn").disabled = true;
+
   const res = await sendMsg({ type: "LOGIN", password: pw });
+
+  document.getElementById("login-btn").textContent = "Sign in";
+  document.getElementById("login-btn").disabled = false;
+
   if (res.success) {
     document.getElementById("login-view").style.display = "none";
     document.getElementById("main-view").style.display = "block";
     document.getElementById("api-base-display").value = apiBase;
   } else {
-    errEl.textContent = res.error || "Invalid password";
-    errEl.style.display = "block";
+    const errMsg = res.error || "Login failed";
+    if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network")) {
+      showError(`Cannot reach backend.\nURL tried: ${apiBase}\n\nCheck your Railway URL is correct and backend is running.`);
+    } else {
+      showError(errMsg);
+    }
   }
 });
 

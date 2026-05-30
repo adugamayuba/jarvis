@@ -92,15 +92,12 @@
 
   <!-- Login view -->
   <div id="login-view" class="body" style="display:none">
+    <div class="label" style="margin-bottom: 4px;">Backend URL <span style="color:#ef4444">*</span></div>
+    <input type="text" id="api-base-input" placeholder="jarvis-production-42ed.up.railway.app" style="margin-bottom:12px;" />
     <div class="label">Password</div>
     <input type="password" id="password-input" placeholder="Enter your Jarvis password" />
-    <div id="login-error" class="error" style="display:none"></div>
+    <div id="login-error" class="error" style="display:none;white-space:pre-line;line-height:1.5;"></div>
     <button class="btn btn-primary" id="login-btn">Sign in</button>
-    <div class="settings-section" style="margin-top: 8px;">
-      <div class="label">Backend URL</div>
-      <input type="text" id="api-base-input" placeholder="https://your-railway-url.up.railway.app" />
-      <button class="btn btn-secondary" id="save-api-btn" style="margin-bottom: 0;">Save</button>
-    </div>
   </div>
 
   <!-- Main view -->

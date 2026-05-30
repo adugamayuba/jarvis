@@ -18,8 +18,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Middleware
-app.use(cors({ origin: true, credentials: true }));
+// Allow all origins including Chrome extensions
+app.use(cors({
+  origin: (origin, callback) => callback(null, true),
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Api-Key"],
+}));
+app.options("*", cors());  // pre-flight for all routes
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 

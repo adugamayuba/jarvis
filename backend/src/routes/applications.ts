@@ -1,6 +1,9 @@
 import { Router, Request, Response } from "express";
+import OpenAI from "openai";
 import { getDb } from "../services/firebase";
-import { analyzeApplicationForm, submitApplicationForm, FormField } from "../services/browser";
+import { analyzeApplicationForm, submitApplicationForm, FormField, REELIN_PROFILE } from "../services/browser";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface AppIdParams extends Record<string, string> { id: string }
 
@@ -98,9 +101,6 @@ router.get("/accelerators", (_req: Request, res: Response) => {
 
 // GET /api/applications/profile — return Reelin AI profile for extension
 router.get("/profile", (_req: Request, res: Response) => {
-  const { analyzeApplicationForm: _, submitApplicationForm: __, ...rest } = { analyzeApplicationForm: null, submitApplicationForm: null };
-  void rest;
-  const { REELIN_PROFILE } = require("../services/browser");
   res.json({ success: true, data: REELIN_PROFILE });
 });
 
@@ -118,9 +118,12 @@ router.post("/map-fields", async (req: Request, res: Response) => {
       return;
     }
 
-    const OpenAI = require("openai");
-    const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
-    const { REELIN_PROFILE } = require("../services/browser");
+    if (!process.env.OPENAI_API_KEY) {
+      // Return fields without AI mapping if no API key
+      const mappedFields = fields.map(f => ({ ...f, suggestedValue: "" }));
+      res.json({ success: true, data: { fields: mappedFields } });
+      return;
+    }
 
     const profile = JSON.stringify(REELIN_PROFILE, null, 2);
 
@@ -147,14 +150,14 @@ For each field (0 to ${fields.length - 1}), provide the best value to fill in.
 
 Respond with JSON: { "values": ["value0", "value1", ...] }`;
 
-    const res2 = await openai.chat.completions.create({
+    const result = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       max_tokens: 2000,
     });
 
-    const json = JSON.parse(res2.choices[0].message.content || "{}");
+    const json = JSON.parse(result.choices[0].message.content || "{}");
     const values: string[] = json.values || [];
 
     const mappedFields = fields.map((f, i) => ({

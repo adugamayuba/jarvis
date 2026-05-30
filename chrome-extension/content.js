@@ -272,6 +272,8 @@
     openSidebar();
     setStatus("Scanning form fields...");
     showLoading(true);
+    document.getElementById("jarvis-fields-list").style.display = "none";
+    showEmpty(false);
 
     const fields = extractFormFields();
 
@@ -282,30 +284,34 @@
       return;
     }
 
-    setStatus(`Found ${fields.length} fields — asking Jarvis to fill them...`);
+    setStatus(`Found ${fields.length} fields — asking Jarvis AI to fill them...`);
 
-    // Ask background to call Jarvis API
+    // Ask background to call Jarvis API with 25s timeout
     const pageText = document.body.innerText.substring(0, 2000);
     const pageTitle = document.title;
 
-    const response = await sendMessage({
-      type: "ANALYZE_FIELDS",
-      fields,
-      pageTitle,
-      pageText,
-    });
+    let response;
+    try {
+      const timeoutPromise = new Promise(resolve =>
+        setTimeout(() => resolve({ success: false, error: "Timed out — showing fields without AI values" }), 25000)
+      );
+      const apiPromise = sendMessage({ type: "ANALYZE_FIELDS", fields, pageTitle, pageText });
+      response = await Promise.race([apiPromise, timeoutPromise]);
+    } catch {
+      response = { success: false, error: "Request failed" };
+    }
 
     if (response.success && response.data?.fields) {
       mappedFields = response.data.fields;
-      setStatus(`${mappedFields.length} fields ready — review and fill`);
-      renderFields(mappedFields);
+      setStatus(`Ready — ${mappedFields.filter(f => f.suggestedValue).length}/${mappedFields.length} fields filled by AI`);
     } else {
-      // Use raw fields with empty values if API fails
+      // Fall back: show fields with empty values user can fill manually
       mappedFields = fields;
-      setStatus(`${fields.length} fields found — fill in values manually or retry`);
-      renderFields(fields);
+      setStatus(`${fields.length} fields found${response.error ? ` (${response.error})` : ""} — fill manually or retry`);
     }
+
     showLoading(false);
+    renderFields(mappedFields);
   }
 
   function renderFields(fields) {

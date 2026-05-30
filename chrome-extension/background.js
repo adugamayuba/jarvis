@@ -12,20 +12,27 @@ async function getConfig() {
   };
 }
 
-// API call helper
-async function apiCall(path, options = {}) {
+// API call helper with timeout
+async function apiCall(path, options = {}, timeoutMs = 30000) {
   const { apiBase, token } = await getConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  return json;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${apiBase}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Message handler from content script / sidebar

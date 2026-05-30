@@ -6,6 +6,96 @@ interface AppIdParams extends Record<string, string> { id: string }
 
 const router = Router();
 
+// Comprehensive accelerator database
+const ACCELERATOR_DB: Record<string, { name: string; applyUrl: string; website: string }> = {
+  "y combinator": { name: "Y Combinator", applyUrl: "https://www.ycombinator.com/apply", website: "https://ycombinator.com" },
+  "yc": { name: "Y Combinator", applyUrl: "https://www.ycombinator.com/apply", website: "https://ycombinator.com" },
+  "ycombinator": { name: "Y Combinator", applyUrl: "https://www.ycombinator.com/apply", website: "https://ycombinator.com" },
+  "techstars": { name: "Techstars", applyUrl: "https://www.techstars.com/apply", website: "https://techstars.com" },
+  "500 global": { name: "500 Global", applyUrl: "https://500.co/accelerator", website: "https://500.co" },
+  "500": { name: "500 Global", applyUrl: "https://500.co/accelerator", website: "https://500.co" },
+  "antler": { name: "Antler", applyUrl: "https://www.antler.co/apply", website: "https://antler.co" },
+  "seedcamp": { name: "Seedcamp", applyUrl: "https://seedcamp.com/apply/", website: "https://seedcamp.com" },
+  "plug and play": { name: "Plug and Play", applyUrl: "https://www.plugandplaytechcenter.com/apply/", website: "https://plugandplaytechcenter.com" },
+  "pnp": { name: "Plug and Play", applyUrl: "https://www.plugandplaytechcenter.com/apply/", website: "https://plugandplaytechcenter.com" },
+  "masschallenge": { name: "MassChallenge", applyUrl: "https://masschallenge.org/apply", website: "https://masschallenge.org" },
+  "founder institute": { name: "Founder Institute", applyUrl: "https://fi.co/apply", website: "https://fi.co" },
+  "fi": { name: "Founder Institute", applyUrl: "https://fi.co/apply", website: "https://fi.co" },
+  "a16z": { name: "a16z Speedrun", applyUrl: "https://speedrun.a16z.com/apply", website: "https://a16z.com" },
+  "a16z speedrun": { name: "a16z Speedrun", applyUrl: "https://speedrun.a16z.com/apply", website: "https://a16z.com" },
+  "andreessen horowitz": { name: "a16z Speedrun", applyUrl: "https://speedrun.a16z.com/apply", website: "https://a16z.com" },
+  "sequoia arc": { name: "Sequoia Arc", applyUrl: "https://arc.sequoiacap.com/apply", website: "https://sequoiacap.com" },
+  "sequoia": { name: "Sequoia Arc", applyUrl: "https://arc.sequoiacap.com/apply", website: "https://sequoiacap.com" },
+  "soma capital": { name: "Soma Capital", applyUrl: "https://somacap.com/apply", website: "https://somacap.com" },
+  "soma": { name: "Soma Capital", applyUrl: "https://somacap.com/apply", website: "https://somacap.com" },
+  "pioneer": { name: "Pioneer", applyUrl: "https://pioneer.app/apply", website: "https://pioneer.app" },
+  "neo": { name: "Neo", applyUrl: "https://neo.com/apply", website: "https://neo.com" },
+  "hf0": { name: "HF0", applyUrl: "https://www.hf0.com/apply", website: "https://hf0.com" },
+  "residency": { name: "HF0 Residency", applyUrl: "https://www.hf0.com/apply", website: "https://hf0.com" },
+  "ai grant": { name: "AI Grant", applyUrl: "https://aigrant.com/apply", website: "https://aigrant.com" },
+  "entrepreneur first": { name: "Entrepreneur First", applyUrl: "https://www.joinef.com/apply", website: "https://joinef.com" },
+  "ef": { name: "Entrepreneur First", applyUrl: "https://www.joinef.com/apply", website: "https://joinef.com" },
+  "lsvp": { name: "Lightspeed", applyUrl: "https://lsvp.com/ignite", website: "https://lsvp.com" },
+  "lightspeed": { name: "Lightspeed Ignite", applyUrl: "https://lsvp.com/ignite", website: "https://lsvp.com" },
+  "betaworks": { name: "Betaworks", applyUrl: "https://betaworks.com/camps", website: "https://betaworks.com" },
+  "dreamit": { name: "Dreamit Ventures", applyUrl: "https://www.dreamit.com/apply", website: "https://dreamit.com" },
+  "startx": { name: "StartX", applyUrl: "https://startx.com/apply", website: "https://startx.com" },
+  "nyu": { name: "NYU Endless Frontier Labs", applyUrl: "https://endlessfrontierlabs.com/apply/", website: "https://endlessfrontierlabs.com" },
+  "nvidia inception": { name: "NVIDIA Inception", applyUrl: "https://www.nvidia.com/en-us/startups/", website: "https://nvidia.com" },
+  "nvidia": { name: "NVIDIA Inception", applyUrl: "https://www.nvidia.com/en-us/startups/", website: "https://nvidia.com" },
+  "microsoft for startups": { name: "Microsoft for Startups", applyUrl: "https://www.microsoft.com/en-us/startups", website: "https://microsoft.com" },
+  "aws activate": { name: "AWS Activate", applyUrl: "https://aws.amazon.com/activate/", website: "https://aws.amazon.com" },
+  "google for startups": { name: "Google for Startups", applyUrl: "https://startup.google.com/programs/accelerator/", website: "https://startup.google.com" },
+};
+
+function resolveInput(input: string): { url: string; name: string } | null {
+  const trimmed = input.trim();
+
+  // Already a URL
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return { url: trimmed, name: "" };
+  }
+
+  // Try exact match first (lowercase)
+  const key = trimmed.toLowerCase();
+  const match = ACCELERATOR_DB[key];
+  if (match) return { url: match.applyUrl, name: match.name };
+
+  // Partial match
+  for (const [k, v] of Object.entries(ACCELERATOR_DB)) {
+    if (k.includes(key) || key.includes(k)) {
+      return { url: v.applyUrl, name: v.name };
+    }
+  }
+
+  return null;
+}
+
+// GET /api/applications/lookup?q=techstars — resolve name to URL
+router.get("/lookup", (req: Request, res: Response) => {
+  const q = (req.query.q as string || "").trim();
+  if (!q) { res.status(400).json({ success: false, error: "q required" }); return; }
+
+  const result = resolveInput(q);
+  if (result) {
+    res.json({ success: true, data: result });
+  } else {
+    // Return all known accelerators as suggestions
+    const suggestions = Object.values(ACCELERATOR_DB)
+      .filter((v, i, self) => self.findIndex(x => x.name === v.name) === i) // dedupe
+      .map(v => ({ name: v.name, url: v.applyUrl }));
+    res.json({ success: false, error: "Not found", data: { suggestions } });
+  }
+});
+
+// GET /api/applications/accelerators — list all known accelerators
+router.get("/accelerators", (_req: Request, res: Response) => {
+  const list = Object.values(ACCELERATOR_DB)
+    .filter((v, i, self) => self.findIndex(x => x.name === v.name) === i)
+    .map(v => ({ name: v.name, url: v.applyUrl, website: v.website }));
+  res.json({ success: true, data: list });
+});
+
 // POST /api/applications/analyze — analyze a form and return field preview
 router.post("/analyze", async (req: Request, res: Response) => {
   const { url } = req.body as { url: string };

@@ -66,6 +66,7 @@ export const REELIN_PROFILE = {
   founderFirstName: "Abel",
   founderLastName: "Adugam",
   founderEmail: "adugamhq@gmail.com",
+  founderEmailReelin: "abel@reelin.ai",
   founderRole: "Founder & CEO",
   founderLinkedIn: "https://linkedin.com/in/adugamayuba",
   founderGitHub: "https://github.com/adugamayuba",

@@ -6,7 +6,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import {
   Loader2, Globe, CheckCircle2, Clock, AlertCircle,
-  Trash2, ExternalLink, Eye, Send, Plus, ChevronDown, ChevronUp,
+  Trash2, ExternalLink, Eye, Send, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,15 +63,18 @@ const ACCELERATORS = [
 ];
 
 export default function ApplicationsPage() {
-  const [url, setUrl] = useState("");
+  const [input, setInput] = useState(""); // can be name OR url
+  const [resolvedUrl, setResolvedUrl] = useState("");
+  const [resolvedName, setResolvedName] = useState("");
   const [appName, setAppName] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [preview, setPreview] = useState<ApplicationPreview | null>(null);
   const [editedFields, setEditedFields] = useState<FormField[]>([]);
   const [expandedField, setExpandedField] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [currentAppId, setCurrentAppId] = useState<string | null>(null);
-  const [showAccelerators, setShowAccelerators] = useState(false);
+  const [suggestions, setSuggestions] = useState<Array<{ name: string; url: string }>>([]);
 
   const queryClient = useQueryClient();
 
@@ -91,16 +94,55 @@ export default function ApplicationsPage() {
     },
   });
 
+  async function resolveInput(raw: string): Promise<string> {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+
+    // Already a URL
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      setResolvedUrl(trimmed);
+      setResolvedName("");
+      return trimmed;
+    }
+
+    // Resolve name → URL
+    setResolving(true);
+    try {
+      const res = await axios.get(`/api/applications/lookup?q=${encodeURIComponent(trimmed)}`);
+      if (res.data.success && res.data.data?.url) {
+        const { url: u, name: n } = res.data.data;
+        setResolvedUrl(u);
+        setResolvedName(n);
+        if (!appName) setAppName(n);
+        setSuggestions([]);
+        return u;
+      } else {
+        setSuggestions(res.data.data?.suggestions?.slice(0, 8) || []);
+        return "";
+      }
+    } catch {
+      return "";
+    } finally {
+      setResolving(false);
+    }
+  }
+
   async function handleAnalyze() {
-    if (!url.trim()) { toast.error("Enter a URL"); return; }
+    const url = await resolveInput(input);
+    if (!url) {
+      if (suggestions.length === 0) toast.error("Enter an accelerator name or URL");
+      else toast.error("Accelerator not found — pick from suggestions below");
+      return;
+    }
     setAnalyzing(true);
     setPreview(null);
     try {
-      const res = await axios.post("/api/applications/analyze", { url: url.trim() });
+      const res = await axios.post("/api/applications/analyze", { url });
       const data = res.data.data as ApplicationPreview;
       setPreview(data);
       setEditedFields(data.fields);
-      if (!appName) setAppName(data.title || url);
+      if (!appName) setAppName(resolvedName || data.title || input);
+      setSuggestions([]);
       toast.success(`Found ${data.fields.length} form fields`);
     } catch (err) {
       const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Failed to analyze form";
@@ -113,7 +155,7 @@ export default function ApplicationsPage() {
   async function handleSave() {
     if (!preview) return;
     const res = await axios.post("/api/applications", {
-      url: url.trim(),
+      url: resolvedUrl,
       name: appName || preview.title,
       fields: editedFields,
     });
@@ -130,7 +172,7 @@ export default function ApplicationsPage() {
     try {
       const id = currentAppId || await handleSave();
       const res = await axios.post("/api/applications/submit", {
-        url: url.trim(),
+        url: resolvedUrl,
         fields: editedFields.map(f => ({ selector: f.selector, value: f.suggestedValue, type: f.type })),
         dryRun: true,
         applicationId: id,
@@ -148,7 +190,7 @@ export default function ApplicationsPage() {
   async function handleSubmit() {
     if (!preview) return;
     const confirmed = window.confirm(
-      `Are you sure you want to SUBMIT the application to:\n${url}\n\nThis will fill and submit the form on your behalf.`
+      `Are you sure you want to SUBMIT the application to:\n${resolvedUrl}\n\nThis will fill and submit the form on your behalf.`
     );
     if (!confirmed) return;
 
@@ -156,7 +198,7 @@ export default function ApplicationsPage() {
     try {
       const id = currentAppId || await handleSave();
       const res = await axios.post("/api/applications/submit", {
-        url: url.trim(),
+        url: resolvedUrl,
         fields: editedFields.map(f => ({ selector: f.selector, value: f.suggestedValue, type: f.type })),
         dryRun: false,
         applicationId: id,
@@ -190,54 +232,78 @@ export default function ApplicationsPage() {
         </p>
       </div>
 
-      {/* Quick select accelerators */}
-      <div className="mb-6">
-        <button onClick={() => setShowAccelerators(!showAccelerators)}
-          className="flex items-center gap-1.5 text-[12px] text-neutral-500 hover:text-neutral-300 transition-colors mb-2">
-          {showAccelerators ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          Quick-select known accelerators
-        </button>
-        {showAccelerators && (
-          <div className="flex flex-wrap gap-2">
-            {ACCELERATORS.map(a => (
-              <button key={a.name} onClick={() => { setUrl(a.url); setAppName(a.name); }}
-                className={cn("text-[12px] px-2.5 py-1 rounded-lg border transition-colors",
-                  url === a.url ? "border-white text-white" : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
-                )}>
-                {a.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* URL Input */}
+      {/* URL/Name Input */}
       <div className="border border-neutral-800 rounded-xl p-5 mb-6">
         <div className="flex gap-3 mb-3">
-          <Input
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            placeholder="https://www.ycombinator.com/apply"
-            className="flex-1 bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-9"
-            onKeyDown={e => e.key === "Enter" && handleAnalyze()}
-          />
+          <div className="flex-1 relative">
+            <Input
+              value={input}
+              onChange={e => { setInput(e.target.value); setSuggestions([]); setResolvedUrl(""); }}
+              placeholder='Type a name ("Y Combinator", "Techstars") or paste a URL'
+              className="w-full bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-9"
+              onKeyDown={e => e.key === "Enter" && handleAnalyze()}
+            />
+            {resolvedUrl && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className="text-[11px] text-emerald-400">Resolved →</span>
+                <a href={resolvedUrl} target="_blank" rel="noreferrer"
+                  className="text-[11px] text-neutral-500 hover:text-neutral-300 truncate max-w-xs transition-colors">
+                  {resolvedUrl}
+                </a>
+              </div>
+            )}
+          </div>
           <Input
             value={appName}
             onChange={e => setAppName(e.target.value)}
-            placeholder="Application name (optional)"
-            className="w-48 bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-9"
+            placeholder="Name (optional)"
+            className="w-40 bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-9 shrink-0"
           />
-          <Button onClick={handleAnalyze} disabled={analyzing}
+          <Button onClick={handleAnalyze} disabled={analyzing || resolving}
             className="bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] font-medium h-9 gap-2 shrink-0">
             {analyzing
               ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Analyzing...</>
+              : resolving
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Resolving...</>
               : <><Globe className="w-3.5 h-3.5" />Analyze Form</>
             }
           </Button>
         </div>
         <p className="text-[11px] text-neutral-600">
-          Jarvis will navigate to the URL, identify all form fields, and auto-fill them with Reelin AI's profile using AI
+          Type any accelerator name or paste a URL — Jarvis finds the apply page, reads the form, and fills it with Reelin AI's profile
         </p>
+
+        {/* Suggestions when name not found */}
+        {suggestions.length > 0 && (
+          <div className="mt-3">
+            <p className="text-[11px] text-neutral-600 mb-2">Did you mean one of these?</p>
+            <div className="flex flex-wrap gap-1.5">
+              {suggestions.map(s => (
+                <button key={s.name} onClick={() => { setInput(s.name); setResolvedUrl(s.url); setResolvedName(s.name); setAppName(s.name); setSuggestions([]); }}
+                  className="text-[12px] px-2.5 py-1 rounded-lg border border-neutral-700 text-neutral-400 hover:border-white hover:text-white transition-colors">
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick-select known accelerators */}
+        <div className="mt-3 pt-3 border-t border-neutral-800/60">
+          <p className="text-[11px] text-neutral-600 mb-2">Quick select:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {ACCELERATORS.map(a => (
+              <button key={a.name}
+                onClick={() => { setInput(a.name); setResolvedUrl(a.url); setResolvedName(a.name); setAppName(a.name); setSuggestions([]); }}
+                className={cn("text-[11px] px-2 py-0.5 rounded border transition-colors",
+                  input === a.name ? "border-white text-white" : "border-neutral-800 text-neutral-600 hover:border-neutral-600 hover:text-neutral-400"
+                )}>
+                {a.name}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Preview screenshot + fields */}
@@ -366,7 +432,7 @@ export default function ApplicationsPage() {
                         {new Date(app.submittedAt).toLocaleDateString()}
                       </span>
                     )}
-                    <button onClick={() => { setUrl(app.url); setAppName(app.name); window.scrollTo(0, 0); }}
+                    <button onClick={() => { setInput(app.url); setResolvedUrl(app.url); setAppName(app.name); window.scrollTo(0, 0); }}
                       className="p-1 text-neutral-600 hover:text-white transition-colors" title="Re-apply">
                       <Plus className="w-3.5 h-3.5" />
                     </button>

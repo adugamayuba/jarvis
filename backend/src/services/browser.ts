@@ -48,9 +48,22 @@ export const REELIN_PROFILE = {
   marketTiming: "The market is at an inflection point. Hardware acceleration breakthroughs make running dense, continuous agent simulations economically viable. Culturally, consumer fatigue with static feeds is driving a massive shift toward hyper-personalized, interactive synthetic media. Additionally, the recent venture capital momentum pouring into the consumer AI space signals massive market validation.",
 
   founded: "2024",
-  hq: "Singapore",
+  hq: "New York, United States",
+  city: "New York",
+  state: "New York",
+  country: "United States",
+  countryCode: "US",
   platform: "iOS (App Store live)",
   teamSize: "2",
+  incorporatedIn: "United States",
+
+  // Team locations
+  founderCity: "New York",
+  founderState: "New York",
+  founderCountry: "United States",
+  cofounderCity: "Washington",
+  cofounderState: "Washington D.C.",
+  cofounderCountry: "United States",
 
   // Team
   team: "Abel Adugam (Founder & CEO) and Ligia Tica (Co-founder & Operations). Abel is a serial founder who successfully exited Versuspay Inc (fintech). Ligia invested in Abel's previous company, building deep professional trust. We are a team of proven executors with an elite blend of tech leadership and specialized product skills — UI/UX design, high-concept digital media creation, and rapid viral distribution. Our unfair advantage is unmatched execution velocity.",
@@ -186,9 +199,11 @@ export async function analyzeApplicationForm(url: string): Promise<ApplicationPr
     const title = await page.title();
     const pageText = await page.evaluate(() => document.body.innerText.substring(0, 2000));
 
-    // Find all form fields
+    // Find all form fields — including radio groups
     const rawFields = await page.evaluate(/* js */`(function() {
       const fields = [];
+      const radioGroups = {}; // track radio groups by name
+
       const inputs = document.querySelectorAll("input, textarea, select");
       inputs.forEach((el, idx) => {
         const type = el.type || el.tagName.toLowerCase();
@@ -208,6 +223,52 @@ export async function analyzeApplicationForm(url: string): Promise<ApplicationPr
         }
         if (!label) {
           label = el.placeholder || el.name || ("Field " + idx);
+        }
+
+        // For radio buttons: group them by name, collect all options with labels
+        if (type === "radio") {
+          const groupName = el.name || el.id;
+          if (!groupName) return;
+          if (radioGroups[groupName]) return; // already processed this group
+          radioGroups[groupName] = true;
+
+          // Find the fieldset or parent question label
+          let groupLabel = "";
+          let parent = el.parentElement;
+          for (let i = 0; i < 5 && parent; i++) {
+            const legend = parent.querySelector("legend");
+            const h = parent.querySelector("h1,h2,h3,h4,p,label");
+            if (legend) { groupLabel = legend.textContent?.trim() || ""; break; }
+            if (h && !h.getAttribute("for")) { groupLabel = h.textContent?.trim() || ""; break; }
+            parent = parent.parentElement;
+          }
+
+          // Collect all radio options in this group with their display labels
+          const radios = document.querySelectorAll('input[type="radio"][name="' + groupName + '"]');
+          const options = [];
+          radios.forEach(r => {
+            let optLabel = r.value;
+            if (r.id) {
+              const l = document.querySelector('label[for="' + r.id + '"]');
+              if (l) optLabel = l.textContent?.trim() || r.value;
+            } else {
+              const parent = r.parentElement;
+              if (parent && parent.tagName === "LABEL") optLabel = parent.textContent?.trim() || r.value;
+            }
+            options.push(optLabel);
+          });
+
+          fields.push({
+            label: (groupLabel || groupName).substring(0, 200),
+            type: "radio",
+            selector: '[name="' + groupName + '"]',
+            required: el.required || false,
+            options: options.slice(0, 10),
+            id: el.id,
+            name: groupName,
+            placeholder: "",
+          });
+          return;
         }
 
         const options = [];
@@ -294,24 +355,84 @@ export async function submitApplicationForm(
     for (const field of fields) {
       try {
         if (!field.value || !field.selector) continue;
-        const el = page.locator(field.selector).first();
-        const count = await el.count();
-        if (count === 0) continue;
 
-        if (field.type === "select" || field.type === "select-one") {
+        if (field.type === "radio") {
+          // Radio buttons: try multiple strategies to find the right one
+          const radioValue = field.value.toLowerCase().trim();
+          let checked = false;
+
+          // Strategy 1: match by label text (most reliable — AI returns display text)
+          const radiosByLabel = page.locator(`input[type="radio"]`);
+          const count = await radiosByLabel.count();
+          for (let i = 0; i < count; i++) {
+            const radio = radiosByLabel.nth(i);
+            const radioId = await radio.getAttribute("id");
+            const radioVal = (await radio.getAttribute("value") || "").toLowerCase().trim();
+
+            // Check associated label text
+            let labelText = "";
+            if (radioId) {
+              const labelEl = page.locator(`label[for="${radioId}"]`);
+              if (await labelEl.count() > 0) {
+                labelText = (await labelEl.innerText()).toLowerCase().trim();
+              }
+            }
+            // Also check parent label
+            if (!labelText) {
+              try {
+                const parentLabel = radio.locator("xpath=ancestor::label");
+                if (await parentLabel.count() > 0) {
+                  labelText = (await parentLabel.first().innerText()).toLowerCase().trim();
+                }
+              } catch { /* ignore */ }
+            }
+
+            if (labelText.includes(radioValue) || radioValue.includes(labelText) || radioVal === radioValue) {
+              await radio.check();
+              checked = true;
+              break;
+            }
+          }
+
+          // Strategy 2: match by name group + value attribute
+          if (!checked) {
+            const nameAttr = field.selector.match(/\[name="([^"]+)"\]/)?.[1];
+            if (nameAttr) {
+              const byValue = page.locator(`input[type="radio"][name="${nameAttr}"][value="${field.value}"]`);
+              if (await byValue.count() > 0) {
+                await byValue.first().check();
+                checked = true;
+              }
+            }
+          }
+
+          // Strategy 3: fallback to selector
+          if (!checked) {
+            const el = page.locator(field.selector).first();
+            if (await el.count() > 0) await el.check();
+          }
+
+        } else if (field.type === "select" || field.type === "select-one") {
+          const el = page.locator(field.selector).first();
+          if (await el.count() === 0) continue;
+          // Try label match, then value match
           await el.selectOption({ label: field.value }).catch(() =>
-            el.selectOption({ value: field.value })
+            el.selectOption({ value: field.value }).catch(() =>
+              el.selectOption({ index: 1 }) // last resort: pick first non-empty
+            )
           );
         } else if (field.type === "checkbox") {
-          const checked = field.value.toLowerCase() === "true" || field.value === "1";
-          if (checked) await el.check();
-        } else if (field.type === "radio") {
-          await page.locator(`input[value="${field.value}"]`).first().check();
+          const el = page.locator(field.selector).first();
+          if (await el.count() === 0) continue;
+          const checked = field.value.toLowerCase() === "true" || field.value === "1" || field.value.toLowerCase() === "yes";
+          if (checked) await el.check(); else await el.uncheck();
         } else {
+          const el = page.locator(field.selector).first();
+          if (await el.count() === 0) continue;
           await el.fill("");
-          await el.type(field.value, { delay: 20 });
+          await el.type(field.value, { delay: 15 });
         }
-        await page.waitForTimeout(200);
+        await page.waitForTimeout(150);
       } catch {
         // skip fields that can't be filled
       }

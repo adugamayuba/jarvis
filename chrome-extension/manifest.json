@@ -3,7 +3,7 @@
   "name": "Jarvis — Reelin AI Auto-Apply",
   "version": "1.0.0",
   "description": "Auto-detect and fill accelerator applications for Reelin AI, powered by Jarvis.",
-  "permissions": ["activeTab", "storage", "scripting", "sidePanel"],
+  "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
@@ -27,8 +27,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "side_panel": {
-    "default_path": "sidebar/sidebar.html"
   }
 }

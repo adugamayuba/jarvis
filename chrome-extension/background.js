@@ -65,7 +65,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         await chrome.storage.local.set({ apiBase: msg.apiBase });
         sendResponse({ success: true });
       } else if (msg.type === "OPEN_SIDEBAR") {
-        chrome.sidePanel.open({ tabId: _sender.tab?.id });
+        // Sidebar is injected by content script — tell the tab to open it
         sendResponse({ success: true });
       } else {
         sendResponse({ success: false, error: "Unknown message type" });

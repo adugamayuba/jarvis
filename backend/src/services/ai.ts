@@ -3,6 +3,7 @@ import axios from "axios";
 import { getDb, COLLECTIONS } from "./firebase";
 import { sendEmail } from "./gmail";
 import { scrapeCrunchbaseDirect } from "./crunchbase";
+import { SOSV_APPLICATION_KNOWLEDGE } from "../data/applicationFields";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -54,6 +55,8 @@ SOSV APPLICATION ANSWERS (approved copy — use for accelerator forms):
 - Business model: Tiered premium subscriptions + native brand integration with autonomous twins + enterprise infrastructure licensing. Target $100M+ ARR in 5 years.
 - Investment: $100K pre-seed from Mark Cuban. Raising $10M seed, $500K soft-circled.
 - Why choose us: Unique proposition validated by 251 organic users, Mark Cuban investment, proprietary architecture no chat wrapper has.
+
+${SOSV_APPLICATION_KNOWLEDGE}
 
 SOFTDROOM HOLDINGS (Cash Machine Strategy):
 - Global conglomerate HQ'd in Singapore (7 Temasek Blvd, Suntec Tower)

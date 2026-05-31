@@ -1,5 +1,6 @@
 import { chromium, Browser, BrowserContext, Page } from "playwright";
 import OpenAI from "openai";
+import { matchFormField, SOSV_APPLICATION_KNOWLEDGE } from "../data/applicationFields";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -102,6 +103,7 @@ export const REELIN_PROFILE = {
   founderEmailReelin: "abel@reelin.ai",
   founderRole: "Founder & CEO",
   founderLinkedIn: "https://linkedin.com/in/adugamayuba",
+  founderLinkedInSOSV: "https://adugam.com",
   founderGitHub: "https://github.com/adugamayuba",
   founderWebsite: "https://adugam.com",
   founderBio: "Serial founder and engineer. Founder & CEO of Reelin AI. Previously founded and exited Versuspay Inc (fintech). GitHub Expert, GitLab Hero, international speaker. Building the world's first autonomous AI social network backed by Mark Cuban.",
@@ -177,8 +179,12 @@ async function aiMapField(
   label: string,
   fieldType: string,
   options: string[],
-  context: string
+  context: string,
+  name?: string
 ): Promise<{ value: string; reasoning: string }> {
+  const matched = matchFormField(label, name);
+  if (matched) return { value: matched, reasoning: "Matched approved application copy" };
+
   const profile = JSON.stringify(REELIN_PROFILE, null, 2);
 
   const prompt = `You are filling out an accelerator application for Reelin AI.
@@ -186,16 +192,20 @@ async function aiMapField(
 REELIN AI PROFILE:
 ${profile}
 
+${SOSV_APPLICATION_KNOWLEDGE}
+
 FORM FIELD:
 Label: "${label}"
+Name: "${name || ""}"
 Type: ${fieldType}
 ${options.length > 0 ? `Options: ${options.join(", ")}` : ""}
 Page context: ${context}
 
+RULES: First Name=Abel, Last Name=Adugam. Use full approved answers for textareas. No fake patents. Deck=https://docsend.com/view/raru36axy8gftwb4
+
 Based on the Reelin AI profile above, what is the BEST value to fill in for this field?
 For select/radio fields, choose the most appropriate option from the list.
-For text fields, write a professional, compelling answer.
-Keep text answers under 500 words unless the field clearly requires more.
+For text fields, use approved copy verbatim when available.
 
 Respond with JSON: { "value": "...", "reasoning": "..." }`;
 
@@ -339,7 +349,8 @@ export async function analyzeApplicationForm(url: string): Promise<ApplicationPr
         raw.label,
         raw.type,
         raw.options,
-        pageText
+        pageText,
+        raw.name
       );
       fields.push({
         label: raw.label,

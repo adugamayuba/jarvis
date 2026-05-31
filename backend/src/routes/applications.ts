@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import OpenAI from "openai";
 import { getDb } from "../services/firebase";
 import { analyzeApplicationForm, submitApplicationForm, FormField, REELIN_PROFILE } from "../services/browser";
+import { matchFormField, SOSV_APPLICATION_KNOWLEDGE, FORM_FIELD_MAP } from "../data/applicationFields";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -49,6 +50,10 @@ const ACCELERATOR_DB: Record<string, { name: string; applyUrl: string; website: 
   "microsoft for startups": { name: "Microsoft for Startups", applyUrl: "https://www.microsoft.com/en-us/startups", website: "https://microsoft.com" },
   "aws activate": { name: "AWS Activate", applyUrl: "https://aws.amazon.com/activate/", website: "https://aws.amazon.com" },
   "google for startups": { name: "Google for Startups", applyUrl: "https://startup.google.com/programs/accelerator/", website: "https://startup.google.com" },
+  "sosv": { name: "SOSV", applyUrl: "https://sosv.com/apply/", website: "https://sosv.com" },
+  "sosv indiebio": { name: "SOSV IndieBio", applyUrl: "https://sosv.com/apply/", website: "https://sosv.com" },
+  "indiebio": { name: "SOSV IndieBio", applyUrl: "https://sosv.com/apply/", website: "https://sosv.com" },
+  "hellos tomorrow": { name: "Hello Tomorrow", applyUrl: "https://sosv.com/apply/", website: "https://sosv.com" },
 };
 
 function resolveInput(input: string): { url: string; name: string } | null {
@@ -126,43 +131,79 @@ router.post("/map-fields", async (req: Request, res: Response) => {
     }
 
     const profile = JSON.stringify(REELIN_PROFILE, null, 2);
+    const fieldMapKeys = Object.keys(FORM_FIELD_MAP).slice(0, 40).join(", ");
 
-    // Batch map all fields in one OpenAI call
-    const fieldDescriptions = fields.map((f, i) =>
-      `${i}. Label: "${f.label}" | Type: ${f.type}${f.options?.length ? ` | Options: [${f.options.join(", ")}]` : ""}`
-    ).join("\n");
+    // Deterministic match first — approved copy beats AI guesses
+    const preMapped = fields.map(f => {
+      const matched = matchFormField(f.label, f.name, undefined);
+      return matched;
+    });
+
+    const unmatchedIndices = preMapped
+      .map((v, i) => (v ? -1 : i))
+      .filter(i => i >= 0);
+
+    // If everything matched, return immediately
+    if (unmatchedIndices.length === 0) {
+      const mappedFields = fields.map((f, i) => ({
+        ...f,
+        suggestedValue: preMapped[i] || "",
+      }));
+      res.json({ success: true, data: { fields: mappedFields } });
+      return;
+    }
+
+    // Batch map unmatched fields in one OpenAI call
+    const fieldDescriptions = unmatchedIndices.map(i => {
+      const f = fields[i];
+      return `${i}. Label: "${f.label}" | Name: "${f.name || ""}" | Type: ${f.type}${f.options?.length ? ` | Options: [${f.options.join(", ")}]` : ""}`;
+    }).join("\n");
 
     const prompt = `You are filling out an accelerator application for Reelin AI.
 
 REELIN AI PROFILE:
 ${profile}
 
+${SOSV_APPLICATION_KNOWLEDGE}
+
+APPROVED FIELD LABELS (use these exact values when labels match):
+${fieldMapKeys}
+
+CRITICAL RULES:
+- First Name = Abel, Last Name = Adugam (never swap)
+- Founder email = abel@reelin.ai, co-founder email = ligia@reelin.ai
+- For long textarea questions, use the FULL approved answers from the profile — never shorten or invent
+- Leave video pitch URL fields empty unless a URL is provided in the profile
+- Do NOT claim patents exist — we have no formal patents filed yet
+- Deck link = https://docsend.com/view/raru36axy8gftwb4
+
 PAGE: "${pageTitle}"
 CONTEXT: ${pageText.substring(0, 500)}
 
-FORM FIELDS:
+UNMATCHED FORM FIELDS (index in original array):
 ${fieldDescriptions}
 
-For each field (0 to ${fields.length - 1}), provide the best value to fill in.
+For each field index listed above, provide the best value.
 - For radio/select: choose the exact option text from the options list
-- For text: write concise, compelling answers using the profile
+- For text/textarea: use approved copy verbatim when available
 - For checkboxes: return "true" or "false"
+- For optional video pitch: return empty string ""
 
-Respond with JSON: { "values": ["value0", "value1", ...] }`;
+Respond with JSON: { "values": { "0": "value", "3": "value" } } using field indices as keys`;
 
     const result = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     const json = JSON.parse(result.choices[0].message.content || "{}");
-    const values: string[] = json.values || [];
+    const aiValues: Record<string, string> = json.values || {};
 
     const mappedFields = fields.map((f, i) => ({
       ...f,
-      suggestedValue: values[i] || "",
+      suggestedValue: preMapped[i] || aiValues[String(i)] || aiValues[i] || "",
     }));
 
     res.json({ success: true, data: { fields: mappedFields } });

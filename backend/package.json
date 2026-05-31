@@ -19,7 +19,9 @@
     "firebase-admin": "^13.0.2",
     "googleapis": "^171.4.0",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
     "openai": "^6.38.0",
+    "pdf-parse": "^2.4.5",
     "playwright": "^1.60.0",
     "zod": "^3.24.1"
   },
@@ -27,7 +29,9 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.10.7",
+    "@types/pdf-parse": "^1.1.5",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"

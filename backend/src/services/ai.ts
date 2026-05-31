@@ -706,8 +706,30 @@ export async function chat(
     history = conv?.messages || [];
   }
 
+  // Pull in any learned document context
+  let documentContext = "";
+  try {
+    const db = getDb();
+    const snap = await db.collection("learnedDocuments").orderBy("uploadedAt", "desc").limit(10).get();
+    if (!snap.empty) {
+      const parts: string[] = [];
+      for (const doc of snap.docs) {
+        const d = doc.data();
+        const insights = (d.insights as Array<{ category: string; content: string }> || []);
+        if (insights.length > 0) {
+          parts.push(`[${d.filename}]: ` + insights.map(i => i.content).join(" | "));
+        }
+      }
+      if (parts.length > 0) {
+        documentContext = `\n\nADDITIONAL CONTEXT FROM UPLOADED DOCUMENTS:\n${parts.join("\n")}`;
+      }
+    }
+  } catch { /* ignore if Firestore unavailable */ }
+
+  const systemWithDocs = documentContext ? SYSTEM_PROMPT + documentContext : SYSTEM_PROMPT;
+
   const apiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemWithDocs },
     ...history.map((m) => ({ role: m.role, content: m.content } as OpenAI.Chat.Completions.ChatCompletionMessageParam)),
     { role: "user", content: userMessage },
   ];

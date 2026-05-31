@@ -12,6 +12,7 @@ import investorsRoutes from "./routes/investors";
 import bulkImportRoutes from "./routes/bulkImport";
 import influencerRoutes from "./routes/influencers";
 import applicationRoutes from "./routes/applications";
+import documentRoutes from "./routes/documents";
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use("/api/contacts", contactsRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/influencers", influencerRoutes);
 app.use("/api/applications", applicationRoutes);
+app.use("/api/documents", documentRoutes);
 
 // 404 & error handler
 app.use(notFound);

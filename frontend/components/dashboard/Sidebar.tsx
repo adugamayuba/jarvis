@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Search, Users, Mail,
-  Send, LogOut, Zap, TrendingUp, Menu, X, Upload, Star,
+  Send, LogOut, Zap, TrendingUp, Menu, X, Upload, Star, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearToken, getRole } from "@/lib/auth";
@@ -15,6 +15,7 @@ const adminNavItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/investors", icon: TrendingUp, label: "Investors" },
   { href: "/applications", icon: Send, label: "Applications" },
+  { href: "/documents", icon: BookOpen, label: "Documents" },
   { href: "/import", icon: Upload, label: "Import & Emails" },
   { href: "/scraper", icon: Search, label: "Scraper" },
   { href: "/contacts", icon: Users, label: "Contacts" },

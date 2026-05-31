@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import OpenAI from "openai";
 import { getDb } from "../services/firebase";
@@ -85,7 +85,18 @@ async function buildSummary(text: string, filename: string): Promise<string> {
 }
 
 // POST /api/documents/upload
-router.post("/upload", upload.single("file"), async (req: Request, res: Response) => {
+router.post("/upload", (req: Request, res: Response, next: NextFunction) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      const message = err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE"
+        ? "File too large — max 20MB"
+        : err.message;
+      res.status(400).json({ success: false, error: message });
+      return;
+    }
+    next();
+  });
+}, async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({ success: false, error: "No file uploaded" });

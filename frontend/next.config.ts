@@ -16,6 +16,10 @@ function getBackendUrl(): string {
 }
 
 const nextConfig: NextConfig = {
+  // Expose backend URL to the browser for direct uploads (multipart bypasses Vercel proxy)
+  env: {
+    NEXT_PUBLIC_API_URL: getBackendUrl(),
+  },
   async rewrites() {
     const backendUrl = getBackendUrl();
 

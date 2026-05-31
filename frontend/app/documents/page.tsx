@@ -4,6 +4,8 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
+import { getDirectApiUrl } from "@/lib/apiBase";
+import { getToken } from "@/lib/auth";
 import {
   Upload, FileText, Trash2, ChevronDown, ChevronUp,
   Loader2, BookOpen, Sparkles,
@@ -133,8 +135,12 @@ export default function DocumentsPage() {
 
     try {
       setUploadProgress("Extracting text from document...");
-      const res = await axios.post("/api/documents/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const token = getToken();
+      const res = await axios.post(getDirectApiUrl("/api/documents/upload"), formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         timeout: 120_000,
         onUploadProgress: (e) => {
           if (e.total) {
@@ -151,8 +157,12 @@ export default function DocumentsPage() {
         queryClient.invalidateQueries({ queryKey: ["documents"] });
       }
     } catch (err) {
-      const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Upload failed";
-      toast.error(msg || "Upload failed");
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.error || err.message
+        : "Upload failed";
+      toast.error(msg === "Route not found"
+        ? "Upload endpoint unavailable — redeploy Railway backend, then try again"
+        : msg);
     } finally {
       setUploading(false);
       setUploadProgress("");

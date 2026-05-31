@@ -1,14 +1,21 @@
 import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import OpenAI from "openai";
+import { PDFParse } from "pdf-parse";
 import { getDb } from "../services/firebase";
-
-// pdf-parse has no proper ESM types — use require
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string; numpages: number }>;
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const result = await parser.getText();
+    return result.text;
+  } finally {
+    await parser.destroy();
+  }
+}
 
 // Store files in memory (Railway has ephemeral disk, we save to Firestore instead)
 const upload = multer({
@@ -109,8 +116,7 @@ router.post("/upload", (req: Request, res: Response, next: NextFunction) => {
 
     // Parse PDF or read TXT
     if (req.file.mimetype === "application/pdf" || filename.endsWith(".pdf")) {
-      const parsed = await pdfParse(req.file.buffer);
-      rawText = parsed.text;
+      rawText = await extractPdfText(req.file.buffer);
     } else {
       rawText = req.file.buffer.toString("utf-8");
     }

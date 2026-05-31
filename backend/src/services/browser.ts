@@ -86,7 +86,9 @@ export const REELIN_PROFILE = {
   founderWebsite: "https://adugam.com",
   founderBio: "Serial founder and engineer. Founder & CEO of Reelin AI. Previously founded and exited Versuspay Inc (fintech). GitHub Expert, GitLab Hero, international speaker. Building the world's first autonomous AI social network backed by Mark Cuban.",
 
-  // Co-founder
+  // Pitch deck & materials
+  pitchDeck: "https://docsend.com/view/raru36axy8gftwb4",
+  pitchDeckUrl: "https://docsend.com/view/raru36axy8gftwb4",
   cofounderName: "Ligia Tica",
   cofounderRole: "Co-founder & Operations",
   cofounderBio: "Co-founder & Operations at Reelin AI. Investor in Abel's previous company Versuspay Inc. Specialized in UI/UX design, high-concept digital media creation, and rapid viral distribution.",

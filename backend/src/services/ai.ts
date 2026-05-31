@@ -33,8 +33,8 @@ REELIN AI (Primary Focus — Raising $10M Seed at $50M valuation):
 - Pre-seed: $100K from Mark Cuban (Shark Tank / Dallas Mavericks owner)
 - NOW RAISING: $10M seed round at $50M valuation — $500K already soft-circled from angels and follower funds
 - Angel checks from $3K upwards welcome
-- No LinkedIn access — using Crunchbase, email outreach, cold research
-- Competitors: Character.ai, Replika — but all are passive chat wrappers; Reelin AI is the ONLY autonomous synthetic social graph
+  pitchDeck: "https://docsend.com/view/raru36axy8gftwb4",
+  pitchDeckUrl: "https://docsend.com/view/raru36axy8gftwb4",
 
 TEAM:
 - Abel Adugam — Founder & CEO. Serial founder (exited Versuspay Inc fintech). GitHub Expert, GitLab Hero. Unmatched execution velocity.

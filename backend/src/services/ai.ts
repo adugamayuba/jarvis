@@ -3,8 +3,8 @@ import axios from "axios";
 import { getDb, COLLECTIONS } from "./firebase";
 import { sendEmail } from "./gmail";
 import { scrapeCrunchbaseDirect } from "./crunchbase";
-import { SOSV_APPLICATION_KNOWLEDGE } from "../data/applicationFields";
-import { getSosvKnowledgeText } from "../data/sosvApplication";
+import { APPLICATION_KNOWLEDGE } from "../data/applicationFields";
+import { getTrainingKnowledgeText } from "../data/trainingData";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -41,11 +41,10 @@ TEAM:
 - Abel Adugam — Founder & CEO (abel@reelin.ai, adugam.com, linkedin.com/in/adugamayuba). Ex-CTO. Serial founder (exited Versuspay Inc fintech). GitHub Expert, GitLab Hero. Based in New York.
 - Ligia Tica — Co-founder & Operations (ligia@reelin.ai, linkedin.com/in/ligia-t-8b4630225). Early investor in Abel's previous company 4 years ago. Based in Washington, D.C.
 
-SOSV APPLICATION ANSWERS (approved copy — use for accelerator forms):
+APPLICATION Q&A (verified copy — use for accelerator and investor forms):
 - 140-char description: "Autonomous AI social network creating digital replicas & AI Twins of users."
 - Team locations: New York, NY and Washington, D.C.
 - Founder availability: Both founders available full-time, no conflicts.
-- SOSV program preference: Both
 - Problem: Humans are the bottleneck of their own digital lives — creators and executives use broken passive chat wrappers. Reelin fixes this with identity forking: autonomous AI twins that live, interact, and simulate networking 24/7 with zero manual control.
 - Tech basis: Proprietary parallel simulation architecture + synthetic social graph + vertically integrated custom inference engine for millions of parallel agent simulations.
 - Team experience: Abel = ex-CTO, product designer, Versuspay exit. Ligia = early investor in Versuspay, 4-year partnership. 1 year building identity forking architecture, not just API wrappers.
@@ -57,9 +56,9 @@ SOSV APPLICATION ANSWERS (approved copy — use for accelerator forms):
 - Investment: $100K pre-seed from Mark Cuban. Raising $10M seed, $500K soft-circled.
 - Why choose us: Unique proposition validated by 251 organic users, Mark Cuban investment, proprietary architecture no chat wrapper has.
 
-${SOSV_APPLICATION_KNOWLEDGE}
+${APPLICATION_KNOWLEDGE}
 
-${getSosvKnowledgeText()}
+${getTrainingKnowledgeText()}
 
 SOFTDROOM HOLDINGS (Cash Machine Strategy):
 - Global conglomerate HQ'd in Singapore (7 Temasek Blvd, Suntec Tower)

@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { initFirebase } from "./services/firebase";
-import { seedSosvKnowledge } from "./services/knowledge";
+import { seedTrainingKnowledge } from "./services/knowledge";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 import scrapeRoutes from "./routes/scrape";
 import contactsRoutes from "./routes/contacts";
@@ -60,7 +60,7 @@ async function bootstrap() {
   try {
     initFirebase();
     console.log("✅ Firebase initialized");
-    await seedSosvKnowledge();
+    await seedTrainingKnowledge();
   } catch (err) {
     console.error("⚠️  Firebase init failed (check env vars):", (err as Error).message);
   }

@@ -1,6 +1,6 @@
 import { chromium, Browser, BrowserContext, Page } from "playwright";
 import OpenAI from "openai";
-import { matchFormField, SOSV_APPLICATION_KNOWLEDGE } from "../data/applicationFields";
+import { matchFormField, APPLICATION_KNOWLEDGE } from "../data/applicationFields";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -102,8 +102,7 @@ export const REELIN_PROFILE = {
   founderEmail: "adugamhq@gmail.com",
   founderEmailReelin: "abel@reelin.ai",
   founderRole: "Founder & CEO",
-  founderLinkedIn: "https://linkedin.com/in/adugamayuba",
-  founderLinkedInSOSV: "https://adugam.com",
+  founderLinkedIn: "https://adugam.com",
   founderGitHub: "https://github.com/adugamayuba",
   founderWebsite: "https://adugam.com",
   founderBio: "Serial founder and engineer. Founder & CEO of Reelin AI. Previously founded and exited Versuspay Inc (fintech). GitHub Expert, GitLab Hero, international speaker. Building the world's first autonomous AI social network backed by Mark Cuban.",
@@ -129,10 +128,6 @@ export const REELIN_PROFILE = {
   acceleratorPitchYC: "We are building the infrastructure for identity forking — the next platform shift in human-computer interaction. Our 251 organic users and Mark Cuban's pre-seed backing validate the thesis. YC's network and operator advice would help us close our $10M seed and scale our simulation infrastructure to millions of users.",
 
   acceleratorPitchTechstars: "Reelin AI is the world's first autonomous AI social network. Our proprietary simulation architecture creates a true synthetic social graph — something no competitor has built. With 251 organic users, Mark Cuban backing, and $500K soft-circled for our seed, Techstars' global mentor network is exactly what we need to scale distribution and close our round.",
-
-  // SOSV application (filled May 2026)
-  sosvProgram: "Both",
-  acceleratorPitchSOSV: "Reelin AI is building the infrastructure for identity forking — autonomous AI twins that live, network, and simulate in a parallel ecosystem with zero manual control. We have 251 organic users, $100K pre-seed from Mark Cuban, and are raising a $10M seed. SOSV's deep tech expertise and global investor network would accelerate our simulation architecture and help us scale our inference engine infrastructure internationally.",
 };
 
 let browser: Browser | null = null;
@@ -192,7 +187,7 @@ async function aiMapField(
 REELIN AI PROFILE:
 ${profile}
 
-${SOSV_APPLICATION_KNOWLEDGE}
+${APPLICATION_KNOWLEDGE}
 
 FORM FIELD:
 Label: "${label}"

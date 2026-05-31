@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import OpenAI from "openai";
 import { getDb } from "../services/firebase";
 import { analyzeApplicationForm, submitApplicationForm, FormField, REELIN_PROFILE } from "../services/browser";
-import { matchFormField, SOSV_APPLICATION_KNOWLEDGE, FORM_FIELD_MAP } from "../data/applicationFields";
+import { matchFormField, APPLICATION_KNOWLEDGE, FORM_FIELD_MAP } from "../data/applicationFields";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -163,7 +163,7 @@ router.post("/map-fields", async (req: Request, res: Response) => {
 REELIN AI PROFILE:
 ${profile}
 
-${SOSV_APPLICATION_KNOWLEDGE}
+${APPLICATION_KNOWLEDGE}
 
 APPROVED FIELD LABELS (use these exact values when labels match):
 ${fieldMapKeys}
@@ -172,8 +172,7 @@ CRITICAL RULES:
 - First Name = Abel, Last Name = Adugam (NEVER swap these)
 - Founder 1: Abel Adugam, Founder & CEO, abel@reelin.ai, LinkedIn https://adugam.com
 - Founder 2: Ligia Tica, Co-founder & Operations, ligia@reelin.ai, LinkedIn https://www.linkedin.com/in/ligia-t-8b4630225/
-- SOSV program select = "Both"
-- For long textarea questions, use the FULL approved answers — never shorten or invent
+- For long textarea questions, use the FULL approved Q&A answers — never shorten or invent
 - Video pitch URL fields = leave empty string (no video URL yet)
 - Do NOT claim patents exist — we have NO formal patents filed yet
 - Do NOT put problem statement in program select, or team experience in video pitch field

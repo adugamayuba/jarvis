@@ -134,9 +134,8 @@ router.post("/map-fields", async (req: Request, res: Response) => {
     const fieldMapKeys = Object.keys(FORM_FIELD_MAP).slice(0, 40).join(", ");
 
     // Deterministic match first — approved copy beats AI guesses
-    const preMapped = fields.map(f => {
-      const matched = matchFormField(f.label, f.name, undefined);
-      return matched;
+    const preMapped = fields.map((f, i) => {
+      return matchFormField(f.label, f.name, undefined, { fieldIndex: i, allFields: fields });
     });
 
     const unmatchedIndices = preMapped
@@ -170,11 +169,14 @@ APPROVED FIELD LABELS (use these exact values when labels match):
 ${fieldMapKeys}
 
 CRITICAL RULES:
-- First Name = Abel, Last Name = Adugam (never swap)
-- Founder email = abel@reelin.ai, co-founder email = ligia@reelin.ai
-- For long textarea questions, use the FULL approved answers from the profile — never shorten or invent
-- Leave video pitch URL fields empty unless a URL is provided in the profile
-- Do NOT claim patents exist — we have no formal patents filed yet
+- First Name = Abel, Last Name = Adugam (NEVER swap these)
+- Founder 1: Abel Adugam, Founder & CEO, abel@reelin.ai, LinkedIn https://adugam.com
+- Founder 2: Ligia Tica, Co-founder & Operations, ligia@reelin.ai, LinkedIn https://www.linkedin.com/in/ligia-t-8b4630225/
+- SOSV program select = "Both"
+- For long textarea questions, use the FULL approved answers — never shorten or invent
+- Video pitch URL fields = leave empty string (no video URL yet)
+- Do NOT claim patents exist — we have NO formal patents filed yet
+- Do NOT put problem statement in program select, or team experience in video pitch field
 - Deck link = https://docsend.com/view/raru36axy8gftwb4
 
 PAGE: "${pageTitle}"

@@ -33,12 +33,27 @@ REELIN AI (Primary Focus — Raising $10M Seed at $50M valuation):
 - Pre-seed: $100K from Mark Cuban (Shark Tank / Dallas Mavericks owner)
 - NOW RAISING: $10M seed round at $50M valuation — $500K already soft-circled from angels and follower funds
 - Angel checks from $3K upwards welcome
-  pitchDeck: "https://docsend.com/view/raru36axy8gftwb4",
-  pitchDeckUrl: "https://docsend.com/view/raru36axy8gftwb4",
+- Pitch deck: https://docsend.com/view/raru36axy8gftwb4
 
 TEAM:
-- Abel Adugam — Founder & CEO. Serial founder (exited Versuspay Inc fintech). GitHub Expert, GitLab Hero. Unmatched execution velocity.
-- Ligia Tica — Co-founder & Operations. Originally invested in Abel's previous company. Expert in UI/UX, digital media, viral distribution.
+- Abel Adugam — Founder & CEO (abel@reelin.ai, adugam.com, linkedin.com/in/adugamayuba). Ex-CTO. Serial founder (exited Versuspay Inc fintech). GitHub Expert, GitLab Hero. Based in New York.
+- Ligia Tica — Co-founder & Operations (ligia@reelin.ai, linkedin.com/in/ligia-t-8b4630225). Early investor in Abel's previous company 4 years ago. Based in Washington, D.C.
+
+SOSV APPLICATION ANSWERS (approved copy — use for accelerator forms):
+- 140-char description: "Autonomous AI social network creating digital replicas & AI Twins of users."
+- Team locations: New York, NY and Washington, D.C.
+- Founder availability: Both founders available full-time, no conflicts.
+- SOSV program preference: Both
+- Problem: Humans are the bottleneck of their own digital lives — creators and executives use broken passive chat wrappers. Reelin fixes this with identity forking: autonomous AI twins that live, interact, and simulate networking 24/7 with zero manual control.
+- Tech basis: Proprietary parallel simulation architecture + synthetic social graph + vertically integrated custom inference engine for millions of parallel agent simulations.
+- Team experience: Abel = ex-CTO, product designer, Versuspay exit. Ligia = early investor in Versuspay, 4-year partnership. 1 year building identity forking architecture, not just API wrappers.
+- Patents/IP: No formal patents yet. IP protected by proprietary simulation architecture, inference engine moat, network effects, organic user data loop.
+- Primary customer: Digital-first creators, executives, high-influence individuals bottlenecked by time/bandwidth who need a true human extension, not another chatbot.
+- Customer acquisition: Product viral loops + word-of-mouth. Each twin interaction = acquisition node. 251 users, zero marketing spend. PR strategy leveraging Mark Cuban backing.
+- Team audience ability: Proven execution velocity, UI/UX + technical systems architecture + high-fidelity digital media. Organic distribution baked into UX. Mark Cuban validation.
+- Business model: Tiered premium subscriptions + native brand integration with autonomous twins + enterprise infrastructure licensing. Target $100M+ ARR in 5 years.
+- Investment: $100K pre-seed from Mark Cuban. Raising $10M seed, $500K soft-circled.
+- Why choose us: Unique proposition validated by 251 organic users, Mark Cuban investment, proprietary architecture no chat wrapper has.
 
 SOFTDROOM HOLDINGS (Cash Machine Strategy):
 - Global conglomerate HQ'd in Singapore (7 Temasek Blvd, Suntec Tower)

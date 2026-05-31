@@ -9,24 +9,44 @@ export const REELIN_PROFILE = {
   companyName: "Reelin AI",
   website: "https://reelin.ai",
 
-  oneLiner: "Reelin AI is a consumer social network powered by identity forking, enabling users to spawn autonomous AI Twins that live, network, and simulate interactions with zero manual control.",
+  oneLiner: "Autonomous AI social network creating digital replicas & AI Twins of users.",
+
+  tagline140: "Autonomous AI social network creating digital replicas & AI Twins of users.",
 
   shortDescription: "Reelin AI is a consumer social network powered by identity forking. We build autonomous AI Twins that act as hyper-realistic digital extensions of real humans. Operating within a proprietary simulation architecture, these twins interact, network, and generate viral digital assets independently with zero manual user control. As we scale, we are vertically integrating our own inference engine infrastructure to power millions of parallel agent simulations.",
 
   description: "Reelin AI is the world's first autonomous AI social network powered by identity forking. Users spawn AI Twins — hyper-realistic digital extensions of themselves — that live, network, and simulate interactions 24/7 with zero manual control. Our proprietary simulation architecture enables twins to interact, build relationships, and generate viral digital assets independently. As we scale, we are vertically integrating our own inference engine to power millions of parallel agent simulations.",
 
-  problem: "Humans are the ultimate bottleneck of their own digital lives because scaling our presence and content is strictly limited by time and bandwidth. Today, potential customers get by using broken passive chat wrappers that require constant human prompting and hand-holding. They are forced to manually manage everything because existing tools completely lack autonomy. Reelin AI fixes this by enabling identity forking — giving users autonomous AI twins that live and simulate interactions in a parallel ecosystem with zero manual control.",
+  problem: "Humans are the ultimate bottleneck of their own digital lives because scaling our presence, content, and networking capabilities is strictly limited by time and bandwidth. Today, creators, executives, and high-influence individuals get by using broken, passive chat wrappers that require constant human prompting and hand-holding. They are forced to manually manage everything because existing tools completely lack autonomy. Reelin AI fixes this by enabling identity forking. We give users autonomous AI twins that live, interact, and simulate networking in a parallel ecosystem with zero manual control, turning a passive software tool into a true, 24/7 human extension.",
 
-  solution: "Reelin AI enables identity forking. We give users autonomous AI Twins that live and simulate interactions in a parallel ecosystem with zero manual control. This turns a passive tool into a true human extension. Every twin acts as an organic network node, creating viral digital assets and building connections independently.",
+  solution: "Reelin AI enables identity forking. We give users autonomous AI Twins that live, interact, and simulate networking in a parallel ecosystem with zero manual control. This turns a passive tool into a true human extension. Every twin acts as an organic network node, creating viral digital assets and building connections independently.",
+
+  technologicalBasis: "The basis of our technological solution is a proprietary parallel simulation architecture that enables true identity forking. Instead of building passive, text-based chat wrappers that rely on constant human prompting, we have engineered an ecosystem where hyper-realistic AI twins operate with zero manual user control. Our core technical infrastructure is built to support a synthetic social graph, allowing thousands of autonomous agents to live, network, and interact independently in a parallel environment. To ensure long-term defensibility and massive scale, we are vertically integrating our own custom inference engine infrastructure. This allows us to power millions of parallel agent simulations efficiently and generate high-fidelity synthetic assets seamlessly, turning AI from a simple software tool into a fully autonomous human extension.",
 
   inspiration: "I decided to start this company because human presence is structurally limited by time and bandwidth. I realized that instead of building more passive AI chatbots that require constant hand-holding, we need to let people scale their digital lives independently. After my previous fintech exit, I obsessed over the concept of identity forking. Reelin AI was born out of the necessity to build a parallel simulation architecture where autonomous AI twins can network and create value with zero manual control, transforming AI from a basic tool into a true human extension.",
 
   stage: "Seed",
   sector: "Artificial Intelligence, Social Media, Consumer Tech, Autonomous Agents",
 
-  businessModel: "We monetize via a premium, tiered subscription model tailored for scaling digital twins and generating synthetic digital assets. As the network scales, we will introduce enterprise-level infrastructure licensing for our autonomous simulation engine. We are positioning Reelin AI to capture a multi-billion dollar total addressable market within the consumer agent space, targeting $100M+ in ARR within 5 years.",
+  businessModel: "Our business model drives monetization through a tiered premium subscription setup, where users unlock advanced capabilities to scale their digital twins and generate synthetic assets. Alongside subscriptions, we open up high-margin revenue through native brand integration, allowing companies to seamlessly partner with autonomous twins for organic digital placement. As the network expands, we will also implement enterprise infrastructure licensing to let third parties build directly on top of our autonomous simulation engine. Positioned within the rapidly expanding consumer AI agent space, this multi-stream approach targets a multi-billion dollar addressable market, leveraging compounding organic user growth to project $100M+ in ARR within 5 years.",
 
-  traction: "251 active users compounding entirely through organic, word-of-mouth loops. $100K pre-seed from Mark Cuban. Currently structuring a $10M Seed round at a $50M valuation, with $500K already soft-circled from follower funds and global angels.",
+  traction: "251 active users compounding entirely through organic, word-of-mouth loops. $100K pre-seed from Mark Cuban. Currently structuring a $10M Seed round, with $500K already soft-circled.",
+
+  primaryCustomer: "Our primary customers are digital-first creators, executives, and high-influence individuals who are structurally bottlenecked by time and bandwidth. These are power users who need to scale their digital presence, content output, and networking capabilities but are physically limited by the hours in a day. They are looking for a true human extension rather than another basic, passive text chatbot that requires continuous manual prompting. By leveraging identity forking, they can deploy autonomous AI twins to live, interact, and generate high-fidelity synthetic assets independently, unlocking 24/7 digital leverage with zero manual control.",
+
+  customerAcquisition: "We reach our customers entirely through high-impact product viral loops and organic word-of-mouth networks. Because Reelin AI is built on identity forking, every single time an autonomous twin interacts publicly or generates high-fidelity synthetic assets, it functions as a live customer acquisition node. This built-in network effect turns our active users into a compounding distribution channel. This product-led acquisition strategy has already proven its velocity, scaling our user base to 251 active users with zero traditional marketing spend. Moving forward, we are pairing these organic loops with a high-status PR strategy, leveraging our early validation and top-tier backing from Mark Cuban to dominate tech conversations and accelerate user adoption without burning capital on costly traditional ad channels.",
+
+  teamExperience: "Our experience is rooted in a deep understanding of autonomous systems architecture, UI/UX product design, and scaling complex software. As a former Chief Technology Officer (CTO) and a product designer specialized in technical systems architecture, I have spent years engineering high-performance platforms and designing intuitive interfaces for complex workflows. This technical foundation is backed by proven founder velocity. I previously built, scaled, and successfully achieved a strategic exit with a fintech company, Versuspay Inc. My co-founder, Ligia Tica, has been a core partner in this journey; she was an early investor in that previous fintech venture four years ago, establishing a long-standing professional partnership built on deep execution trust. Together, we have spent the last year obsessing over the mechanics of identity forking. We aren't just building on top of basic APIs; we have combined our engineering leadership and specialized product skills to build our own proprietary parallel simulation architecture and are actively moving toward vertically integrating our own inference engine infrastructure. Our team's unique blend of tech leadership and product velocity is exactly what allowed us to take Reelin AI from a high-concept thesis to an active, growing network backed by Mark Cuban.",
+
+  patentsAndIP: "We do not have formal patents filed at this stage. Instead, our intellectual property is heavily protected by our proprietary simulation architecture and our technical systems architecture. This infrastructure is what allows our AI twins to network and operate autonomously in a parallel ecosystem with zero manual control. Additionally, as we scale, our long-term defensibility comes from vertically integrating our own inference engine infrastructure to power millions of parallel agent simulations efficiently. This deep technical moat, combined with our compounding network effects and organic user data loop, gives us a massive head start that simple API wrappers cannot replicate.",
+
+  teamAudienceAbility: "Our team combines proven execution velocity with a unique blend of technical leadership, product design, and viral growth experience. As an ex-CTO and founder who already built and successfully exited a fintech startup, I bring a strong track record of engineering scalable products and driving them to liquidity. My co-founder, Ligia Tica, adds deep strategic value and was actually an early investor in my previous company, proving our long-standing professional trust and ability to spot market-winning mechanics. Our core strength lies in UI/UX design, technical systems architecture, and high-fidelity digital media. We build products with organic distribution baked entirely into the user experience. Every time an autonomous twin interacts publicly or creates high-quality synthetic content, it functions as a viral acquisition loop that pulls new people into the ecosystem. We have already attracted high-status validation and pre-seed backing from Mark Cuban, proving our ability to command the attention of top-tier partners and users alike.",
+
+  whyChooseUs: "Our unique proposition and early traction with active users and investment validate us in a growing market. We have 251 organic users, $100K pre-seed from Mark Cuban, proprietary simulation architecture that no chat wrapper competitor has built, and a team with proven founder velocity including a successful fintech exit.",
+
+  teamLocations: "Our team is currently located in New York, NY and Washington, D.C.",
+
+  founderAvailability: "Both founders are available full-time to attend the program, with no conflicts.",
 
   activeUsers: "251",
   raise: "$10,000,000",
@@ -43,7 +63,7 @@ export const REELIN_PROFILE = {
 
   differentiation: "We stand out because of our proprietary simulation architecture that lets AI twins interact and network autonomously with zero manual control. While others build simple chat wrappers, we are creating a true synthetic social graph. Our execution velocity is proven by 251 active users growing purely through organic word of mouth. Our early traction is backed by a $100K pre-seed investment from Mark Cuban, and we are vertically integrating our own inference engine infrastructure to scale millions of parallel agent simulations efficiently.",
 
-  goToMarket: "Our growth is fueled entirely by high-impact product viral loops and word-of-mouth networks. Every time an autonomous twin interacts publicly or creates a viral digital asset, it functions as an organic customer acquisition node. This built-in network effect has driven our user base to 251 active users with zero marketing spend. We pair this with a high-status PR strategy, leveraging our early validation from top-tier backing to dominate tech conversations.",
+  goToMarket: "We reach our customers entirely through high-impact product viral loops and organic word-of-mouth networks. Because Reelin AI is built on identity forking, every single time an autonomous twin interacts publicly or generates high-fidelity synthetic assets, it functions as a live customer acquisition node. This built-in network effect turns our active users into a compounding distribution channel. This product-led acquisition strategy has already proven its velocity, scaling our user base to 251 active users with zero traditional marketing spend. Moving forward, we are pairing these organic loops with a high-status PR strategy, leveraging our early validation and top-tier backing from Mark Cuban to dominate tech conversations and accelerate user adoption without burning capital on costly traditional ad channels.",
 
   marketTiming: "The market is at an inflection point. Hardware acceleration breakthroughs make running dense, continuous agent simulations economically viable. Culturally, consumer fatigue with static feeds is driving a massive shift toward hyper-personalized, interactive synthetic media. Additionally, the recent venture capital momentum pouring into the consumer AI space signals massive market validation.",
 
@@ -90,8 +110,12 @@ export const REELIN_PROFILE = {
   pitchDeck: "https://docsend.com/view/raru36axy8gftwb4",
   pitchDeckUrl: "https://docsend.com/view/raru36axy8gftwb4",
   cofounderName: "Ligia Tica",
+  cofounderFirstName: "Ligia",
+  cofounderLastName: "Tica",
+  cofounderEmail: "ligia@reelin.ai",
   cofounderRole: "Co-founder & Operations",
-  cofounderBio: "Co-founder & Operations at Reelin AI. Investor in Abel's previous company Versuspay Inc. Specialized in UI/UX design, high-concept digital media creation, and rapid viral distribution.",
+  cofounderLinkedIn: "https://www.linkedin.com/in/ligia-t-8b4630225/",
+  cofounderBio: "Co-founder & Operations at Reelin AI. Early investor in Abel's previous company Versuspay Inc four years ago. Specialized in UI/UX design, high-concept digital media creation, and rapid viral distribution.",
 
   // Softdroom Holdings (parent)
   parentCompany: "Softdroom Holdings",
@@ -103,6 +127,10 @@ export const REELIN_PROFILE = {
   acceleratorPitchYC: "We are building the infrastructure for identity forking — the next platform shift in human-computer interaction. Our 251 organic users and Mark Cuban's pre-seed backing validate the thesis. YC's network and operator advice would help us close our $10M seed and scale our simulation infrastructure to millions of users.",
 
   acceleratorPitchTechstars: "Reelin AI is the world's first autonomous AI social network. Our proprietary simulation architecture creates a true synthetic social graph — something no competitor has built. With 251 organic users, Mark Cuban backing, and $500K soft-circled for our seed, Techstars' global mentor network is exactly what we need to scale distribution and close our round.",
+
+  // SOSV application (filled May 2026)
+  sosvProgram: "Both",
+  acceleratorPitchSOSV: "Reelin AI is building the infrastructure for identity forking — autonomous AI twins that live, network, and simulate in a parallel ecosystem with zero manual control. We have 251 organic users, $100K pre-seed from Mark Cuban, and are raising a $10M seed. SOSV's deep tech expertise and global investor network would accelerate our simulation architecture and help us scale our inference engine infrastructure internationally.",
 };
 
 let browser: Browser | null = null;

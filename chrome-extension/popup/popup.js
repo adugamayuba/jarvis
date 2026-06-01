@@ -142,6 +142,13 @@ document.getElementById("scan-fill-btn")?.addEventListener("click", async () => 
   window.close();
 });
 
+document.getElementById("find-emails-btn")?.addEventListener("click", async () => {
+  const tab = await getActiveTab();
+  if (!tab?.id) return;
+  await chrome.tabs.sendMessage(tab.id, { type: "OPEN_SIDEBAR", autoScan: true, mode: "emails" }).catch(() => {});
+  window.close();
+});
+
 document.getElementById("update-api-btn")?.addEventListener("click", async () => {
   const apiBase = getValue("api-base-display");
   if (!apiBase) return;

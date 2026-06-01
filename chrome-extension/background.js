@@ -81,6 +81,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } else if (msg.type === "SET_API_BASE") {
         await chrome.storage.local.set({ apiBase: msg.apiBase });
         sendResponse({ success: true });
+      } else if (msg.type === "FIND_PEOPLE_EMAILS") {
+        const result = await apiCall("/api/extension/people-emails", {
+          method: "POST",
+          body: JSON.stringify({
+            pageUrl: msg.pageUrl,
+            pageTitle: msg.pageTitle,
+            pageText: msg.pageText,
+            candidateNames: msg.candidateNames,
+            onPageEmails: msg.onPageEmails,
+          }),
+        }, 120000);
+        sendResponse({ success: true, data: result.data, message: result.message });
       } else if (msg.type === "OPEN_SIDEBAR") {
         // Sidebar is injected by content script — tell the tab to open it
         sendResponse({ success: true });

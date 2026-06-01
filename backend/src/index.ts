@@ -14,6 +14,7 @@ import bulkImportRoutes from "./routes/bulkImport";
 import influencerRoutes from "./routes/influencers";
 import applicationRoutes from "./routes/applications";
 import documentRoutes from "./routes/documents";
+import extensionRoutes from "./routes/extension";
 
 dotenv.config();
 
@@ -50,6 +51,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api/influencers", influencerRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/documents", documentRoutes);
+app.use("/api/extension", extensionRoutes);
 
 // 404 & error handler
 app.use(notFound);

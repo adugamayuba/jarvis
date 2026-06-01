@@ -66,16 +66,25 @@
           </p>
         </div>
 
+        <!-- Mode tabs -->
+        <div id="jarvis-mode-tabs" style="
+          display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid #1f1f1f; flex-shrink: 0;
+        ">
+          <button id="jarvis-mode-form" class="jarvis-mode-btn jarvis-mode-active" data-mode="form">Fill Form</button>
+          <button id="jarvis-mode-emails" class="jarvis-mode-btn" data-mode="emails">Find Emails</button>
+        </div>
+
         <!-- Main content -->
         <div id="jarvis-content" style="flex: 1; overflow-y: auto; padding: 12px 16px;">
           <div id="jarvis-loading" style="text-align: center; padding: 40px 0;">
             <div class="jarvis-spinner"></div>
-            <p style="font-size: 12px; color: #525252; margin-top: 12px;">Analyzing form fields...</p>
+            <p style="font-size: 12px; color: #525252; margin-top: 12px;">Analyzing...</p>
           </div>
           <div id="jarvis-fields-list" style="display: none;"></div>
+          <div id="jarvis-people-list" style="display: none;"></div>
           <div id="jarvis-empty" style="display: none; text-align: center; padding: 40px 0;">
-            <p style="font-size: 12px; color: #525252;">No form fields detected on this page.</p>
-            <p style="font-size: 11px; color: #404040; margin-top: 4px;">Navigate to an application form to get started.</p>
+            <p id="jarvis-empty-text" style="font-size: 12px; color: #525252;">No form fields detected on this page.</p>
+            <p style="font-size: 11px; color: #404040; margin-top: 4px;">Navigate to an application form or team page to get started.</p>
           </div>
         </div>
 
@@ -89,17 +98,12 @@
             border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 500;
             cursor: pointer; transition: all 0.15s;
           ">Scan Again</button>
-          <button id="jarvis-fill-btn" style="
+          <button id="jarvis-action-btn" style="
             flex: 2; background: #fff; color: #0a0a0a; border: none;
             border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 600;
             cursor: pointer; transition: all 0.15s; display: flex;
             align-items: center; justify-content: center; gap: 6px;
-          ">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-            Fill Form
-          </button>
+          ">Fill Form</button>
         </div>
       </div>
 
@@ -151,6 +155,25 @@
         font-size: 9px; background: #1a1a1a; color: #525252;
         padding: 1px 5px; border-radius: 3px; border: 1px solid #262626;
       }
+      .jarvis-mode-btn {
+        flex: 1; background: #1a1a1a; color: #737373; border: 1px solid #262626;
+        border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 500;
+        cursor: pointer; transition: all 0.15s;
+      }
+      .jarvis-mode-btn:hover { border-color: #404040; color: #a3a3a3; }
+      .jarvis-mode-active { background: #fff; color: #0a0a0a; border-color: #fff; }
+      .jarvis-person-item {
+        border: 1px solid #1f1f1f; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+        background: #111;
+      }
+      .jarvis-person-item:hover { border-color: #333; }
+      .jarvis-email-found { color: #34d399; font-size: 11px; font-family: monospace; }
+      .jarvis-email-missing { color: #525252; font-size: 11px; font-style: italic; }
+      .jarvis-copy-btn {
+        background: #1a1a1a; border: 1px solid #262626; color: #a3a3a3;
+        border-radius: 4px; padding: 2px 8px; font-size: 10px; cursor: pointer;
+      }
+      .jarvis-copy-btn:hover { border-color: #525252; color: #fff; }
     `;
     document.head.appendChild(style);
     document.body.appendChild(container);
@@ -159,8 +182,45 @@
     // Events
     document.getElementById("jarvis-close-btn").addEventListener("click", closeSidebar);
     document.getElementById("jarvis-toggle-tab").addEventListener("click", toggleSidebar);
-    document.getElementById("jarvis-scan-btn").addEventListener("click", scanAndMap);
-    document.getElementById("jarvis-fill-btn").addEventListener("click", fillForm);
+    document.getElementById("jarvis-scan-btn").addEventListener("click", () => runScan());
+    document.getElementById("jarvis-action-btn").addEventListener("click", () => runAction());
+    document.getElementById("jarvis-mode-form").addEventListener("click", () => setMode("form"));
+    document.getElementById("jarvis-mode-emails").addEventListener("click", () => setMode("emails"));
+  }
+
+  let sidebarMode = "form";
+  let peopleResults = [];
+  let detectedCompany = "";
+
+  function setMode(mode) {
+    sidebarMode = mode;
+    document.querySelectorAll(".jarvis-mode-btn").forEach(btn => {
+      btn.classList.toggle("jarvis-mode-active", btn.dataset.mode === mode);
+    });
+    const actionBtn = document.getElementById("jarvis-action-btn");
+    const scanBtn = document.getElementById("jarvis-scan-btn");
+    if (mode === "form") {
+      actionBtn.textContent = "Fill Form";
+      scanBtn.textContent = "Scan Again";
+      document.getElementById("jarvis-fields-list").style.display = mappedFields.length ? "block" : "none";
+      document.getElementById("jarvis-people-list").style.display = "none";
+    } else {
+      actionBtn.textContent = "Copy All Emails";
+      scanBtn.textContent = "Scan Page";
+      document.getElementById("jarvis-fields-list").style.display = "none";
+      document.getElementById("jarvis-people-list").style.display = peopleResults.length ? "block" : "none";
+    }
+    setStatus(mode === "form" ? "Form fill mode — scan to detect fields" : "Email finder — scan team/partner pages");
+  }
+
+  function runScan() {
+    if (sidebarMode === "form") scanAndMap();
+    else scanPeopleEmails();
+  }
+
+  function runAction() {
+    if (sidebarMode === "form") fillForm();
+    else copyAllEmails();
   }
 
   function openSidebar() {
@@ -396,6 +456,192 @@
     });
   }
 
+  // ── People & email finder ───────────────────────────────────────────────────
+
+  const NAME_REGEX = /^[A-Z][a-z]+(?:['\u2019][a-z]+)?(?: [A-Z][a-z]+(?:['\u2019][a-z]+)?)+$/;
+  const SKIP_NAME_WORDS = new Set([
+    "About", "Contact", "Team", "Home", "Menu", "Search", "Login", "Sign", "Read",
+    "Learn", "More", "View", "All", "Our", "The", "New", "Get", "Join", "Apply",
+    "Privacy", "Terms", "Cookie", "Subscribe", "Follow", "Share", "Back", "Next",
+  ]);
+
+  function extractPeopleFromPage() {
+    const names = new Set();
+    const onPageEmails = [];
+
+    document.querySelectorAll('a[href^="mailto:"]').forEach(a => {
+      const email = decodeURIComponent(a.href.replace(/^mailto:/i, "").split("?")[0]).trim();
+      if (!email.includes("@")) return;
+      const name = a.textContent.trim();
+      onPageEmails.push({ name: name.length > 2 && !name.includes("@") ? name : undefined, email });
+    });
+
+    document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+      try {
+        const walk = (obj) => {
+          if (!obj || typeof obj !== "object") return;
+          if (Array.isArray(obj)) { obj.forEach(walk); return; }
+          if (obj["@type"] === "Person" && obj.name) names.add(String(obj.name).trim());
+          Object.values(obj).forEach(walk);
+        };
+        walk(JSON.parse(script.textContent));
+      } catch { /* ignore */ }
+    });
+
+    const teamSel = '[class*="team" i], [class*="people" i], [class*="staff" i], [class*="member" i], [class*="partner" i], [id*="team" i]';
+    document.querySelectorAll(`${teamSel} h2, ${teamSel} h3, ${teamSel} h4, ${teamSel} h5, ${teamSel} strong, ${teamSel} [class*="name" i]`).forEach(el => {
+      if (!isVisible(el)) return;
+      const text = el.textContent.trim().split("\n")[0].trim();
+      if (looksLikePersonName(text)) names.add(text);
+    });
+
+    document.querySelectorAll("h3, h4, h5").forEach(el => {
+      if (!isVisible(el)) return;
+      const text = el.textContent.trim().split("\n")[0].trim();
+      if (looksLikePersonName(text)) names.add(text);
+    });
+
+    return { candidateNames: [...names], onPageEmails };
+  }
+
+  function looksLikePersonName(text) {
+    if (!text || text.length > 45 || text.length < 5) return false;
+    if (!NAME_REGEX.test(text)) return false;
+    if (SKIP_NAME_WORDS.has(text.split(" ")[0])) return false;
+    if (/\d|@|http|\.com|inc\.|llc|ventures|capital|partners/i.test(text)) return false;
+    return true;
+  }
+
+  function getVisiblePageText() {
+    const parts = [];
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walk.nextNode()) {
+      const parent = walk.currentNode.parentElement;
+      if (!parent || !isVisible(parent)) continue;
+      if (["SCRIPT", "STYLE", "NOSCRIPT"].includes(parent.tagName)) continue;
+      const t = walk.currentNode.textContent.trim();
+      if (t.length > 1) parts.push(t);
+    }
+    return parts.join(" ").substring(0, 12000);
+  }
+
+  async function scanPeopleEmails() {
+    openSidebar();
+    setMode("emails");
+    setStatus("Scanning page for people...");
+    showLoading(true);
+    document.getElementById("jarvis-fields-list").style.display = "none";
+    document.getElementById("jarvis-people-list").style.display = "none";
+    showEmpty(false);
+
+    const { candidateNames, onPageEmails } = extractPeopleFromPage();
+    const pageText = getVisiblePageText();
+
+    if (candidateNames.length === 0 && pageText.length < 100) {
+      showLoading(false);
+      showEmpty(true);
+      document.getElementById("jarvis-empty-text").textContent = "No people detected on this page";
+      setStatus("Try a team page, about page, or partner directory");
+      return;
+    }
+
+    setStatus(`Found ${candidateNames.length} name candidates — searching for emails...`);
+
+    let response;
+    try {
+      const timeoutPromise = new Promise(resolve =>
+        setTimeout(() => resolve({ success: false, error: "Timed out — try again" }), 120000)
+      );
+      const apiPromise = sendMessage({
+        type: "FIND_PEOPLE_EMAILS",
+        pageUrl: window.location.href,
+        pageTitle: document.title,
+        pageText,
+        candidateNames,
+        onPageEmails,
+      });
+      response = await Promise.race([apiPromise, timeoutPromise]);
+    } catch {
+      response = { success: false, error: "Request failed" };
+    }
+
+    showLoading(false);
+
+    if (response.success && response.data) {
+      peopleResults = response.data.people || [];
+      detectedCompany = response.data.company || "";
+      const found = peopleResults.filter(p => p.email).length;
+      setStatus(`${found}/${peopleResults.length} emails found${detectedCompany ? ` — ${detectedCompany}` : ""}`);
+      renderPeopleResults(peopleResults, detectedCompany);
+    } else {
+      peopleResults = candidateNames.map(name => ({ name, emailSource: "none" }));
+      setStatus(response.error || "Email search failed");
+      if (peopleResults.length) renderPeopleResults(peopleResults, "");
+      else {
+        showEmpty(true);
+        document.getElementById("jarvis-empty-text").textContent = response.error || "No people found";
+      }
+    }
+  }
+
+  function renderPeopleResults(people, company) {
+    const list = document.getElementById("jarvis-people-list");
+    list.innerHTML = "";
+    showEmpty(false);
+    list.style.display = "block";
+
+    if (company) {
+      const header = document.createElement("p");
+      header.style.cssText = "font-size:11px;color:#737373;margin:0 0 10px";
+      header.textContent = `${people.length} people on ${company}`;
+      list.appendChild(header);
+    }
+
+    people.forEach((person) => {
+      const item = document.createElement("div");
+      item.className = "jarvis-person-item";
+
+      const emailHtml = person.email
+        ? `<span class="jarvis-email-found">${person.email}</span>
+           <button class="jarvis-copy-btn" data-email="${person.email}">Copy</button>`
+        : `<span class="jarvis-email-missing">Not found</span>`;
+
+      const sourceTag = person.emailSource === "page" ? "on page"
+        : person.emailSource === "google" ? "web search" : "";
+
+      item.innerHTML = `
+        <div style="min-width:0">
+          <p style="font-size:12px;font-weight:600;color:#e5e5e5;margin:0">${person.name}</p>
+          ${person.title ? `<p style="font-size:10px;color:#525252;margin:2px 0 0">${person.title}</p>` : ""}
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${emailHtml}
+            ${sourceTag ? `<span style="font-size:9px;color:#404040">${sourceTag}</span>` : ""}
+          </div>
+        </div>
+      `;
+      list.appendChild(item);
+
+      const copyBtn = item.querySelector(".jarvis-copy-btn");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard.writeText(copyBtn.dataset.email);
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
+        });
+      }
+    });
+  }
+
+  function copyAllEmails() {
+    const emails = peopleResults.filter(p => p.email).map(p => p.email);
+    if (emails.length === 0) {
+      setStatus("No emails to copy — scan the page first");
+      return;
+    }
+    navigator.clipboard.writeText(emails.join(", "));
+    setStatus(`Copied ${emails.length} emails to clipboard`);
+  }
+
   // ── Form filling ───────────────────────────────────────────────────────────
 
   async function fillForm() {
@@ -538,7 +784,8 @@
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === "OPEN_SIDEBAR") {
       openSidebar();
-      if (msg.autoScan) scanAndMap();
+      if (msg.autoScan) runScan();
+      if (msg.mode === "emails") setMode("emails");
       sendResponse({ success: true });
     } else if (msg.type === "FILL_FORM") {
       fillForm();

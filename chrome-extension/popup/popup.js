@@ -131,14 +131,14 @@ document.getElementById("test-btn")?.addEventListener("click", async () => {
 document.getElementById("open-sidebar-btn")?.addEventListener("click", async () => {
   const tab = await getActiveTab();
   if (!tab?.id) return;
-  await chrome.tabs.sendMessage(tab.id, { type: "OPEN_SIDEBAR" }).catch(() => {});
+  await chrome.tabs.sendMessage(tab.id, { type: "OPEN_SIDEBAR", autoScan: true }).catch(() => {});
   window.close();
 });
 
 document.getElementById("scan-fill-btn")?.addEventListener("click", async () => {
   const tab = await getActiveTab();
   if (!tab?.id) return;
-  await chrome.tabs.sendMessage(tab.id, { type: "OPEN_SIDEBAR", autoScan: true }).catch(() => {});
+  await chrome.tabs.sendMessage(tab.id, { type: "OPEN_SIDEBAR", autoScan: true, mode: "form" }).catch(() => {});
   window.close();
 });
 

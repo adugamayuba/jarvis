@@ -272,3 +272,83 @@ export async function getApolloJobs(): Promise<ApiResponse<EmailFinderJob[]>> {
   const res = await api.get("/api/import/apollo-enrich");
   return res.data;
 }
+
+// ── UGC / TikTok ──────────────────────────────────────────────────────────────
+
+export interface TikTokAccount {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string;
+  status: string;
+  hasCookies: boolean;
+  notes: string;
+  postsCount: number;
+  createdAt: string;
+}
+
+export interface UgcVideo {
+  id: string;
+  title: string;
+  videoUrl: string;
+  caption: string;
+  hashtags: string[];
+  notes: string;
+  createdAt: string;
+}
+
+export interface UgcPost {
+  id: string;
+  accountId: string;
+  accountUsername: string;
+  videoId: string;
+  status: string;
+  error?: string;
+  tiktokUrl?: string;
+  createdAt: string;
+}
+
+export async function getUgcAccounts(): Promise<ApiResponse<TikTokAccount[]>> {
+  const res = await api.get("/api/ugc/accounts");
+  return res.data;
+}
+
+export async function createUgcAccount(payload: { username: string; email?: string; cookies?: string; notes?: string }): Promise<ApiResponse<{ id: string }>> {
+  const res = await api.post("/api/ugc/accounts", payload);
+  return res.data;
+}
+
+export async function registerTikTokAccount(payload: { email: string; password: string; username?: string; notes?: string }): Promise<ApiResponse<{ id: string }>> {
+  const res = await api.post("/api/ugc/accounts/register", payload);
+  return res.data;
+}
+
+export async function updateUgcAccount(id: string, updates: { cookies?: string; status?: string; notes?: string }): Promise<ApiResponse<void>> {
+  const res = await api.patch(`/api/ugc/accounts/${id}`, updates);
+  return res.data;
+}
+
+export async function getUgcVideos(): Promise<ApiResponse<UgcVideo[]>> {
+  const res = await api.get("/api/ugc/videos");
+  return res.data;
+}
+
+export async function createUgcVideo(payload: { title?: string; videoUrl: string; caption?: string; hashtags?: string[] }): Promise<ApiResponse<{ id: string }>> {
+  const res = await api.post("/api/ugc/videos", payload);
+  return res.data;
+}
+
+export async function createUgcPost(payload: { accountId: string; videoId: string; caption?: string; publishNow?: boolean }): Promise<ApiResponse<{ id: string }>> {
+  const res = await api.post("/api/ugc/posts", payload);
+  return res.data;
+}
+
+export async function bulkUgcPost(payload: { accountIds: string[]; videoId: string; caption?: string }): Promise<ApiResponse<{ postIds: string[]; count: number }>> {
+  const res = await api.post("/api/ugc/posts/bulk", payload);
+  return res.data;
+}
+
+export async function searchUgcCreators(niche: string, maxResults = 30): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/ugc/search-creators", { niche, maxResults });
+  return res.data;
+}

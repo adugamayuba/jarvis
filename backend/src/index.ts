@@ -15,6 +15,7 @@ import influencerRoutes from "./routes/influencers";
 import applicationRoutes from "./routes/applications";
 import documentRoutes from "./routes/documents";
 import extensionRoutes from "./routes/extension";
+import ugcRoutes from "./routes/ugc";
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.use("/api/influencers", influencerRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/extension", extensionRoutes);
+app.use("/api/ugc", ugcRoutes);
 
 // 404 & error handler
 app.use(notFound);

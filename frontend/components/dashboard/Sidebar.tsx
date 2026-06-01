@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Search, Users, Mail,
-  Send, LogOut, Zap, TrendingUp, Menu, X, Upload, Star, BookOpen,
+  Send, LogOut, Zap, TrendingUp, Menu, X, Upload, Star, BookOpen, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearToken, getRole } from "@/lib/auth";
@@ -22,6 +22,7 @@ const adminNavItems = [
   { href: "/campaigns", icon: Mail, label: "Campaigns" },
   { href: "/bulk", icon: Send, label: "Bulk Send" },
   { href: "/influencers-finder", icon: Star, label: "Influencers" },
+  { href: "/ugc", icon: Video, label: "UGC / TikTok" },
 ];
 
 const cofounderNavItems = [

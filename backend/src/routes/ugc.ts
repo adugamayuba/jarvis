@@ -1,6 +1,13 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../services/firebase";
 import { postVideoToTikTok, searchTikTokCreators, launchTikTokSignup } from "../services/tiktokUgc";
+import {
+  getYouTubeAuthUrl,
+  exchangeYouTubeCode,
+  uploadVideoToYouTube,
+  searchYouTubeChannels,
+  launchYouTubeSignup,
+} from "../services/youtubeUgc";
 
 interface IdParams extends Record<string, string> { id: string }
 interface JobIdParams extends Record<string, string> { jobId: string }
@@ -252,6 +259,7 @@ router.post("/posts", async (req: Request, res: Response) => {
     const video = videoDoc.data()!;
 
     const postRef = await db.collection("ugcPosts").add({
+      platform: "tiktok",
       accountId,
       accountUsername: account.username,
       videoId,
@@ -300,6 +308,7 @@ router.post("/posts/bulk", async (req: Request, res: Response) => {
       if (!accountDoc.exists) continue;
 
       const postRef = await db.collection("ugcPosts").add({
+        platform: "tiktok",
         accountId,
         accountUsername: accountDoc.data()!.username,
         videoId,
@@ -350,6 +359,12 @@ async function publishPost(postId: string): Promise<void> {
   if (!postDoc.exists) return;
 
   const post = postDoc.data()!;
+  const platform = (post.platform as string) || "tiktok";
+
+  if (platform === "youtube") {
+    await publishYouTubePost(postId);
+    return;
+  }
   const accountDoc = await db.collection("tiktokAccounts").doc(post.accountId).get();
   if (!accountDoc.exists) {
     await postRef.update({ status: "failed", error: "Account not found", updatedAt: new Date().toISOString() });
@@ -467,13 +482,392 @@ router.get("/jobs/:jobId", async (req: Request<JobIdParams>, res: Response) => {
 router.get("/creators", async (req: Request, res: Response) => {
   try {
     const db = getDb();
-    let query = db.collection("ugcCreators").orderBy("followers", "desc").limit(100);
-    if (req.query.niche) query = query.where("niche", "==", req.query.niche) as typeof query;
-    const snap = await query.get();
-    res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    const snap = await db.collection("ugcCreators").orderBy("followers", "desc").limit(200).get();
+    let items = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<{ id: string; platform?: string; followers?: number }>;
+    if (req.query.platform) {
+      const platform = String(req.query.platform);
+      items = items.filter(c => (c.platform || "tiktok") === platform);
+    }
+    res.json({ success: true, data: items.slice(0, 100) });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });
+
+// ── YouTube Accounts ──────────────────────────────────────────────────────────
+
+// GET /api/ugc/youtube/accounts
+router.get("/youtube/accounts", async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const snap = await db.collection("youtubeAccounts").orderBy("createdAt", "desc").limit(100).get();
+    const accounts = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        channelId: data.channelId,
+        channelTitle: data.channelTitle,
+        email: data.email,
+        status: data.status,
+        hasOAuth: !!data.refreshToken,
+        notes: data.notes,
+        postsCount: data.postsCount || 0,
+        createdAt: data.createdAt,
+      };
+    });
+    res.json({ success: true, data: accounts });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/ugc/youtube/accounts
+router.post("/youtube/accounts", async (req: Request, res: Response) => {
+  try {
+    const { channelTitle, email, refreshToken, notes } = req.body as {
+      channelTitle?: string;
+      email?: string;
+      refreshToken?: string;
+      notes?: string;
+    };
+
+    const db = getDb();
+    const doc = await db.collection("youtubeAccounts").add({
+      channelId: "",
+      channelTitle: channelTitle || email?.split("@")[0] || "YouTube Channel",
+      email: email || "",
+      refreshToken: refreshToken || "",
+      notes: notes || "",
+      status: refreshToken ? "active" : "needs_oauth",
+      postsCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.json({ success: true, data: { id: doc.id }, message: "YouTube account added" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/ugc/youtube/accounts/register
+router.post("/youtube/accounts/register", async (req: Request, res: Response) => {
+  try {
+    const { email, password, channelTitle, notes } = req.body as {
+      email: string;
+      password: string;
+      channelTitle?: string;
+      notes?: string;
+    };
+
+    if (!email || !password) {
+      res.status(400).json({ success: false, error: "email and password required" });
+      return;
+    }
+
+    const db = getDb();
+    const doc = await db.collection("youtubeAccounts").add({
+      channelId: "",
+      channelTitle: channelTitle || email.split("@")[0],
+      email,
+      password,
+      refreshToken: "",
+      notes: notes || "Pending Google signup + OAuth",
+      status: "pending_verification",
+      postsCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    launchYouTubeSignup(email, password).catch(console.error);
+
+    res.json({
+      success: true,
+      data: { id: doc.id },
+      message: "Account saved. Complete Google signup, then Connect with Google to enable posting.",
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// GET /api/ugc/youtube/oauth/connect/:id — returns auth URL
+router.get("/youtube/oauth/connect/:id", async (req: Request<IdParams>, res: Response) => {
+  try {
+    const db = getDb();
+    const doc = await db.collection("youtubeAccounts").doc(req.params.id).get();
+    if (!doc.exists) { res.status(404).json({ success: false, error: "Account not found" }); return; }
+
+    const authUrl = getYouTubeAuthUrl(req.params.id);
+    res.json({ success: true, data: { authUrl } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// GET /api/ugc/youtube/oauth/callback
+router.get("/youtube/oauth/callback", async (req: Request, res: Response) => {
+  const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
+  try {
+    const { code, state, error } = req.query as { code?: string; state?: string; error?: string };
+    if (error) {
+      res.redirect(`${frontendUrl}/ugc?platform=youtube&oauth=error&message=${encodeURIComponent(error)}`);
+      return;
+    }
+    if (!code || !state) {
+      res.redirect(`${frontendUrl}/ugc?platform=youtube&oauth=error&message=missing_code`);
+      return;
+    }
+
+    const tokens = await exchangeYouTubeCode(code);
+    const db = getDb();
+    await db.collection("youtubeAccounts").doc(state).update({
+      channelId: tokens.channelId,
+      channelTitle: tokens.channelTitle,
+      refreshToken: tokens.refreshToken,
+      status: "active",
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.redirect(`${frontendUrl}/ugc?platform=youtube&oauth=success&channel=${encodeURIComponent(tokens.channelTitle)}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.redirect(`${frontendUrl}/ugc?platform=youtube&oauth=error&message=${encodeURIComponent(msg)}`);
+  }
+});
+
+// PATCH /api/ugc/youtube/accounts/:id
+router.patch("/youtube/accounts/:id", async (req: Request<IdParams>, res: Response) => {
+  try {
+    const { refreshToken, status, notes, channelTitle } = req.body as {
+      refreshToken?: string;
+      status?: string;
+      notes?: string;
+      channelTitle?: string;
+    };
+
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    if (refreshToken !== undefined) {
+      updates.refreshToken = refreshToken;
+      if (refreshToken) updates.status = "active";
+    }
+    if (status) updates.status = status;
+    if (notes !== undefined) updates.notes = notes;
+    if (channelTitle) updates.channelTitle = channelTitle;
+
+    const db = getDb();
+    await db.collection("youtubeAccounts").doc(req.params.id).update(updates);
+    res.json({ success: true, message: "Account updated" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// DELETE /api/ugc/youtube/accounts/:id
+router.delete("/youtube/accounts/:id", async (req: Request<IdParams>, res: Response) => {
+  try {
+    const db = getDb();
+    await db.collection("youtubeAccounts").doc(req.params.id).delete();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/ugc/youtube/posts
+router.post("/youtube/posts", async (req: Request, res: Response) => {
+  try {
+    const { accountId, videoId, title, caption, hashtags, privacyStatus, publishNow } = req.body as {
+      accountId: string;
+      videoId: string;
+      title?: string;
+      caption?: string;
+      hashtags?: string[];
+      privacyStatus?: "public" | "private" | "unlisted";
+      publishNow?: boolean;
+    };
+
+    if (!accountId || !videoId) {
+      res.status(400).json({ success: false, error: "accountId and videoId required" });
+      return;
+    }
+
+    const db = getDb();
+    const [accountDoc, videoDoc] = await Promise.all([
+      db.collection("youtubeAccounts").doc(accountId).get(),
+      db.collection("ugcVideos").doc(videoId).get(),
+    ]);
+
+    if (!accountDoc.exists) { res.status(404).json({ success: false, error: "YouTube account not found" }); return; }
+    if (!videoDoc.exists) { res.status(404).json({ success: false, error: "Video not found" }); return; }
+
+    const account = accountDoc.data()!;
+    const video = videoDoc.data()!;
+
+    const postRef = await db.collection("ugcPosts").add({
+      platform: "youtube",
+      accountId,
+      accountUsername: account.channelTitle,
+      videoId,
+      videoUrl: video.videoUrl,
+      title: title || video.title || "Untitled",
+      caption: caption || video.caption || "",
+      hashtags: hashtags || video.hashtags || [],
+      privacyStatus: privacyStatus || "public",
+      status: publishNow ? "posting" : "queued",
+      createdAt: new Date().toISOString(),
+    });
+
+    if (publishNow) publishYouTubePost(postRef.id).catch(console.error);
+
+    res.json({ success: true, data: { id: postRef.id }, message: publishNow ? "Uploading to YouTube..." : "Queued" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/ugc/youtube/posts/bulk
+router.post("/youtube/posts/bulk", async (req: Request, res: Response) => {
+  try {
+    const { accountIds, videoId, title, caption, hashtags, privacyStatus } = req.body as {
+      accountIds: string[];
+      videoId: string;
+      title?: string;
+      caption?: string;
+      hashtags?: string[];
+      privacyStatus?: "public" | "private" | "unlisted";
+    };
+
+    if (!accountIds?.length || !videoId) {
+      res.status(400).json({ success: false, error: "accountIds and videoId required" });
+      return;
+    }
+
+    const db = getDb();
+    const videoDoc = await db.collection("ugcVideos").doc(videoId).get();
+    if (!videoDoc.exists) { res.status(404).json({ success: false, error: "Video not found" }); return; }
+    const video = videoDoc.data()!;
+
+    const postIds: string[] = [];
+    for (const accountId of accountIds) {
+      const accountDoc = await db.collection("youtubeAccounts").doc(accountId).get();
+      if (!accountDoc.exists) continue;
+
+      const postRef = await db.collection("ugcPosts").add({
+        platform: "youtube",
+        accountId,
+        accountUsername: accountDoc.data()!.channelTitle,
+        videoId,
+        videoUrl: video.videoUrl,
+        title: title || video.title || "Untitled",
+        caption: caption || video.caption || "",
+        hashtags: hashtags || video.hashtags || [],
+        privacyStatus: privacyStatus || "public",
+        status: "queued",
+        createdAt: new Date().toISOString(),
+      });
+      postIds.push(postRef.id);
+    }
+
+    processPostQueue().catch(console.error);
+    res.json({ success: true, data: { postIds, count: postIds.length }, message: `Queued ${postIds.length} YouTube uploads` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/ugc/youtube/search-channels
+router.post("/youtube/search-channels", async (req: Request, res: Response) => {
+  try {
+    const { query, maxResults = 20 } = req.body as { query: string; maxResults?: number };
+    if (!query) { res.status(400).json({ success: false, error: "query required" }); return; }
+
+    const db = getDb();
+    const jobRef = db.collection("ugcJobs").doc();
+    await jobRef.set({
+      type: "youtube_channel_search",
+      niche: query,
+      platform: "youtube",
+      status: "running",
+      total: 0,
+      found: 0,
+      startedAt: new Date().toISOString(),
+    });
+
+    res.status(202).json({ success: true, data: { jobId: jobRef.id } });
+
+    (async () => {
+      try {
+        const channels = await searchYouTubeChannels(query, maxResults);
+        const batch = db.batch();
+        for (const c of channels) {
+          const ref = db.collection("ugcCreators").doc();
+          batch.set(ref, { ...c, niche: query, createdAt: new Date().toISOString() });
+        }
+        if (channels.length) await batch.commit();
+        await jobRef.update({ status: "completed", total: channels.length, found: channels.length, completedAt: new Date().toISOString() });
+      } catch (err) {
+        await jobRef.update({
+          status: "failed",
+          error: err instanceof Error ? err.message : String(err),
+          completedAt: new Date().toISOString(),
+        });
+      }
+    })();
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+async function publishYouTubePost(postId: string): Promise<void> {
+  const db = getDb();
+  const postRef = db.collection("ugcPosts").doc(postId);
+  const postDoc = await postRef.get();
+  if (!postDoc.exists) return;
+
+  const post = postDoc.data()!;
+  const accountDoc = await db.collection("youtubeAccounts").doc(post.accountId as string).get();
+  if (!accountDoc.exists) {
+    await postRef.update({ status: "failed", error: "YouTube account not found", updatedAt: new Date().toISOString() });
+    return;
+  }
+
+  const account = accountDoc.data()!;
+  const refreshToken = account.refreshToken as string;
+  if (!refreshToken?.trim()) {
+    await postRef.update({ status: "failed", error: "No OAuth token — click Connect with Google", updatedAt: new Date().toISOString() });
+    return;
+  }
+
+  await postRef.update({ status: "posting", updatedAt: new Date().toISOString() });
+
+  const result = await uploadVideoToYouTube({
+    refreshToken,
+    videoUrl: post.videoUrl as string,
+    title: (post.title as string) || (post.caption as string) || "Untitled",
+    description: post.caption as string,
+    tags: post.hashtags as string[],
+    privacyStatus: (post.privacyStatus as "public" | "private" | "unlisted") || "public",
+  });
+
+  if (result.success) {
+    await postRef.update({
+      status: "posted",
+      youtubeUrl: result.videoUrl || "",
+      postedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    await db.collection("youtubeAccounts").doc(post.accountId as string).update({
+      postsCount: (account.postsCount || 0) + 1,
+      updatedAt: new Date().toISOString(),
+    });
+  } else {
+    await postRef.update({
+      status: "failed",
+      error: result.error || "Upload failed",
+      updatedAt: new Date().toISOString(),
+    });
+  }
+}
 
 export default router;

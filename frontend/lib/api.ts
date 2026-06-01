@@ -352,3 +352,35 @@ export async function searchUgcCreators(niche: string, maxResults = 30): Promise
   const res = await api.post("/api/ugc/search-creators", { niche, maxResults });
   return res.data;
 }
+
+export interface YouTubeAccount {
+  id: string;
+  channelId: string;
+  channelTitle: string;
+  email: string;
+  status: string;
+  hasOAuth: boolean;
+  notes: string;
+  postsCount: number;
+  createdAt: string;
+}
+
+export async function getYouTubeAccounts(): Promise<ApiResponse<YouTubeAccount[]>> {
+  const res = await api.get("/api/ugc/youtube/accounts");
+  return res.data;
+}
+
+export async function getYouTubeOAuthUrl(accountId: string): Promise<ApiResponse<{ authUrl: string }>> {
+  const res = await api.get(`/api/ugc/youtube/oauth/connect/${accountId}`);
+  return res.data;
+}
+
+export async function createYouTubePost(payload: { accountId: string; videoId: string; title?: string; caption?: string; privacyStatus?: string; publishNow?: boolean }): Promise<ApiResponse<{ id: string }>> {
+  const res = await api.post("/api/ugc/youtube/posts", payload);
+  return res.data;
+}
+
+export async function searchYouTubeChannels(query: string): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/ugc/youtube/search-channels", { query });
+  return res.data;
+}

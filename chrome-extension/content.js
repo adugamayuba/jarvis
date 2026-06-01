@@ -174,6 +174,15 @@
         border-radius: 4px; padding: 2px 8px; font-size: 10px; cursor: pointer;
       }
       .jarvis-copy-btn:hover { border-color: #525252; color: #fff; }
+      .jarvis-sent-btn {
+        background: #1a1a1a; border: 1px solid #262626; color: #a3a3a3;
+        border-radius: 4px; padding: 2px 8px; font-size: 10px; cursor: pointer;
+      }
+      .jarvis-sent-btn:hover { border-color: #3b82f6; color: #93c5fd; }
+      .jarvis-sent-btn.jarvis-sent-done {
+        background: #052e16; border-color: #166534; color: #34d399; cursor: default;
+      }
+      .jarvis-sent-btn:disabled { opacity: 0.7; }
     `;
     document.head.appendChild(style);
     document.body.appendChild(container);
@@ -198,6 +207,7 @@
   let peopleResults = [];
   let detectedCompany = "";
   let hasScanned = false;
+  const emailedPeople = new Set();
 
   function detectPageIntent() {
     const fields = extractFormFields();
@@ -666,7 +676,8 @@
 
       const emailHtml = person.email
         ? `<span class="jarvis-email-found">${person.email}</span>
-           <button class="jarvis-copy-btn" data-email="${person.email}">Copy</button>`
+           <button class="jarvis-copy-btn" data-email="${person.email}">Copy</button>
+           <button class="jarvis-sent-btn${person.emailed || emailedPeople.has(person.email) ? " jarvis-sent-done" : ""}" data-name="${person.name.replace(/"/g, "&quot;")}" data-email="${person.email}" data-title="${(person.title || "").replace(/"/g, "&quot;")}" ${person.emailed || emailedPeople.has(person.email) ? "disabled" : ""}>${person.emailed || emailedPeople.has(person.email) ? "Sent ✓" : "Mark Sent"}</button>`
         : `<span class="jarvis-email-missing">Not found</span>`;
 
       const sourceTag = person.emailSource === "page" ? "on page"
@@ -692,7 +703,45 @@
           setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
         });
       }
+
+      const sentBtn = item.querySelector(".jarvis-sent-btn");
+      if (sentBtn && !sentBtn.disabled) {
+        sentBtn.addEventListener("click", () => markPersonEmailed(sentBtn, person));
+      }
     });
+  }
+
+  async function markPersonEmailed(btn, person) {
+    if (!person.email || btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "MARK_EMAILED",
+        name: person.name,
+        email: person.email,
+        title: person.title || "",
+        company: detectedCompany || "",
+        pageUrl: window.location.href,
+      });
+
+      if (response?.success) {
+        person.emailed = true;
+        emailedPeople.add(person.email);
+        btn.textContent = "Sent ✓";
+        btn.classList.add("jarvis-sent-done");
+        setStatus(response.message || `Marked ${person.name} as emailed`);
+      } else {
+        btn.disabled = false;
+        btn.textContent = "Mark Sent";
+        setStatus(response?.error || "Failed to save contact");
+      }
+    } catch {
+      btn.disabled = false;
+      btn.textContent = "Mark Sent";
+      setStatus("Failed to save — check Jarvis login in extension popup");
+    }
   }
 
   function copyAllEmails() {

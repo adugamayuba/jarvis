@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -37,8 +38,21 @@ interface UgcVideo {
   createdAt: string;
 }
 
+interface YouTubeAccount {
+  id: string;
+  channelId: string;
+  channelTitle: string;
+  email: string;
+  status: string;
+  hasOAuth: boolean;
+  notes: string;
+  postsCount: number;
+  createdAt: string;
+}
+
 interface UgcPost {
   id: string;
+  platform?: string;
   accountId: string;
   accountUsername: string;
   videoId: string;
@@ -48,12 +62,14 @@ interface UgcPost {
   status: string;
   error?: string;
   tiktokUrl?: string;
+  youtubeUrl?: string;
   createdAt: string;
   postedAt?: string;
 }
 
 interface UgcCreator {
   id: string;
+  platform?: string;
   username: string;
   name: string;
   bio: string;
@@ -65,6 +81,7 @@ interface UgcCreator {
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-emerald-500/15 text-emerald-400",
   needs_cookies: "bg-amber-500/15 text-amber-400",
+  needs_oauth: "bg-amber-500/15 text-amber-400",
   pending_verification: "bg-sky-500/15 text-sky-400",
   queued: "bg-neutral-500/15 text-neutral-400",
   posting: "bg-sky-500/15 text-sky-400",
@@ -88,6 +105,8 @@ function formatFollowers(n: number): string {
 
 export default function UgcPage() {
   const qc = useQueryClient();
+  const searchParams = useSearchParams();
+  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
   const [tab, setTab] = useState("accounts");
 
   // Account form
@@ -110,6 +129,7 @@ export default function UgcPage() {
   const [postVideoId, setPostVideoId] = useState("");
   const [postCaption, setPostCaption] = useState("");
   const [bulkAccountIds, setBulkAccountIds] = useState<string[]>([]);
+  const [ytPrivacy, setYtPrivacy] = useState<"public" | "private" | "unlisted">("public");
 
   // Creator search
   const [creatorNiche, setCreatorNiche] = useState("");
@@ -118,6 +138,11 @@ export default function UgcPage() {
   const { data: accounts = [], isLoading: loadingAccounts } = useQuery({
     queryKey: ["ugc-accounts"],
     queryFn: async () => (await axios.get("/api/ugc/accounts")).data.data as TikTokAccount[],
+  });
+
+  const { data: ytAccounts = [], isLoading: loadingYtAccounts } = useQuery({
+    queryKey: ["ugc-youtube-accounts"],
+    queryFn: async () => (await axios.get("/api/ugc/youtube/accounts")).data.data as YouTubeAccount[],
   });
 
   const { data: videos = [], isLoading: loadingVideos } = useQuery({
@@ -135,8 +160,11 @@ export default function UgcPage() {
   });
 
   const { data: creators = [] } = useQuery({
-    queryKey: ["ugc-creators"],
-    queryFn: async () => (await axios.get("/api/ugc/creators")).data.data as UgcCreator[],
+    queryKey: ["ugc-creators", platform],
+    queryFn: async () => {
+      const res = await axios.get(`/api/ugc/creators?platform=${platform}`);
+      return res.data.data as UgcCreator[];
+    },
   });
 
   const { data: creatorJob } = useQuery({
@@ -146,9 +174,22 @@ export default function UgcPage() {
     refetchInterval: (q) => q.state.data?.status === "running" ? 4000 : false,
   });
 
+  useEffect(() => {
+    const p = searchParams.get("platform");
+    if (p === "youtube") setPlatform("youtube");
+    const oauth = searchParams.get("oauth");
+    if (oauth === "success") {
+      toast.success(`YouTube connected: ${searchParams.get("channel") || "channel"}`);
+      qc.invalidateQueries({ queryKey: ["ugc-youtube-accounts"] });
+    } else if (oauth === "error") {
+      toast.error(`YouTube OAuth failed: ${searchParams.get("message") || "unknown error"}`);
+    }
+  }, [searchParams, qc]);
+
   async function refreshAll() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["ugc-accounts"] }),
+      qc.invalidateQueries({ queryKey: ["ugc-youtube-accounts"] }),
       qc.invalidateQueries({ queryKey: ["ugc-videos"] }),
       qc.invalidateQueries({ queryKey: ["ugc-posts"] }),
       qc.invalidateQueries({ queryKey: ["ugc-creators"] }),
@@ -279,20 +320,109 @@ export default function UgcPage() {
     }
   }
 
+  async function addYouTubeAccount(register = false) {
+    if (!accEmail.trim() && !accUsername.trim()) { toast.error("Email or channel name required"); return; }
+    try {
+      const endpoint = register ? "/api/ugc/youtube/accounts/register" : "/api/ugc/youtube/accounts";
+      const payload = register
+        ? { email: accEmail, password: accPassword, channelTitle: accUsername, notes: accNotes }
+        : { channelTitle: accUsername, email: accEmail, notes: accNotes };
+      const res = await axios.post(endpoint, payload);
+      if (res.data.success) {
+        toast.success(res.data.message || "YouTube account added");
+        setAccUsername(""); setAccEmail(""); setAccPassword(""); setAccNotes("");
+        qc.invalidateQueries({ queryKey: ["ugc-youtube-accounts"] });
+      }
+    } catch {
+      toast.error("Failed to add YouTube account");
+    }
+  }
+
+  async function connectYouTube(accountId: string) {
+    try {
+      const res = await axios.get(`/api/ugc/youtube/oauth/connect/${accountId}`);
+      if (res.data.success) window.location.href = res.data.data.authUrl;
+    } catch {
+      toast.error("Failed to start OAuth — check YOUTUBE_CLIENT_ID on Railway");
+    }
+  }
+
+  async function deleteYouTubeAccount(id: string) {
+    if (!confirm("Delete this YouTube account?")) return;
+    await axios.delete(`/api/ugc/youtube/accounts/${id}`);
+    qc.invalidateQueries({ queryKey: ["ugc-youtube-accounts"] });
+    toast.success("Account deleted");
+  }
+
+  async function publishYouTubePostNow() {
+    if (!postAccountId || !postVideoId) { toast.error("Select account and video"); return; }
+    try {
+      const res = await axios.post("/api/ugc/youtube/posts", {
+        accountId: postAccountId,
+        videoId: postVideoId,
+        title: vidTitle || undefined,
+        caption: postCaption,
+        privacyStatus: ytPrivacy,
+        publishNow: true,
+      });
+      if (res.data.success) {
+        toast.success("Uploading to YouTube...");
+        setPostCaption("");
+        refetchPosts();
+      }
+    } catch {
+      toast.error("Failed to upload");
+    }
+  }
+
+  async function bulkYouTubePost() {
+    if (!bulkAccountIds.length || !postVideoId) { toast.error("Select accounts and a video"); return; }
+    try {
+      const res = await axios.post("/api/ugc/youtube/posts/bulk", {
+        accountIds: bulkAccountIds,
+        videoId: postVideoId,
+        caption: postCaption,
+        privacyStatus: ytPrivacy,
+      });
+      if (res.data.success) {
+        toast.success(`Queued ${res.data.data.count} YouTube uploads`);
+        refetchPosts();
+      }
+    } catch {
+      toast.error("Bulk upload failed");
+    }
+  }
+
+  async function searchYouTubeChannels() {
+    if (!creatorNiche.trim()) { toast.error("Enter a search query"); return; }
+    try {
+      const res = await axios.post("/api/ugc/youtube/search-channels", { query: creatorNiche, maxResults: 20 });
+      if (res.data.success) {
+        setCreatorJobId(res.data.data.jobId);
+        toast.success("Searching YouTube channels...");
+      }
+    } catch {
+      toast.error("Search failed — set YOUTUBE_API_KEY on Railway");
+    }
+  }
+
   function toggleBulkAccount(id: string) {
     setBulkAccountIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   }
 
   const activeAccounts = accounts.filter(a => a.hasCookies);
+  const activeYtAccounts = ytAccounts.filter(a => a.hasOAuth);
+  const platformPosts = posts.filter(p => (p.platform || "tiktok") === platform);
+  const platformCreators = creators.filter(c => (c.platform || "tiktok") === platform);
 
   return (
     <div className="flex-1 overflow-auto">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-white tracking-tight">UGC / TikTok</h1>
+            <h1 className="text-xl font-semibold text-white tracking-tight">UGC</h1>
             <p className="text-sm text-neutral-500 mt-1">
-              Manage TikTok accounts, video library, and automated posting via Apify.
+              Manage TikTok & YouTube accounts, video library, and automated posting.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={refreshAll} className="border-neutral-800 text-neutral-400">
@@ -300,14 +430,31 @@ export default function UgcPage() {
           </Button>
         </div>
 
+        <div className="flex gap-2">
+          <button onClick={() => setPlatform("tiktok")}
+            className={cn("px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+              platform === "tiktok" ? "bg-white text-black border-white" : "border-neutral-800 text-neutral-400 hover:text-white")}>
+            TikTok
+          </button>
+          <button onClick={() => setPlatform("youtube")}
+            className={cn("px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+              platform === "youtube" ? "bg-red-600 text-white border-red-600" : "border-neutral-800 text-neutral-400 hover:text-white")}>
+            YouTube
+          </button>
+        </div>
+
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 flex gap-3 text-sm text-amber-200/80">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
           <div>
-            <p className="font-medium text-amber-300">How account setup works</p>
+            <p className="font-medium text-amber-300">
+              {platform === "tiktok" ? "TikTok setup" : "YouTube setup"}
+            </p>
             <p className="mt-1 text-amber-200/70 text-[13px] leading-relaxed">
-              TikTok requires phone verification — full auto-signup isn&apos;t reliable. Create accounts manually or use
-              &quot;Launch Signup&quot;, complete verification, then export session cookies from your browser
-              (DevTools → Application → Cookies → tiktok.com) and paste them here. Posting uses Apify browser automation with those cookies.
+              {platform === "tiktok" ? (
+                <>TikTok requires phone verification — full auto-signup isn&apos;t reliable. Create accounts manually, export session cookies (DevTools → Application → Cookies → tiktok.com), and paste them here. Posting uses Apify.</>
+              ) : (
+                <>Google requires phone verification for new accounts. Create a Google account, enable a YouTube channel, then click <strong>Connect with Google</strong> to authorize uploads via the official YouTube Data API. Much more reliable than browser automation.</>
+              )}
             </p>
           </div>
         </div>
@@ -322,6 +469,8 @@ export default function UgcPage() {
 
           {/* ── Accounts ── */}
           <TabsContent value="accounts" className="space-y-6 mt-4">
+            {platform === "tiktok" ? (
+            <>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
                 <h3 className="text-sm font-medium text-white">Add account manually</h3>
@@ -395,6 +544,74 @@ export default function UgcPage() {
                 </div>
               )}
             </div>
+            </>
+            ) : (
+            <>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
+                <h3 className="text-sm font-medium text-white">Add YouTube channel</h3>
+                <Input placeholder="Channel name" value={accUsername} onChange={e => setAccUsername(e.target.value)} className="bg-neutral-950 border-neutral-800" />
+                <Input placeholder="Google email" value={accEmail} onChange={e => setAccEmail(e.target.value)} className="bg-neutral-950 border-neutral-800" />
+                <Input placeholder="Notes (optional)" value={accNotes} onChange={e => setAccNotes(e.target.value)} className="bg-neutral-950 border-neutral-800" />
+                <Button onClick={() => addYouTubeAccount(false)} className="w-full bg-red-600 text-white hover:bg-red-500">
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Channel
+                </Button>
+              </div>
+              <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
+                <h3 className="text-sm font-medium text-white">Register new Google account</h3>
+                <p className="text-xs text-neutral-500">Complete Google signup, create YouTube channel, then Connect with Google.</p>
+                <Input placeholder="email@gmail.com" value={accEmail} onChange={e => setAccEmail(e.target.value)} className="bg-neutral-950 border-neutral-800" />
+                <Input type="password" placeholder="Password" value={accPassword} onChange={e => setAccPassword(e.target.value)} className="bg-neutral-950 border-neutral-800" />
+                <Input placeholder="Channel name (optional)" value={accUsername} onChange={e => setAccUsername(e.target.value)} className="bg-neutral-950 border-neutral-800" />
+                <Button onClick={() => addYouTubeAccount(true)} variant="outline" className="w-full border-neutral-700">
+                  Save & Launch Signup
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-neutral-800 overflow-hidden">
+              <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/60">
+                <span className="text-sm font-medium text-white">{ytAccounts.length} channels</span>
+                <span className="text-xs text-neutral-500 ml-2">({activeYtAccounts.length} connected)</span>
+              </div>
+              {loadingYtAccounts ? (
+                <div className="p-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-neutral-500" /></div>
+              ) : ytAccounts.length === 0 ? (
+                <p className="p-8 text-center text-sm text-neutral-500">No YouTube channels yet</p>
+              ) : (
+                <div className="divide-y divide-neutral-800/60">
+                  {ytAccounts.map(acc => (
+                    <div key={acc.id} className="px-4 py-3 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-white">{acc.channelTitle}</span>
+                          <StatusBadge status={acc.status} />
+                          {acc.hasOAuth && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-0.5">{acc.email} · {acc.postsCount} uploads</p>
+                        {acc.notes && <p className="text-xs text-neutral-600 mt-0.5 truncate">{acc.notes}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {!acc.hasOAuth && (
+                          <Button size="sm" variant="outline" className="border-red-700 text-red-400 text-xs" onClick={() => connectYouTube(acc.id)}>
+                            Connect with Google
+                          </Button>
+                        )}
+                        {acc.channelId && (
+                          <a href={`https://www.youtube.com/channel/${acc.channelId}`} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="ghost"><ExternalLink className="w-3.5 h-3.5" /></Button>
+                          </a>
+                        )}
+                        <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300" onClick={() => deleteYouTubeAccount(acc.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            </>
+            )}
           </TabsContent>
 
           {/* ── Videos ── */}
@@ -440,39 +657,58 @@ export default function UgcPage() {
           <TabsContent value="posts" className="space-y-6 mt-4">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-                <h3 className="text-sm font-medium text-white">Post to one account</h3>
+                <h3 className="text-sm font-medium text-white">
+                  {platform === "tiktok" ? "Post to one TikTok account" : "Upload to one YouTube channel"}
+                </h3>
                 <select value={postAccountId} onChange={e => setPostAccountId(e.target.value)} className="w-full rounded-md bg-neutral-950 border border-neutral-800 px-3 py-2 text-sm text-white">
                   <option value="">Select account</option>
-                  {activeAccounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}
+                  {platform === "tiktok"
+                    ? activeAccounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)
+                    : activeYtAccounts.map(a => <option key={a.id} value={a.id}>{a.channelTitle}</option>)}
                 </select>
                 <select value={postVideoId} onChange={e => setPostVideoId(e.target.value)} className="w-full rounded-md bg-neutral-950 border border-neutral-800 px-3 py-2 text-sm text-white">
                   <option value="">Select video</option>
                   {videos.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
                 </select>
-                <Textarea placeholder="Caption override (optional)" value={postCaption} onChange={e => setPostCaption(e.target.value)} rows={2} className="bg-neutral-950 border-neutral-800" />
-                <Button onClick={() => publishPost(true)} className="w-full bg-white text-black hover:bg-neutral-200">
-                  <Send className="w-4 h-4 mr-1.5" /> Post Now
+                {platform === "youtube" && (
+                  <select value={ytPrivacy} onChange={e => setYtPrivacy(e.target.value as typeof ytPrivacy)} className="w-full rounded-md bg-neutral-950 border border-neutral-800 px-3 py-2 text-sm text-white">
+                    <option value="public">Public</option>
+                    <option value="unlisted">Unlisted</option>
+                    <option value="private">Private</option>
+                  </select>
+                )}
+                <Textarea placeholder={platform === "youtube" ? "Description (optional)" : "Caption override (optional)"} value={postCaption} onChange={e => setPostCaption(e.target.value)} rows={2} className="bg-neutral-950 border-neutral-800" />
+                <Button onClick={() => platform === "tiktok" ? publishPost(true) : publishYouTubePostNow()} className={cn("w-full", platform === "youtube" ? "bg-red-600 text-white hover:bg-red-500" : "bg-white text-black hover:bg-neutral-200")}>
+                  <Send className="w-4 h-4 mr-1.5" /> {platform === "tiktok" ? "Post Now" : "Upload Now"}
                 </Button>
               </div>
 
               <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
                 <h3 className="text-sm font-medium text-white">Bulk post to multiple accounts</h3>
-                <p className="text-xs text-neutral-500">Same video posted to all selected accounts (30s delay between each).</p>
+                <p className="text-xs text-neutral-500">Same video to all selected accounts (30s delay between each).</p>
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                  {activeAccounts.map(a => (
-                    <button key={a.id} onClick={() => toggleBulkAccount(a.id)}
-                      className={cn("text-xs px-2.5 py-1 rounded-full border transition-colors",
-                        bulkAccountIds.includes(a.id) ? "border-white bg-white/10 text-white" : "border-neutral-700 text-neutral-500")}>
-                      @{a.username}
-                    </button>
-                  ))}
+                  {platform === "tiktok"
+                    ? activeAccounts.map(a => (
+                      <button key={a.id} onClick={() => toggleBulkAccount(a.id)}
+                        className={cn("text-xs px-2.5 py-1 rounded-full border transition-colors",
+                          bulkAccountIds.includes(a.id) ? "border-white bg-white/10 text-white" : "border-neutral-700 text-neutral-500")}>
+                        @{a.username}
+                      </button>
+                    ))
+                    : activeYtAccounts.map(a => (
+                      <button key={a.id} onClick={() => toggleBulkAccount(a.id)}
+                        className={cn("text-xs px-2.5 py-1 rounded-full border transition-colors",
+                          bulkAccountIds.includes(a.id) ? "border-red-500 bg-red-500/10 text-white" : "border-neutral-700 text-neutral-500")}>
+                        {a.channelTitle}
+                      </button>
+                    ))}
                 </div>
                 <select value={postVideoId} onChange={e => setPostVideoId(e.target.value)} className="w-full rounded-md bg-neutral-950 border border-neutral-800 px-3 py-2 text-sm text-white">
                   <option value="">Select video</option>
                   {videos.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
                 </select>
-                <Button onClick={bulkPost} variant="outline" className="w-full border-neutral-700">
-                  Queue Bulk Post ({bulkAccountIds.length} accounts)
+                <Button onClick={() => platform === "tiktok" ? bulkPost() : bulkYouTubePost()} variant="outline" className="w-full border-neutral-700">
+                  Queue Bulk ({bulkAccountIds.length} accounts)
                 </Button>
                 <Button onClick={processQueue} variant="ghost" className="w-full text-neutral-400">
                   <Clock className="w-4 h-4 mr-1.5" /> Process Queue
@@ -482,29 +718,29 @@ export default function UgcPage() {
 
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/60 flex justify-between">
-                <span className="text-sm font-medium text-white">Post history</span>
-                <Badge variant="outline" className="border-neutral-700 text-neutral-400">{posts.length} total</Badge>
+                <span className="text-sm font-medium text-white">{platform} post history</span>
+                <Badge variant="outline" className="border-neutral-700 text-neutral-400">{platformPosts.length} total</Badge>
               </div>
-              {posts.length === 0 ? (
+              {platformPosts.length === 0 ? (
                 <p className="p-8 text-center text-sm text-neutral-500">No posts yet</p>
               ) : (
                 <div className="divide-y divide-neutral-800/60">
-                  {posts.map(p => (
+                  {platformPosts.map(p => (
                     <div key={p.id} className="px-4 py-3 flex items-center gap-3">
                       {p.status === "posted" ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> :
                        p.status === "failed" ? <AlertCircle className="w-4 h-4 text-red-400 shrink-0" /> :
                        <Loader2 className={cn("w-4 h-4 shrink-0", p.status === "posting" && "animate-spin text-sky-400")} />}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-white">@{p.accountUsername}</span>
+                          <span className="text-sm text-white">{p.accountUsername}</span>
                           <StatusBadge status={p.status} />
                         </div>
                         <p className="text-xs text-neutral-500 truncate">{p.caption || p.videoUrl}</p>
                         {p.error && <p className="text-xs text-red-400 mt-0.5">{p.error}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
-                        {p.tiktokUrl && (
-                          <a href={p.tiktokUrl} target="_blank" rel="noopener noreferrer">
+                        {(p.tiktokUrl || p.youtubeUrl) && (
+                          <a href={(p.tiktokUrl || p.youtubeUrl)!} target="_blank" rel="noopener noreferrer">
                             <Button size="sm" variant="ghost"><ExternalLink className="w-3.5 h-3.5" /></Button>
                           </a>
                         )}
@@ -522,10 +758,12 @@ export default function UgcPage() {
           {/* ── Creators ── */}
           <TabsContent value="creators" className="space-y-6 mt-4">
             <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3 max-w-xl">
-              <h3 className="text-sm font-medium text-white">Find TikTok creators by niche</h3>
+              <h3 className="text-sm font-medium text-white">
+                {platform === "tiktok" ? "Find TikTok creators by niche" : "Find YouTube channels"}
+              </h3>
               <div className="flex gap-2">
-                <Input placeholder="e.g. AI startup, reelin, ugc creator" value={creatorNiche} onChange={e => setCreatorNiche(e.target.value)} className="bg-neutral-950 border-neutral-800" />
-                <Button onClick={searchCreators} disabled={creatorJob?.status === "running"} className="bg-white text-black hover:bg-neutral-200 shrink-0">
+                <Input placeholder={platform === "tiktok" ? "e.g. AI startup, ugc creator" : "e.g. AI startup, tech reviews"} value={creatorNiche} onChange={e => setCreatorNiche(e.target.value)} className="bg-neutral-950 border-neutral-800" />
+                <Button onClick={() => platform === "tiktok" ? searchCreators() : searchYouTubeChannels()} disabled={creatorJob?.status === "running"} className={cn("shrink-0", platform === "youtube" ? "bg-red-600 text-white hover:bg-red-500" : "bg-white text-black hover:bg-neutral-200")}>
                   {creatorJob?.status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
                 </Button>
               </div>
@@ -538,16 +776,16 @@ export default function UgcPage() {
             </div>
 
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
-              {creators.length === 0 ? (
-                <p className="p-8 text-center text-sm text-neutral-500">Search for creators to populate this list</p>
+              {platformCreators.length === 0 ? (
+                <p className="p-8 text-center text-sm text-neutral-500">Search to populate this list</p>
               ) : (
                 <div className="divide-y divide-neutral-800/60">
-                  {creators.map(c => (
+                  {platformCreators.map(c => (
                     <div key={c.id} className="px-4 py-3 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-white">@{c.username}</span>
-                          <span className="text-xs text-neutral-500">{formatFollowers(c.followers)} followers</span>
+                          <span className="text-sm font-medium text-white">{c.name || c.username}</span>
+                          <span className="text-xs text-neutral-500">{formatFollowers(c.followers)} {platform === "youtube" ? "subscribers" : "followers"}</span>
                         </div>
                         <p className="text-xs text-neutral-500 truncate">{c.bio || c.niche}</p>
                       </div>

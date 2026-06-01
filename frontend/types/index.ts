@@ -10,7 +10,7 @@ export interface Contact {
   linkedinUrl?: string;
   crunchbaseUrl?: string;
   profileImageUrl?: string;
-  source: "crunchbase" | "linkedin" | "twitter" | "manual";
+  source: "crunchbase" | "linkedin" | "twitter" | "manual" | "extension";
   tags?: string[];
   emailSent?: boolean;
   emailSentAt?: string;

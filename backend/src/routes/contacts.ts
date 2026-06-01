@@ -18,7 +18,7 @@ const ContactSchema = z.object({
   crunchbaseUrl: z.string().optional(),
   profileImageUrl: z.string().optional(),
   source: z
-    .enum(["crunchbase", "linkedin", "twitter", "manual"])
+    .enum(["crunchbase", "linkedin", "twitter", "manual", "extension"])
     .default("manual"),
   tags: z.array(z.string()).optional(),
 });

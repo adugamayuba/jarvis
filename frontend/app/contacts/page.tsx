@@ -50,9 +50,10 @@ function SourceBadge({ source }: { source: Contact["source"] }) {
       "text-[11px] font-medium px-1.5 py-0.5 rounded capitalize",
       source === "crunchbase" ? "bg-orange-500/10 text-orange-400" :
       source === "linkedin" ? "bg-blue-500/10 text-blue-400" :
+      source === "extension" ? "bg-violet-500/10 text-violet-400" :
       "bg-neutral-800 text-neutral-400"
     )}>
-      {source}
+      {source === "extension" ? "web" : source}
     </span>
   );
 }
@@ -241,7 +242,7 @@ export default function ContactsPage() {
 
   function markReachedOut(contact: Contact) {
     updateMutation.mutate(
-      { id: contact.id, updates: { emailSent: true } },
+      { id: contact.id, updates: { emailSent: true, emailSentAt: new Date().toISOString() } },
       {
         onSuccess: () => {
           toast.success(`Marked ${contact.name} as reached out`);
@@ -357,6 +358,7 @@ export default function ContactsPage() {
               { value: "not-emailed", label: "Not emailed" },
               { value: "crunchbase", label: "Crunchbase" },
               { value: "linkedin", label: "LinkedIn" },
+              { value: "extension", label: "Web (extension)" },
             ].map((opt) => (
               <SelectItem key={opt.value} value={opt.value} className="text-neutral-200 text-[13px]">{opt.label}</SelectItem>
             ))}

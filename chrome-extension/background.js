@@ -93,6 +93,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           }),
         }, 120000);
         sendResponse({ success: true, data: result.data, message: result.message });
+      } else if (msg.type === "MARK_EMAILED") {
+        const result = await apiCall("/api/extension/mark-emailed", {
+          method: "POST",
+          body: JSON.stringify({
+            name: msg.name,
+            email: msg.email,
+            title: msg.title,
+            company: msg.company,
+            pageUrl: msg.pageUrl,
+          }),
+        });
+        sendResponse({ success: result.success, data: result.data, message: result.message, error: result.error });
       } else if (msg.type === "OPEN_SIDEBAR") {
         // Sidebar is injected by content script — tell the tab to open it
         sendResponse({ success: true });

@@ -22,7 +22,7 @@ const adminNavItems = [
   { href: "/campaigns", icon: Mail, label: "Campaigns" },
   { href: "/bulk", icon: Send, label: "Bulk Send" },
   { href: "/influencers-finder", icon: Star, label: "Influencers" },
-  { href: "/ugc", icon: Video, label: "UGC / TikTok" },
+  { href: "/ugc", icon: Video, label: "UGC" },
 ];
 
 const cofounderNavItems = [

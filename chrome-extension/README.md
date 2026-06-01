@@ -25,6 +25,7 @@ A Chrome extension with a sidebar on any website — auto-fill accelerator forms
 3. Click **Scan Page** — Jarvis detects all people on the page
 4. For each person, it searches Google for their work email (e.g. `"Jane Foster" CRV Ventures email`)
 5. Copy individual emails or click **Copy All Emails**
+6. Click **Mark Sent** after you email someone — adds them to Jarvis Contacts with "Sent" status (same as LinkedIn/Crunchbase outreach tracking)
 
 Or use the popup button **Find Emails on Page** for a one-click scan.
 

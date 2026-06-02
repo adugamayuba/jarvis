@@ -283,6 +283,30 @@
     await sleep(200);
   }
 
+  function insertHtmlAtStart(container, html) {
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    const frag = document.createDocumentFragment();
+    while (temp.firstChild) {
+      frag.appendChild(temp.firstChild);
+    }
+    if (container.firstChild) {
+      frag.appendChild(document.createElement("br"));
+    }
+    container.insertBefore(frag, container.firstChild);
+  }
+
+  function insertTextAtStart(el, text) {
+    el.focus();
+    const range = document.createRange();
+    range.setStart(el, 0);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand("insertText", false, text);
+  }
+
   async function fillBody(dialog, body, bodyHtml) {
     const bodyEl =
       dialog.querySelector('div[aria-label="Message Body"][contenteditable="true"]') ||
@@ -293,12 +317,13 @@
     if (!bodyEl) throw new Error("Could not find message body");
 
     bodyEl.focus();
+    await sleep(150);
+
+    // Prepend message content so Gmail's signature block at the bottom is preserved.
     if (bodyHtml) {
-      bodyEl.innerHTML = bodyHtml;
+      insertHtmlAtStart(bodyEl, bodyHtml);
     } else {
-      bodyEl.innerHTML = "";
-      document.execCommand("selectAll", false, null);
-      document.execCommand("insertText", false, body);
+      insertTextAtStart(bodyEl, body);
     }
     bodyEl.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await sleep(300);

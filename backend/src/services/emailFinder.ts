@@ -44,11 +44,12 @@ async function waitForRun(runId: string, maxWaitMs = 120_000): Promise<boolean> 
   return false;
 }
 
-// Search Google for ONE investor's email — simple, reliable
-async function findEmailForContact(contact: ContactToEnrich): Promise<string | null> {
-  if (!APIFY_TOKEN) return null;
+// Search Google for ONE investor's email — returns all emails found, best first
+async function findEmailsForContact(contact: ContactToEnrich): Promise<string[]> {
+  if (!APIFY_TOKEN) return [];
 
-  const query = `"${contact.name}" angel investor email -site:linkedin.com`;
+  const companyPart = contact.company ? ` ${contact.company}` : "";
+  const query = `"${contact.name}"${companyPart} angel investor email -site:linkedin.com`;
 
   try {
     const runRes = await axios.post(
@@ -58,7 +59,7 @@ async function findEmailForContact(contact: ContactToEnrich): Promise<string | n
     );
 
     const succeeded = await waitForRun(runRes.data.data.id, 60_000);
-    if (!succeeded) return null;
+    if (!succeeded) return [];
 
     const datasetId: string = runRes.data.data.defaultDatasetId;
     const items = await axios.get(`${APIFY_BASE}/datasets/${datasetId}/items`, {
@@ -74,11 +75,10 @@ async function findEmailForContact(contact: ContactToEnrich): Promise<string | n
       .map(r => `${r.title || ""} ${r.description || ""} ${r.url || ""}`)
       .join(" ");
 
-    const emails = cleanEmails(allText);
-    return emails[0] || null;
+    return cleanEmails(allText);
   } catch (err) {
     console.error(`Email search failed for ${contact.name}:`, err instanceof Error ? err.message : err);
-    return null;
+    return [];
   }
 }
 
@@ -134,7 +134,7 @@ export async function findEmailsForAllContacts(jobId: string): Promise<void> {
       const batch = contacts.slice(i, i + CONCURRENCY);
 
       const results = await Promise.allSettled(
-        batch.map(c => findEmailForContact(c))
+        batch.map(c => findEmailsForContact(c))
       );
 
       // Save any found emails
@@ -144,12 +144,13 @@ export async function findEmailsForAllContacts(jobId: string): Promise<void> {
       for (let j = 0; j < batch.length; j++) {
         const result = results[j];
         const contact = batch[j];
-        if (result.status === "fulfilled" && result.value) {
-          const email = result.value;
-          console.log(`✉️  ${contact.name}: ${email}`);
+        if (result.status === "fulfilled" && result.value.length > 0) {
+          const emails = result.value;
+          const email = emails[0];
+          console.log(`✉️  ${contact.name}: ${emails.join(", ")}`);
           dbBatch.update(db.collection(COLLECTIONS.CONTACTS).doc(contact.id), {
             email,
-            emails: [email],   // start the emails array
+            emails,
             updatedAt: new Date().toISOString(),
           });
           found++;

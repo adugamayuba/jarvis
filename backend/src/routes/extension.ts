@@ -12,6 +12,88 @@ interface PeopleEmailBody {
   onPageEmails?: Array<{ name?: string; email: string }>;
 }
 
+interface ExtensionContactInput {
+  name: string;
+  email?: string;
+  emails?: string[];
+  title?: string;
+  company?: string;
+}
+
+function normalizeEmails(email?: string, emails?: string[]): string[] {
+  const all = [...(emails || []), ...(email ? [email] : [])]
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.includes("@"));
+  return [...new Set(all)];
+}
+
+async function upsertExtensionContact(
+  input: ExtensionContactInput,
+  opts: { pageUrl?: string; company?: string; markEmailed?: boolean }
+): Promise<{ id: string; updated: boolean }> {
+  const name = input.name?.trim();
+  const allEmails = normalizeEmails(input.email, input.emails);
+  if (!name || allEmails.length === 0) {
+    throw new Error("name and at least one email are required");
+  }
+
+  const primaryEmail = allEmails[0];
+  const company = input.company?.trim() || opts.company?.trim() || "";
+  const title = input.title?.trim() || "";
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  const existing = await db
+    .collection(COLLECTIONS.CONTACTS)
+    .where("email", "==", primaryEmail)
+    .limit(1)
+    .get();
+
+  if (!existing.empty) {
+    const doc = existing.docs[0];
+    const data = doc.data();
+    const mergedEmails = [...new Set([
+      ...(Array.isArray(data.emails) ? data.emails as string[] : []),
+      ...(data.email ? [data.email as string] : []),
+      ...allEmails,
+    ])].filter(e => e.includes("@"));
+
+    const updates: Record<string, unknown> = {
+      email: mergedEmails[0],
+      emails: mergedEmails,
+      updatedAt: now,
+    };
+    if (title && !data.title) updates.title = title;
+    if (company && !data.company) updates.company = company;
+    if (!data.name && name) updates.name = name;
+    if (opts.markEmailed) {
+      updates.emailSent = true;
+      updates.emailSentAt = now;
+    }
+
+    await doc.ref.update(updates);
+    return { id: doc.id, updated: true };
+  }
+
+  const oneLiner = [title, company].filter(Boolean).join(" · ");
+  const ref = await db.collection(COLLECTIONS.CONTACTS).add({
+    name,
+    email: primaryEmail,
+    emails: allEmails,
+    title,
+    company,
+    oneLiner,
+    source: "extension",
+    emailSent: opts.markEmailed === true,
+    ...(opts.markEmailed ? { emailSentAt: now } : {}),
+    tags: opts.pageUrl ? [`page:${opts.pageUrl}`] : [],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return { id: ref.id, updated: false };
+}
+
 // POST /api/extension/people-emails — extract people from page + find emails via Google
 router.post("/people-emails", async (req: Request, res: Response) => {
   try {
@@ -52,72 +134,76 @@ router.post("/people-emails", async (req: Request, res: Response) => {
 // POST /api/extension/mark-emailed — add to Jarvis contacts and mark as emailed
 router.post("/mark-emailed", async (req: Request, res: Response) => {
   try {
-    const { name, email, title, company, pageUrl } = req.body as {
-      name?: string;
-      email?: string;
-      title?: string;
-      company?: string;
+    const { name, email, emails, title, company, pageUrl } = req.body as ExtensionContactInput & {
       pageUrl?: string;
     };
 
-    if (!name?.trim() || !email?.trim()) {
+    if (!name?.trim() || (!email?.trim() && (!emails || emails.length === 0))) {
       res.status(400).json({ success: false, error: "name and email are required" });
       return;
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const db = getDb();
-    const now = new Date().toISOString();
-
-    const existing = await db
-      .collection(COLLECTIONS.CONTACTS)
-      .where("email", "==", normalizedEmail)
-      .limit(1)
-      .get();
-
-    if (!existing.empty) {
-      const doc = existing.docs[0];
-      const data = doc.data();
-      const updates: Record<string, unknown> = {
-        emailSent: true,
-        emailSentAt: now,
-        updatedAt: now,
-      };
-      if (title && !data.title) updates.title = title;
-      if (company && !data.company) updates.company = company;
-      if (!data.name && name.trim()) updates.name = name.trim();
-
-      await doc.ref.update(updates);
-      res.json({
-        success: true,
-        data: { id: doc.id, updated: true },
-        message: `${name} marked as emailed in contacts`,
-      });
-      return;
-    }
-
-    const oneLiner = [title, company].filter(Boolean).join(" · ");
-    const ref = await db.collection(COLLECTIONS.CONTACTS).add({
-      name: name.trim(),
-      email: normalizedEmail,
-      title: title || "",
-      company: company || "",
-      oneLiner,
-      source: "extension",
-      emailSent: true,
-      emailSentAt: now,
-      tags: pageUrl ? [`page:${pageUrl}`] : [],
-      createdAt: now,
-      updatedAt: now,
-    });
+    const result = await upsertExtensionContact(
+      { name, email, emails, title, company },
+      { pageUrl, company, markEmailed: true }
+    );
 
     res.json({
       success: true,
-      data: { id: ref.id, updated: false },
-      message: `${name} added to contacts and marked as emailed`,
+      data: result,
+      message: `${name.trim()} added to contacts and marked as emailed`,
     });
   } catch (err) {
     console.error("Extension mark-emailed error:", err);
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/extension/add-contacts — bulk add team page people to Contacts (not marked sent)
+router.post("/add-contacts", async (req: Request, res: Response) => {
+  try {
+    const { contacts, pageUrl, company } = req.body as {
+      contacts?: ExtensionContactInput[];
+      pageUrl?: string;
+      company?: string;
+    };
+
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      res.status(400).json({ success: false, error: "contacts array required" });
+      return;
+    }
+
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const contact of contacts) {
+      const allEmails = normalizeEmails(contact.email, contact.emails);
+      if (!contact.name?.trim() || allEmails.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        const result = await upsertExtensionContact(
+          { ...contact, email: allEmails[0], emails: allEmails },
+          { pageUrl, company: contact.company || company, markEmailed: false }
+        );
+        if (result.updated) updated++;
+        else added++;
+      } catch (err) {
+        console.error(`Add contact failed for ${contact.name}:`, err);
+        skipped++;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: { added, updated, skipped, total: contacts.length },
+      message: `Added ${added} contacts, updated ${updated}${skipped ? `, skipped ${skipped}` : ""}`,
+    });
+  } catch (err) {
+    console.error("Extension add-contacts error:", err);
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });

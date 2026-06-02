@@ -99,7 +99,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           body: JSON.stringify({
             name: msg.name,
             email: msg.email,
+            emails: msg.emails,
             title: msg.title,
+            company: msg.company,
+            pageUrl: msg.pageUrl,
+          }),
+        });
+        sendResponse({ success: result.success, data: result.data, message: result.message, error: result.error });
+      } else if (msg.type === "ADD_CONTACTS") {
+        const result = await apiCall("/api/extension/add-contacts", {
+          method: "POST",
+          body: JSON.stringify({
+            contacts: msg.contacts,
             company: msg.company,
             pageUrl: msg.pageUrl,
           }),

@@ -17,6 +17,7 @@ export interface PagePerson {
   name: string;
   title?: string;
   email?: string;
+  emails?: string[];
   emailSource?: "page" | "google" | "none";
   confidence?: "high" | "medium" | "low";
 }
@@ -140,8 +141,8 @@ Rules:
 async function searchEmailsViaGoogle(
   people: PagePerson[],
   company: string
-): Promise<Map<string, { email: string; confidence: "high" | "medium" | "low" }>> {
-  const results = new Map<string, { email: string; confidence: "high" | "medium" | "low" }>();
+): Promise<Map<string, { emails: string[]; confidence: "high" | "medium" | "low" }>> {
+  const results = new Map<string, { emails: string[]; confidence: "high" | "medium" | "low" }>();
   if (!APIFY_TOKEN || people.length === 0) return results;
 
   const needsSearch = people.filter(p => !p.email);
@@ -183,7 +184,7 @@ async function searchEmailsViaGoogle(
         .join(" ");
 
       const emails = cleanEmails(allText);
-      if (!emails[0]) continue;
+      if (emails.length === 0) continue;
 
       const nameParts = name.toLowerCase().split(/\s+/);
       const companySlug = company.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -198,7 +199,7 @@ async function searchEmailsViaGoogle(
       const best = ranked[0];
       const confidence: "high" | "medium" | "low" =
         nameParts.some(p => best.toLowerCase().includes(p)) ? "high" : "medium";
-      results.set(name, { email: best, confidence });
+      results.set(name, { emails: ranked, confidence });
     }
   } catch (err) {
     console.error("Google email search error:", err);
@@ -217,13 +218,20 @@ function mergeOnPageEmails(
     if (person.email) return person;
 
     const parts = person.name.toLowerCase().split(/\s+/);
-    const match = onPageEmails.find(entry => {
+    const matches = onPageEmails.filter(entry => {
       const emailLocal = entry.email.split("@")[0].toLowerCase();
       return parts.some(p => p.length > 2 && (emailLocal.includes(p) || entry.name?.toLowerCase().includes(p)));
     });
 
-    if (match) {
-      return { ...person, email: match.email, emailSource: "page" as const, confidence: "high" as const };
+    if (matches.length > 0) {
+      const emails = [...new Set(matches.map(m => m.email.trim().toLowerCase()))];
+      return {
+        ...person,
+        email: emails[0],
+        emails,
+        emailSource: "page" as const,
+        confidence: "high" as const,
+      };
     }
     return person;
   });
@@ -248,13 +256,16 @@ export async function findPeopleEmailsOnPage(input: {
   const googleResults = await searchEmailsViaGoogle(people, company);
 
   people = people.map(person => {
-    if (person.email) return person;
+    if (person.email) {
+      return person.emails?.length ? person : { ...person, emails: [person.email] };
+    }
 
     const found = googleResults.get(person.name);
     if (found) {
       return {
         ...person,
-        email: found.email,
+        email: found.emails[0],
+        emails: found.emails,
         emailSource: "google" as const,
         confidence: found.confidence,
       };

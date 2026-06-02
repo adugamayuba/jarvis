@@ -100,6 +100,11 @@
             border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 500;
             cursor: pointer; transition: all 0.15s;
           ">Scan Page</button>
+          <button id="jarvis-add-all-btn" style="
+            flex: 1; background: #1a1a1a; color: #93c5fd; border: 1px solid #1e3a5f;
+            border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 500;
+            cursor: pointer; transition: all 0.15s; display: none;
+          ">Add All</button>
           <button id="jarvis-action-btn" style="
             flex: 2; background: #fff; color: #0a0a0a; border: none;
             border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 600;
@@ -185,6 +190,12 @@
         background: #052e16; border-color: #166534; color: #34d399; cursor: default;
       }
       .jarvis-sent-btn:disabled { opacity: 0.7; }
+      .jarvis-add-all-btn-done {
+        background: #052e16 !important; border-color: #166534 !important; color: #34d399 !important;
+      }
+      .jarvis-email-extra {
+        font-size: 9px; color: #525252; font-family: monospace;
+      }
       .jarvis-send-item {
         border: 1px solid #1f1f1f; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px;
         background: #111; display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
@@ -219,6 +230,7 @@
     document.getElementById("jarvis-close-btn").addEventListener("click", closeSidebar);
     document.getElementById("jarvis-toggle-tab").addEventListener("click", toggleSidebar);
     document.getElementById("jarvis-scan-btn").addEventListener("click", () => runScan());
+    document.getElementById("jarvis-add-all-btn").addEventListener("click", () => addAllToContacts());
     document.getElementById("jarvis-action-btn").addEventListener("click", () => runAction());
     document.getElementById("jarvis-mode-form").addEventListener("click", () => {
       setMode("form");
@@ -243,6 +255,7 @@
   let peopleResults = [];
   let detectedCompany = "";
   let hasScanned = false;
+  let contactsAdded = false;
   const emailedPeople = new Set();
   let outreachQueue = [];
   let emailDrafts = [];
@@ -289,6 +302,19 @@
     document.getElementById("jarvis-send-panel").style.display = "none";
   }
 
+  function updateAddAllButton() {
+    const btn = document.getElementById("jarvis-add-all-btn");
+    if (!btn) return;
+    const withEmail = peopleResults.filter(p => p.email);
+    const show = sidebarMode === "emails" && withEmail.length > 0;
+    btn.style.display = show ? "block" : "none";
+    if (show) {
+      btn.textContent = contactsAdded ? "Added ✓" : `Add All (${withEmail.length})`;
+      btn.disabled = contactsAdded;
+      btn.classList.toggle("jarvis-add-all-btn-done", contactsAdded);
+    }
+  }
+
   function setMode(mode) {
     sidebarMode = mode;
     document.querySelectorAll(".jarvis-mode-btn").forEach(btn => {
@@ -296,6 +322,7 @@
     });
     const actionBtn = document.getElementById("jarvis-action-btn");
     const scanBtn = document.getElementById("jarvis-scan-btn");
+    const addAllBtn = document.getElementById("jarvis-add-all-btn");
     document.getElementById("jarvis-fields-list").style.display = "none";
     document.getElementById("jarvis-people-list").style.display = "none";
     document.getElementById("jarvis-send-panel").style.display = "none";
@@ -304,6 +331,7 @@
       actionBtn.textContent = "Fill Form";
       actionBtn.classList.remove("jarvis-stop-btn");
       scanBtn.textContent = "Scan Form";
+      if (addAllBtn) addAllBtn.style.display = "none";
       document.getElementById("jarvis-fields-list").style.display = mappedFields.length ? "block" : "none";
       if (!mappedFields.length) showIdleState();
       setStatus("Form fill mode");
@@ -311,6 +339,7 @@
       actionBtn.textContent = sendQueueRunning ? "Stop Sending" : "Send Emails";
       actionBtn.classList.toggle("jarvis-stop-btn", sendQueueRunning);
       scanBtn.textContent = "Refresh List";
+      if (addAllBtn) addAllBtn.style.display = "none";
       document.getElementById("jarvis-send-panel").style.display = "block";
       if (!outreachQueue.length) showIdleState();
       setStatus("Gmail outreach — select investors and send");
@@ -319,6 +348,7 @@
       actionBtn.classList.remove("jarvis-stop-btn");
       scanBtn.textContent = "Scan Page";
       document.getElementById("jarvis-people-list").style.display = peopleResults.length ? "block" : "none";
+      updateAddAllButton();
       if (!peopleResults.length) showIdleState();
       setStatus("Email finder mode");
     }
@@ -676,6 +706,7 @@
     document.getElementById("jarvis-people-list").style.display = "none";
     showEmpty(false);
     hasScanned = true;
+    contactsAdded = false;
 
     const { candidateNames, onPageEmails } = extractPeopleFromPage();
     const pageText = getVisiblePageText();
@@ -721,6 +752,7 @@
       const found = peopleResults.filter(p => p.email).length;
       setStatus(`${found}/${peopleResults.length} emails found${detectedCompany ? ` — ${detectedCompany}` : ""}`);
       renderPeopleResults(peopleResults, detectedCompany);
+      updateAddAllButton();
     } else {
       peopleResults = candidateNames.map(name => ({ name, emailSource: "none" }));
       setStatus(response.error || "Email search failed");
@@ -730,6 +762,21 @@
         document.getElementById("jarvis-empty-text").textContent = response.error || "No people found";
       }
     }
+  }
+
+  function formatPersonEmails(person) {
+    const emails = person.emails?.length ? person.emails : (person.email ? [person.email] : []);
+    if (emails.length === 0) return `<span class="jarvis-email-missing">Not found</span>`;
+
+    const primary = emails[0];
+    const extra = emails.length > 1
+      ? `<span class="jarvis-email-extra" title="${emails.slice(1).join(", ")}">+${emails.length - 1} more</span>`
+      : "";
+
+    return `<span class="jarvis-email-found" title="${emails.join(", ")}">${primary}</span>
+           ${extra}
+           <button class="jarvis-copy-btn" data-email="${primary}" data-all-emails="${emails.join(", ")}">Copy</button>
+           <button class="jarvis-sent-btn${person.emailed || emailedPeople.has(primary) ? " jarvis-sent-done" : ""}" data-name="${person.name.replace(/"/g, "&quot;")}" data-email="${primary}" data-emails="${emails.join(", ")}" data-title="${(person.title || "").replace(/"/g, "&quot;")}" ${person.emailed || emailedPeople.has(primary) ? "disabled" : ""}>${person.emailed || emailedPeople.has(primary) ? "Sent ✓" : "Mark Sent"}</button>`;
   }
 
   function renderPeopleResults(people, company) {
@@ -749,11 +796,7 @@
       const item = document.createElement("div");
       item.className = "jarvis-person-item";
 
-      const emailHtml = person.email
-        ? `<span class="jarvis-email-found">${person.email}</span>
-           <button class="jarvis-copy-btn" data-email="${person.email}">Copy</button>
-           <button class="jarvis-sent-btn${person.emailed || emailedPeople.has(person.email) ? " jarvis-sent-done" : ""}" data-name="${person.name.replace(/"/g, "&quot;")}" data-email="${person.email}" data-title="${(person.title || "").replace(/"/g, "&quot;")}" ${person.emailed || emailedPeople.has(person.email) ? "disabled" : ""}>${person.emailed || emailedPeople.has(person.email) ? "Sent ✓" : "Mark Sent"}</button>`
-        : `<span class="jarvis-email-missing">Not found</span>`;
+      const emailHtml = formatPersonEmails(person);
 
       const sourceTag = person.emailSource === "page" ? "on page"
         : person.emailSource === "google" ? "web search" : "";
@@ -773,7 +816,8 @@
       const copyBtn = item.querySelector(".jarvis-copy-btn");
       if (copyBtn) {
         copyBtn.addEventListener("click", () => {
-          navigator.clipboard.writeText(copyBtn.dataset.email);
+          const text = copyBtn.dataset.allEmails || copyBtn.dataset.email;
+          navigator.clipboard.writeText(text);
           copyBtn.textContent = "Copied!";
           setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
         });
@@ -796,6 +840,7 @@
         type: "MARK_EMAILED",
         name: person.name,
         email: person.email,
+        emails: person.emails || (person.email ? [person.email] : []),
         title: person.title || "",
         company: detectedCompany || "",
         pageUrl: window.location.href,
@@ -820,13 +865,65 @@
   }
 
   function copyAllEmails() {
-    const emails = peopleResults.filter(p => p.email).map(p => p.email);
-    if (emails.length === 0) {
+    const emails = peopleResults.flatMap(p => {
+      if (p.emails?.length) return p.emails;
+      return p.email ? [p.email] : [];
+    });
+    const unique = [...new Set(emails)];
+    if (unique.length === 0) {
       setStatus("No emails to copy — scan the page first");
       return;
     }
-    navigator.clipboard.writeText(emails.join(", "));
-    setStatus(`Copied ${emails.length} emails to clipboard`);
+    navigator.clipboard.writeText(unique.join(", "));
+    setStatus(`Copied ${unique.length} emails to clipboard`);
+  }
+
+  async function addAllToContacts() {
+    const withEmail = peopleResults.filter(p => p.email);
+    if (withEmail.length === 0) {
+      setStatus("No emails to add — scan the page first");
+      return;
+    }
+
+    const btn = document.getElementById("jarvis-add-all-btn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+    }
+    setStatus(`Adding ${withEmail.length} contacts to Jarvis...`);
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "ADD_CONTACTS",
+        contacts: withEmail.map(p => ({
+          name: p.name,
+          email: p.email,
+          emails: p.emails || (p.email ? [p.email] : []),
+          title: p.title || "",
+          company: detectedCompany || "",
+        })),
+        company: detectedCompany || "",
+        pageUrl: window.location.href,
+      });
+
+      if (response?.success) {
+        contactsAdded = true;
+        updateAddAllButton();
+        setStatus(response.message || `Added ${withEmail.length} contacts`);
+      } else {
+        if (btn) {
+          btn.disabled = false;
+          updateAddAllButton();
+        }
+        setStatus(response?.error || "Failed to add contacts");
+      }
+    } catch {
+      if (btn) {
+        btn.disabled = false;
+        updateAddAllButton();
+      }
+      setStatus("Failed to save — check Jarvis login in extension popup");
+    }
   }
 
   // ── Gmail send mode ────────────────────────────────────────────────────────

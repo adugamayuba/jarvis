@@ -107,6 +107,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ success: result.success, data: result.data, message: result.message, error: result.error });
       } else if (msg.type === "GET_OUTREACH_QUEUE") {
         const result = await apiCall("/api/extension/outreach-queue");
+        sendResponse({ success: result.success !== false, data: result.data, error: result.error });
+      } else if (msg.type === "GET_CONTACTS") {
+        const result = await apiCall("/api/contacts?limit=2000");
         sendResponse({ success: true, data: result.data });
       } else if (msg.type === "GET_EMAIL_DRAFTS") {
         const result = await apiCall("/api/email/drafts");

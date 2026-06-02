@@ -113,6 +113,55 @@
     await sleep(400);
   }
 
+  function findCcField(dialog) {
+    const selectors = [
+      'input[aria-label="Cc recipients"]',
+      'textarea[aria-label="Cc recipients"]',
+      'input[name="cc"]',
+      'textarea[name="cc"]',
+      '[aria-label="Cc"]',
+      'div[aria-label="Cc recipients"] [contenteditable="true"]',
+      'div[aria-label="Cc recipients"] input',
+    ];
+    for (const sel of selectors) {
+      const el = dialog.querySelector(sel);
+      if (el) return el;
+    }
+    // Click "Cc" link to reveal field if hidden
+    const ccLink = [...dialog.querySelectorAll("span, div")].find(el =>
+      el.textContent?.trim() === "Cc" && el.getAttribute("role") !== "button"
+    );
+    if (ccLink) {
+      ccLink.click();
+    }
+    for (const sel of selectors) {
+      const el = dialog.querySelector(sel);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  async function fillCc(dialog, ccEmail) {
+    if (!ccEmail) return;
+    let ccEl = findCcField(dialog);
+    if (!ccEl) {
+      // Try clicking Cc Bcc toggle
+      const toggle = dialog.querySelector('[aria-label="Cc Bcc"]') ||
+        [...dialog.querySelectorAll("span")].find(s => s.textContent === "Cc");
+      toggle?.click();
+      await sleep(300);
+      ccEl = findCcField(dialog);
+    }
+    if (!ccEl) {
+      console.warn("Jarvis: Cc field not found, skipping CC");
+      return;
+    }
+    await typeIntoElement(ccEl, ccEmail);
+    await sleep(200);
+    ccEl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+    await sleep(300);
+  }
+
   async function fillSubject(dialog, subject) {
     const subjectEl =
       dialog.querySelector('input[name="subjectbox"]') ||
@@ -124,7 +173,7 @@
     await sleep(200);
   }
 
-  async function fillBody(dialog, body) {
+  async function fillBody(dialog, body, bodyHtml) {
     const bodyEl =
       dialog.querySelector('div[aria-label="Message Body"][contenteditable="true"]') ||
       dialog.querySelector('div[aria-label*="Message body"][contenteditable="true"]') ||
@@ -134,10 +183,14 @@
     if (!bodyEl) throw new Error("Could not find message body");
 
     bodyEl.focus();
-    bodyEl.innerHTML = "";
-    document.execCommand("selectAll", false, null);
-    document.execCommand("insertText", false, body);
-    bodyEl.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: body }));
+    if (bodyHtml) {
+      bodyEl.innerHTML = bodyHtml;
+    } else {
+      bodyEl.innerHTML = "";
+      document.execCommand("selectAll", false, null);
+      document.execCommand("insertText", false, body);
+    }
+    bodyEl.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await sleep(300);
   }
 
@@ -185,13 +238,14 @@
     return waitForCompose();
   }
 
-  async function sendOneEmail({ to, subject, body }) {
+  async function sendOneEmail({ to, cc, subject, body, bodyHtml }) {
     if (!to?.includes("@")) throw new Error("Recipient email is missing");
 
     const dialog = await openCompose();
     await fillRecipient(dialog, to);
+    await fillCc(dialog, cc);
     await fillSubject(dialog, subject);
-    await fillBody(dialog, body);
+    await fillBody(dialog, body, bodyHtml);
     await clickSend(dialog);
     return { success: true };
   }

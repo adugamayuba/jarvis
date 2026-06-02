@@ -242,7 +242,16 @@
   let emailDrafts = [];
   let sendQueueRunning = false;
   let sendQueueStop = false;
-  let sendTemplate = { subject: "", body: "" };
+  let sendTemplate = { subject: "", body: "", cc: "ligia@reelin.ai" };
+
+  function initDefaultTemplate() {
+    const tpl = window.__jarvisEmailTemplate;
+    if (!tpl) return;
+    sendTemplate.subject = tpl.subject;
+    sendTemplate.body = tpl.bodyPlain;
+    sendTemplate.cc = tpl.cc;
+  }
+  initDefaultTemplate();
 
   function detectPageIntent() {
     if (window.__jarvisGmail?.isGmail()) return "send";
@@ -835,52 +844,58 @@
       return;
     }
 
+    initDefaultTemplate();
     showLoading(true);
     showEmpty(false);
 
-    const [queueRes, draftsRes] = await Promise.all([
-      sendMessage({ type: "GET_OUTREACH_QUEUE" }),
-      sendMessage({ type: "GET_EMAIL_DRAFTS" }),
-    ]);
+    const queueRes = await sendMessage({ type: "GET_OUTREACH_QUEUE" });
 
     showLoading(false);
 
-    if (!queueRes.success) {
-      setStatus(queueRes.error || "Failed to load outreach queue — log in via extension popup");
+    let rawList = [];
+
+    if (queueRes.success && queueRes.data?.recipients?.length) {
+      rawList = queueRes.data.recipients;
+    } else {
+      // Fallback: fetch contacts directly
+      const contactsRes = await sendMessage({ type: "GET_CONTACTS" });
+      if (contactsRes.success && Array.isArray(contactsRes.data)) {
+        rawList = contactsRes.data
+          .filter(c => {
+            const hasEmail = c.email?.includes("@") || c.emails?.some(e => e?.includes("@"));
+            return hasEmail && c.emailSent !== true;
+          })
+          .map(c => ({
+            id: c.id,
+            type: "contact",
+            name: c.name || "",
+            email: (c.email?.includes("@") ? c.email : c.emails?.find(e => e?.includes("@"))) || "",
+            company: c.company || "",
+            title: c.title || "",
+          }));
+      }
+    }
+
+    if (!queueRes.success && !rawList.length) {
+      setStatus(queueRes.error || "Failed to load contacts — log in via extension popup");
       showEmpty(true);
-      document.getElementById("jarvis-empty-text").textContent = queueRes.error || "Could not load investors";
+      document.getElementById("jarvis-empty-text").textContent = queueRes.error || "Could not load contacts from Jarvis";
+      renderSendPanel();
       return;
     }
 
-    emailDrafts = draftsRes.success ? (draftsRes.data || []) : [];
-    const data = queueRes.data || {};
-
-    // Unified recipients list (investors + contacts, deduped by email)
-    const rawList = data.recipients?.length
-      ? data.recipients
-      : [...(data.investors || []), ...(data.contacts || [])];
-
     outreachQueue = rawList.map(r => ({
       ...r,
-      selected: r.type === "contact" ? true : (r.status === "prospect" || !r.status),
+      selected: true,
       sent: false,
     }));
-
-    // Auto-load Gmail draft template (user's only draft)
-    if (emailDrafts.length) {
-      const draft = emailDrafts[0];
-      sendTemplate.subject = draft.subject && draft.subject !== "(no subject)" ? draft.subject : sendTemplate.subject;
-      sendTemplate.body = draft.body || draft.snippet || sendTemplate.body;
-    }
 
     renderSendPanel();
 
     if (!outreachQueue.length) {
-      setStatus("No recipients with email — add investors in Jarvis Contacts or Investors page");
-    } else if (!sendTemplate.body) {
-      setStatus(`${outreachQueue.length} recipients loaded — draft body empty, check Gmail draft exists`);
+      setStatus("No contacts with email (not sent) — check Jarvis Contacts page");
     } else {
-      setStatus(`${outreachQueue.length} recipients · template loaded from Gmail draft`);
+      setStatus(`${outreachQueue.length} contacts ready · CC: ${sendTemplate.cc}`);
     }
   }
 
@@ -892,22 +907,10 @@
     panel.style.display = "block";
 
     const selectedCount = outreachQueue.filter(p => p.selected && !p.sent).length;
-    const draftLoaded = emailDrafts.length > 0 && sendTemplate.body;
-    const draftsHtml = emailDrafts.length
-      ? `<div style="margin-bottom:8px">
-          <p style="font-size:10px;color:${draftLoaded ? '#34d399' : '#525252'};margin:0 0 4px">
-            ${draftLoaded ? `✓ Using Gmail draft: ${escapeHtml((emailDrafts[0].subject || "Draft").substring(0, 40))}` : "Gmail draft found but body empty"}
-          </p>
-          ${emailDrafts.slice(0, 3).map((d, i) =>
-            `<button class="jarvis-draft-btn" data-draft-idx="${i}">${escapeHtml((d.subject || "Draft").substring(0, 30))}</button>`
-          ).join("")}
-        </div>`
-      : `<p style="font-size:10px;color:#f87171;margin:0 0 8px">No Gmail drafts found — create a draft in Gmail first</p>`;
 
     panel.innerHTML = `
       <div style="margin-bottom:12px">
-        <p style="font-size:11px;color:#737373;margin:0 0 8px">Template auto-loads your Gmail draft · "Hello" becomes "Hello [first name],"</p>
-        ${draftsHtml}
+        <p style="font-size:10px;color:#34d399;margin:0 0 8px">✓ Reelin AI seed template loaded · Hello → Hello [first name], · CC: ${escapeHtml(sendTemplate.cc)}</p>
         <input id="jarvis-send-subject" class="jarvis-template-input" placeholder="Subject" value="${escapeHtml(sendTemplate.subject)}" style="margin-bottom:6px" />
         <textarea id="jarvis-send-body" class="jarvis-template-input jarvis-template-body" placeholder="Email body...">${escapeHtml(sendTemplate.body)}</textarea>
       </div>
@@ -929,19 +932,10 @@
       outreachQueue.forEach(p => { if (!p.sent) p.selected = !allSelected; });
       renderSendPanel();
     });
-    panel.querySelectorAll(".jarvis-draft-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const draft = emailDrafts[parseInt(btn.dataset.draftIdx, 10)];
-        if (!draft) return;
-        sendTemplate.subject = draft.subject || "";
-        sendTemplate.body = draft.body || "";
-        renderSendPanel();
-      });
-    });
 
     const list = document.getElementById("jarvis-send-list");
     if (!outreachQueue.length) {
-      list.innerHTML = `<p style="font-size:12px;color:#525252;text-align:center;padding:20px 0">No recipients with email.<br><span style="font-size:11px;color:#404040">Add contacts in Jarvis (Contacts or Investors page) with email addresses.</span></p>`;
+      list.innerHTML = `<p style="font-size:12px;color:#525252;text-align:center;padding:20px 0">No contacts with email (not sent yet).<br><span style="font-size:11px;color:#404040">Import contacts in Jarvis → Contacts page. Only shows contacts without the Sent tag.</span></p>`;
       return;
     }
 
@@ -953,7 +947,7 @@
         <div style="min-width:0;flex:1">
           <p style="font-size:12px;font-weight:600;color:#e5e5e5;margin:0">${escapeHtml(person.name)}</p>
           <p style="font-size:10px;color:#525252;margin:2px 0 0">${escapeHtml(person.email)}${person.company ? ` · ${escapeHtml(person.company)}` : ""}</p>
-          <span style="font-size:9px;color:#404040">${person.type === "investor" ? "investor" : "contact"}${person.sent ? " · sent ✓" : ""}</span>
+          <span style="font-size:9px;color:#404040">contact${person.sent ? " · sent ✓" : ""}</span>
         </div>
       `;
       const cb = item.querySelector("input");
@@ -1015,31 +1009,32 @@
       setStatus(`Sending ${sent + failed + 1}/${queue.length} → ${person.name}...`);
 
       try {
+        const firstName = (person.name || "").split(/\s+/)[0] || "";
         const subject = interpolateTemplate(sendTemplate.subject, person);
-        const body = interpolateTemplate(sendTemplate.body, person);
+        const tpl = window.__jarvisEmailTemplate;
+        const bodyHtml = tpl ? tpl.buildHtml(firstName) : null;
+        const body = tpl ? tpl.buildPlain(firstName) : interpolateTemplate(sendTemplate.body, person);
 
         await window.__jarvisGmail.sendOneEmail({
           to: person.email,
+          cc: sendTemplate.cc || "ligia@reelin.ai",
           subject,
           body,
+          bodyHtml,
         });
 
         person.sent = true;
         person.selected = false;
         sent++;
 
-        if (person.type === "investor") {
-          await sendMessage({ type: "MARK_INVESTOR_CONTACTED", id: person.id });
-        } else {
-          await sendMessage({
-            type: "MARK_EMAILED",
-            name: person.name,
-            email: person.email,
-            title: person.title || "",
-            company: person.company || "",
-            pageUrl: window.location.href,
-          });
-        }
+        await sendMessage({
+          type: "MARK_EMAILED",
+          name: person.name,
+          email: person.email,
+          title: person.title || "",
+          company: person.company || "",
+          pageUrl: window.location.href,
+        });
 
         renderSendPanel();
         await sleep(2500);

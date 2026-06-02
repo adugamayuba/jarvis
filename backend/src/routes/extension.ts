@@ -122,14 +122,12 @@ router.post("/mark-emailed", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/extension/outreach-queue — investors + contacts ready for Gmail outreach
+// GET /api/extension/outreach-queue — Jarvis contacts with email, not yet sent
 router.get("/outreach-queue", async (_req: Request, res: Response) => {
   try {
     const db = getDb();
-    const [invSnap, contactSnap] = await Promise.all([
-      db.collection(COLLECTIONS.INVESTORS).orderBy("createdAt", "desc").limit(500).get(),
-      db.collection(COLLECTIONS.CONTACTS).orderBy("createdAt", "desc").limit(500).get(),
-    ]);
+    // No orderBy — avoids missing-index / missing createdAt issues on older docs
+    const contactSnap = await db.collection(COLLECTIONS.CONTACTS).limit(2000).get();
 
     function getEmail(data: Record<string, unknown>): string {
       const email = data.email as string | undefined;
@@ -139,42 +137,22 @@ router.get("/outreach-queue", async (_req: Request, res: Response) => {
       return found ? found.trim().toLowerCase() : "";
     }
 
-    const seen = new Set<string>();
-    type Recipient = {
+    const recipients: Array<{
       id: string;
-      type: "investor" | "contact";
+      type: "contact";
       name: string;
       email: string;
       company?: string;
       title?: string;
-      status?: string;
-    };
-    const recipients: Recipient[] = [];
-
-    for (const doc of invSnap.docs) {
-      const data = doc.data() as Record<string, unknown>;
-      const email = getEmail(data);
-      if (!email || seen.has(email)) continue;
-      const status = (data.status as string) || "prospect";
-      if (status === "passed" || status === "closed") continue;
-      seen.add(email);
-      recipients.push({
-        id: doc.id,
-        type: "investor",
-        name: (data.name as string) || email.split("@")[0],
-        email,
-        company: (data.company as string) || "",
-        title: (data.title as string) || "",
-        status,
-      });
-    }
+    }> = [];
 
     for (const doc of contactSnap.docs) {
       const data = doc.data() as Record<string, unknown>;
+      // Only contacts with email that haven't been marked sent
+      if (data.emailSent === true) continue;
       const email = getEmail(data);
-      if (!email || seen.has(email)) continue;
-      if (data.emailSent) continue;
-      seen.add(email);
+      if (!email) continue;
+
       recipients.push({
         id: doc.id,
         type: "contact",
@@ -182,18 +160,17 @@ router.get("/outreach-queue", async (_req: Request, res: Response) => {
         email,
         company: (data.company as string) || "",
         title: (data.title as string) || "",
-        status: "prospect",
       });
     }
 
-    const investors = recipients.filter(r => r.type === "investor");
-    const contacts = recipients.filter(r => r.type === "contact");
+    recipients.sort((a, b) => a.name.localeCompare(b.name));
 
     res.json({
       success: true,
-      data: { recipients, investors, contacts, total: recipients.length },
+      data: { recipients, total: recipients.length },
     });
   } catch (err) {
+    console.error("Outreach queue error:", err);
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jarvis — Reelin AI Assistant",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Auto-fill accelerator applications, find emails, and send investor outreach from Gmail.",
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
@@ -11,7 +11,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["gmailSend.js", "content.js"],
+      "js": ["emailTemplate.js", "gmailSend.js", "content.js"],
       "run_at": "document_idle"
     }
   ],

@@ -1,17 +1,14 @@
 import axios from "axios";
 import OpenAI from "openai";
+import {
+  extractContactOutUrls,
+  mergePersonEmails,
+  scrapeContactPagesForEmails,
+} from "./emailSearchEnricher";
 
 const APIFY_BASE = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-const SKIP_EMAIL_DOMAINS = [
-  "example.com", "test.com", "sentry.io", "wix.com", "squarespace.com",
-  "adobe.com", "google.com", "facebook.com", "twitter.com", "placeholder",
-  "yoursite.com", "domain.com", "email.com", "user.com", "company.com",
-  "linkedin.com", "crunchbase.com", "wikipedia.org",
-];
 
 export interface PagePerson {
   name: string;
@@ -26,15 +23,6 @@ export interface PeopleEmailResult {
   company: string;
   pageUrl: string;
   people: PagePerson[];
-}
-
-function cleanEmails(text: string): string[] {
-  const matches = text.match(EMAIL_REGEX) || [];
-  return [...new Set(matches.filter(e =>
-    !SKIP_EMAIL_DOMAINS.some(d => e.toLowerCase().includes(d)) &&
-    e.length < 80 &&
-    !e.startsWith(".")
-  ))];
 }
 
 function inferCompanyFromUrl(url: string): string {
@@ -173,29 +161,25 @@ async function searchEmailsViaGoogle(
       organicResults?: Array<{ title?: string; url?: string; description?: string }>;
     }>;
 
+    // Batch-scrape ContactOut profile pages Google surfaced (cheap extra emails per person)
+    const allContactOutUrls = pages.flatMap(p =>
+      extractContactOutUrls(p.organicResults || [])
+    );
+    const scrapedByUrl = allContactOutUrls.length > 0
+      ? await scrapeContactPagesForEmails(allContactOutUrls)
+      : new Map<string, string[]>();
+
     for (const page of pages) {
       const term = page.searchQuery?.term || "";
       const nameMatch = term.match(/"([^"]+)"/);
       if (!nameMatch) continue;
       const name = nameMatch[1];
 
-      const allText = (page.organicResults || [])
-        .map(r => `${r.title || ""} ${r.description || ""} ${r.url || ""}`)
-        .join(" ");
-
-      const emails = cleanEmails(allText);
-      if (emails.length === 0) continue;
+      const organic = page.organicResults || [];
+      const ranked = mergePersonEmails(organic, name, company, scrapedByUrl);
+      if (ranked.length === 0) continue;
 
       const nameParts = name.toLowerCase().split(/\s+/);
-      const companySlug = company.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const ranked = emails.sort((a, b) => {
-        const aLow = a.toLowerCase();
-        const bLow = b.toLowerCase();
-        const aScore = (nameParts.some(p => aLow.includes(p)) ? 2 : 0) + (companySlug && aLow.includes(companySlug) ? 3 : 0);
-        const bScore = (nameParts.some(p => bLow.includes(p)) ? 2 : 0) + (companySlug && bLow.includes(companySlug) ? 3 : 0);
-        return bScore - aScore;
-      });
-
       const best = ranked[0];
       const confidence: "high" | "medium" | "low" =
         nameParts.some(p => best.toLowerCase().includes(p)) ? "high" : "medium";

@@ -404,8 +404,7 @@ export default function ImportPage() {
         </div>
         <div className="border border-neutral-800 rounded-xl p-4">
           <p className="text-[13px] text-neutral-400 mb-2">
-            Runs in the background. Searches Google for each investor&apos;s email using their name + public profiles.
-            Batches 50 at a time to stay within rate limits.
+            Runs in the background. Searches Google for each investor&apos;s email, then scrapes ContactOut profile pages when Google links to them — often 2+ emails per person.
           </p>
           <p className="text-[12px] text-neutral-600 mb-4">
             For 2,000 contacts expect ~40 batches · ~30–60 min total · emails auto-saved to each contact

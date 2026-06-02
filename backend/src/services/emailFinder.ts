@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getDb, COLLECTIONS } from "./firebase";
+import { enrichEmailsFromGoogleResults } from "./emailSearchEnricher";
 
 const APIFY_BASE = "https://api.apify.com/v2";
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
@@ -9,23 +10,6 @@ export interface ContactToEnrich {
   name: string;
   crunchbaseUrl?: string;
   company?: string;
-}
-
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-const SKIP_DOMAINS = [
-  "example.com", "test.com", "sentry.io", "wix.com", "squarespace.com",
-  "adobe.com", "google.com", "facebook.com", "twitter.com", "placeholder",
-  "yoursite.com", "domain.com", "email.com", "user.com", "company.com",
-];
-
-function cleanEmails(text: string): string[] {
-  const matches = text.match(EMAIL_REGEX) || [];
-  return [...new Set(matches.filter(e =>
-    !SKIP_DOMAINS.some(d => e.includes(d)) &&
-    e.length < 80 &&
-    !e.startsWith(".") &&
-    e.includes(".")
-  ))];
 }
 
 async function waitForRun(runId: string, maxWaitMs = 120_000): Promise<boolean> {
@@ -44,12 +28,12 @@ async function waitForRun(runId: string, maxWaitMs = 120_000): Promise<boolean> 
   return false;
 }
 
-// Search Google for ONE investor's email — returns all emails found, best first
+// Search Google + scrape ContactOut pages when Google links to them
 async function findEmailsForContact(contact: ContactToEnrich): Promise<string[]> {
   if (!APIFY_TOKEN) return [];
 
   const companyPart = contact.company ? ` ${contact.company}` : "";
-  const query = `"${contact.name}"${companyPart} angel investor email -site:linkedin.com`;
+  const query = `"${contact.name}"${companyPart} angel investor email contactout OR email -site:linkedin.com`;
 
   try {
     const runRes = await axios.post(
@@ -70,12 +54,8 @@ async function findEmailsForContact(contact: ContactToEnrich): Promise<string[]>
       organicResults?: Array<{ title?: string; url?: string; description?: string }>;
     }>);
 
-    const allText = results
-      .flatMap(r => r.organicResults || [])
-      .map(r => `${r.title || ""} ${r.description || ""} ${r.url || ""}`)
-      .join(" ");
-
-    return cleanEmails(allText);
+    const organicResults = results.flatMap(r => r.organicResults || []);
+    return enrichEmailsFromGoogleResults(organicResults, contact.name, contact.company);
   } catch (err) {
     console.error(`Email search failed for ${contact.name}:`, err instanceof Error ? err.message : err);
     return [];
@@ -126,9 +106,8 @@ export async function findEmailsForAllContacts(jobId: string): Promise<void> {
     let processed = 0;
     let found = 0;
 
-    // Process one at a time — reliable but slower
-    // For 2000 contacts at ~5s each = ~2.5 hours. Use concurrency of 3 to speed up.
-    const CONCURRENCY = 3;
+    // Process one at a time — ContactOut scrape adds ~10s when a profile is found
+    const CONCURRENCY = 2;
 
     for (let i = 0; i < contacts.length; i += CONCURRENCY) {
       const batch = contacts.slice(i, i + CONCURRENCY);
@@ -173,7 +152,7 @@ export async function findEmailsForAllContacts(jobId: string): Promise<void> {
       }
 
       // Small delay to avoid hammering Apify
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 800));
     }
 
     await jobRef.update({

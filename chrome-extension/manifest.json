@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Jarvis — Reelin AI Assistant",
-  "version": "1.1.1",
-  "description": "Auto-fill accelerator applications and find team member emails on any page, powered by Jarvis.",
+  "version": "1.2.0",
+  "description": "Auto-fill accelerator applications, find emails, and send investor outreach from Gmail.",
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -11,7 +11,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["gmailSend.js", "content.js"],
       "run_at": "document_idle"
     }
   ],

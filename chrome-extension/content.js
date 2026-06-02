@@ -72,6 +72,7 @@
         ">
           <button id="jarvis-mode-form" class="jarvis-mode-btn" data-mode="form">Fill Form</button>
           <button id="jarvis-mode-emails" class="jarvis-mode-btn jarvis-mode-active" data-mode="emails">Find Emails</button>
+          <button id="jarvis-mode-send" class="jarvis-mode-btn" data-mode="send" style="display:none">Send Emails</button>
         </div>
 
         <!-- Main content -->
@@ -82,6 +83,7 @@
           </div>
           <div id="jarvis-fields-list" style="display: none;"></div>
           <div id="jarvis-people-list" style="display: none;"></div>
+          <div id="jarvis-send-panel" style="display: none;"></div>
           <div id="jarvis-empty" style="display: none; text-align: center; padding: 40px 0;">
             <p id="jarvis-empty-text" style="font-size: 12px; color: #525252;">No form fields detected on this page.</p>
             <p style="font-size: 11px; color: #404040; margin-top: 4px;">Navigate to an application form or team page to get started.</p>
@@ -183,6 +185,25 @@
         background: #052e16; border-color: #166534; color: #34d399; cursor: default;
       }
       .jarvis-sent-btn:disabled { opacity: 0.7; }
+      .jarvis-send-item {
+        border: 1px solid #1f1f1f; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px;
+        background: #111; display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
+      }
+      .jarvis-send-item:hover { border-color: #333; }
+      .jarvis-send-item.jarvis-send-done { opacity: 0.5; }
+      .jarvis-send-item input[type="checkbox"] { margin-top: 2px; accent-color: #fff; }
+      .jarvis-template-input {
+        width: 100%; background: #111; border: 1px solid #262626; border-radius: 6px;
+        color: #e5e5e5; font-size: 11px; padding: 8px; box-sizing: border-box; font-family: inherit;
+      }
+      .jarvis-template-input:focus { outline: none; border-color: #525252; }
+      .jarvis-template-body { min-height: 100px; resize: vertical; font-family: inherit; line-height: 1.4; }
+      .jarvis-draft-btn {
+        background: #1a1a1a; border: 1px solid #262626; color: #a3a3a3;
+        border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin-right: 4px; margin-bottom: 4px;
+      }
+      .jarvis-draft-btn:hover { border-color: #525252; color: #fff; }
+      .jarvis-stop-btn { background: #450a0a !important; color: #fca5a5 !important; border: 1px solid #7f1d1d !important; }
     `;
     document.head.appendChild(style);
     document.body.appendChild(container);
@@ -201,6 +222,15 @@
       setMode("emails");
       if (peopleResults.length === 0) scanPeopleEmails();
     });
+    document.getElementById("jarvis-mode-send").addEventListener("click", () => {
+      setMode("send");
+      loadOutreachQueue();
+    });
+
+    // Show Send Emails tab on Gmail
+    if (window.__jarvisGmail?.isGmail()) {
+      document.getElementById("jarvis-mode-send").style.display = "block";
+    }
   }
 
   let sidebarMode = "emails";
@@ -208,8 +238,15 @@
   let detectedCompany = "";
   let hasScanned = false;
   const emailedPeople = new Set();
+  let outreachQueue = [];
+  let emailDrafts = [];
+  let sendQueueRunning = false;
+  let sendQueueStop = false;
+  let sendTemplate = { subject: "", body: "" };
 
   function detectPageIntent() {
+    if (window.__jarvisGmail?.isGmail()) return "send";
+
     const fields = extractFormFields();
     const { candidateNames } = extractPeopleFromPage();
 
@@ -229,6 +266,7 @@
     showEmpty(false);
     document.getElementById("jarvis-fields-list").style.display = "none";
     document.getElementById("jarvis-people-list").style.display = "none";
+    document.getElementById("jarvis-send-panel").style.display = "none";
   }
 
   function setMode(mode) {
@@ -238,29 +276,46 @@
     });
     const actionBtn = document.getElementById("jarvis-action-btn");
     const scanBtn = document.getElementById("jarvis-scan-btn");
+    document.getElementById("jarvis-fields-list").style.display = "none";
+    document.getElementById("jarvis-people-list").style.display = "none";
+    document.getElementById("jarvis-send-panel").style.display = "none";
+
     if (mode === "form") {
       actionBtn.textContent = "Fill Form";
+      actionBtn.classList.remove("jarvis-stop-btn");
       scanBtn.textContent = "Scan Form";
       document.getElementById("jarvis-fields-list").style.display = mappedFields.length ? "block" : "none";
-      document.getElementById("jarvis-people-list").style.display = "none";
       if (!mappedFields.length) showIdleState();
+      setStatus("Form fill mode");
+    } else if (mode === "send") {
+      actionBtn.textContent = sendQueueRunning ? "Stop Sending" : "Send Emails";
+      actionBtn.classList.toggle("jarvis-stop-btn", sendQueueRunning);
+      scanBtn.textContent = "Refresh List";
+      document.getElementById("jarvis-send-panel").style.display = "block";
+      if (!outreachQueue.length) showIdleState();
+      setStatus("Gmail outreach — select investors and send");
     } else {
       actionBtn.textContent = "Copy All Emails";
+      actionBtn.classList.remove("jarvis-stop-btn");
       scanBtn.textContent = "Scan Page";
-      document.getElementById("jarvis-fields-list").style.display = "none";
       document.getElementById("jarvis-people-list").style.display = peopleResults.length ? "block" : "none";
       if (!peopleResults.length) showIdleState();
+      setStatus("Email finder mode");
     }
-    setStatus(mode === "form" ? "Form fill mode" : "Email finder mode");
   }
 
   function runScan() {
     if (sidebarMode === "form") scanAndMap();
+    else if (sidebarMode === "send") loadOutreachQueue();
     else scanPeopleEmails();
   }
 
   function runAction() {
     if (sidebarMode === "form") fillForm();
+    else if (sidebarMode === "send") {
+      if (sendQueueRunning) stopSendQueue();
+      else startSendQueue();
+    }
     else copyAllEmails();
   }
 
@@ -752,6 +807,226 @@
     }
     navigator.clipboard.writeText(emails.join(", "));
     setStatus(`Copied ${emails.length} emails to clipboard`);
+  }
+
+  // ── Gmail send mode ────────────────────────────────────────────────────────
+
+  function interpolateTemplate(text, person) {
+    const firstName = (person.name || "").split(/\s+/)[0] || person.name || "";
+    return (text || "")
+      .replace(/\{\{firstName\}\}/gi, firstName)
+      .replace(/\{\{name\}\}/gi, person.name || "")
+      .replace(/\{\{company\}\}/gi, person.company || "")
+      .replace(/\{\{email\}\}/gi, person.email || "");
+  }
+
+  async function loadOutreachQueue() {
+    if (!window.__jarvisGmail?.isGmail()) {
+      setStatus("Open Gmail to use Send Emails mode");
+      return;
+    }
+
+    showLoading(true);
+    showEmpty(false);
+
+    const [queueRes, draftsRes] = await Promise.all([
+      sendMessage({ type: "GET_OUTREACH_QUEUE" }),
+      sendMessage({ type: "GET_EMAIL_DRAFTS" }),
+    ]);
+
+    showLoading(false);
+
+    if (!queueRes.success) {
+      setStatus(queueRes.error || "Failed to load outreach queue — log in via extension popup");
+      showEmpty(true);
+      document.getElementById("jarvis-empty-text").textContent = queueRes.error || "Could not load investors";
+      return;
+    }
+
+    emailDrafts = draftsRes.success ? (draftsRes.data || []) : [];
+    const data = queueRes.data || {};
+    outreachQueue = [
+      ...(data.investors || []).map(i => ({ ...i, selected: true, sent: false })),
+      ...(data.contacts || []).map(c => ({ ...c, selected: false, sent: false })),
+    ];
+
+    if (!sendTemplate.subject && emailDrafts.length) {
+      sendTemplate.subject = emailDrafts[0].subject || "";
+      sendTemplate.body = emailDrafts[0].body || "";
+    }
+
+    renderSendPanel();
+    setStatus(`${outreachQueue.length} ready to email (${data.investors?.length || 0} investors)`);
+  }
+
+  function renderSendPanel() {
+    const panel = document.getElementById("jarvis-send-panel");
+    if (!panel) return;
+
+    showEmpty(false);
+    panel.style.display = "block";
+
+    const selectedCount = outreachQueue.filter(p => p.selected && !p.sent).length;
+    const draftsHtml = emailDrafts.length
+      ? `<div style="margin-bottom:8px"><p style="font-size:10px;color:#525252;margin:0 0 4px">Load from Gmail draft:</p>${emailDrafts.slice(0, 5).map((d, i) =>
+          `<button class="jarvis-draft-btn" data-draft-idx="${i}">${(d.subject || "Draft").substring(0, 30)}</button>`
+        ).join("")}</div>`
+      : "";
+
+    panel.innerHTML = `
+      <div style="margin-bottom:12px">
+        <p style="font-size:11px;color:#737373;margin:0 0 8px">Email template — use {{firstName}}, {{name}}, {{company}}</p>
+        ${draftsHtml}
+        <input id="jarvis-send-subject" class="jarvis-template-input" placeholder="Subject" value="${escapeHtml(sendTemplate.subject)}" style="margin-bottom:6px" />
+        <textarea id="jarvis-send-body" class="jarvis-template-input jarvis-template-body" placeholder="Email body...">${escapeHtml(sendTemplate.body)}</textarea>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <p style="font-size:11px;color:#a3a3a3;margin:0;font-weight:600">Recipients (${selectedCount} selected)</p>
+        <button id="jarvis-select-all" style="font-size:10px;background:none;border:none;color:#737373;cursor:pointer">Toggle all</button>
+      </div>
+      <div id="jarvis-send-list"></div>
+    `;
+
+    document.getElementById("jarvis-send-subject").addEventListener("input", (e) => {
+      sendTemplate.subject = e.target.value;
+    });
+    document.getElementById("jarvis-send-body").addEventListener("input", (e) => {
+      sendTemplate.body = e.target.value;
+    });
+    document.getElementById("jarvis-select-all").addEventListener("click", () => {
+      const allSelected = outreachQueue.every(p => p.selected);
+      outreachQueue.forEach(p => { if (!p.sent) p.selected = !allSelected; });
+      renderSendPanel();
+    });
+    panel.querySelectorAll(".jarvis-draft-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const draft = emailDrafts[parseInt(btn.dataset.draftIdx, 10)];
+        if (!draft) return;
+        sendTemplate.subject = draft.subject || "";
+        sendTemplate.body = draft.body || "";
+        renderSendPanel();
+      });
+    });
+
+    const list = document.getElementById("jarvis-send-list");
+    if (!outreachQueue.length) {
+      list.innerHTML = `<p style="font-size:12px;color:#525252;text-align:center;padding:20px 0">No investors with email in Jarvis</p>`;
+      return;
+    }
+
+    outreachQueue.forEach((person, idx) => {
+      const item = document.createElement("label");
+      item.className = `jarvis-send-item${person.sent ? " jarvis-send-done" : ""}`;
+      item.innerHTML = `
+        <input type="checkbox" ${person.selected ? "checked" : ""} ${person.sent ? "disabled" : ""} data-idx="${idx}" />
+        <div style="min-width:0;flex:1">
+          <p style="font-size:12px;font-weight:600;color:#e5e5e5;margin:0">${escapeHtml(person.name)}</p>
+          <p style="font-size:10px;color:#525252;margin:2px 0 0">${escapeHtml(person.email)}${person.company ? ` · ${escapeHtml(person.company)}` : ""}</p>
+          <span style="font-size:9px;color:#404040">${person.type === "investor" ? "investor" : "contact"}${person.sent ? " · sent ✓" : ""}</span>
+        </div>
+      `;
+      const cb = item.querySelector("input");
+      cb.addEventListener("change", () => {
+        outreachQueue[idx].selected = cb.checked;
+        updateSendActionLabel();
+      });
+      list.appendChild(item);
+    });
+
+    updateSendActionLabel();
+  }
+
+  function updateSendActionLabel() {
+    const btn = document.getElementById("jarvis-action-btn");
+    if (!btn || sidebarMode !== "send") return;
+    const count = outreachQueue.filter(p => p.selected && !p.sent).length;
+    btn.textContent = sendQueueRunning ? "Stop Sending" : `Send Emails (${count})`;
+  }
+
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function stopSendQueue() {
+    sendQueueStop = true;
+    setStatus("Stopping after current email...");
+  }
+
+  async function startSendQueue() {
+    if (!window.__jarvisGmail?.isGmail()) {
+      setStatus("Open mail.google.com to send emails");
+      return;
+    }
+
+    sendTemplate.subject = document.getElementById("jarvis-send-subject")?.value || sendTemplate.subject;
+    sendTemplate.body = document.getElementById("jarvis-send-body")?.value || sendTemplate.body;
+
+    if (!sendTemplate.subject.trim()) { setStatus("Subject is required"); return; }
+    if (!sendTemplate.body.trim()) { setStatus("Email body is required"); return; }
+
+    const queue = outreachQueue.filter(p => p.selected && !p.sent && p.email);
+    if (!queue.length) { setStatus("Select at least one recipient"); return; }
+
+    sendQueueRunning = true;
+    sendQueueStop = false;
+    setMode("send");
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const person of queue) {
+      if (sendQueueStop) break;
+
+      setStatus(`Sending ${sent + failed + 1}/${queue.length} → ${person.name}...`);
+
+      try {
+        const subject = interpolateTemplate(sendTemplate.subject, person);
+        const body = interpolateTemplate(sendTemplate.body, person);
+
+        await window.__jarvisGmail.sendOneEmail({
+          to: person.email,
+          subject,
+          body,
+        });
+
+        person.sent = true;
+        person.selected = false;
+        sent++;
+
+        if (person.type === "investor") {
+          await sendMessage({ type: "MARK_INVESTOR_CONTACTED", id: person.id });
+        } else {
+          await sendMessage({
+            type: "MARK_EMAILED",
+            name: person.name,
+            email: person.email,
+            title: person.title || "",
+            company: person.company || "",
+            pageUrl: window.location.href,
+          });
+        }
+
+        renderSendPanel();
+        await sleep(2500);
+      } catch (err) {
+        failed++;
+        setStatus(`Failed for ${person.name}: ${err.message || err}`);
+        await sleep(1500);
+        if (failed >= 3 && sent === 0) {
+          setStatus("Too many failures — check Gmail is on inbox view, then retry");
+          break;
+        }
+      }
+    }
+
+    sendQueueRunning = false;
+    sendQueueStop = false;
+    setMode("send");
+    setStatus(`Done — sent ${sent}${failed ? `, failed ${failed}` : ""}. Review sent emails in Gmail Sent folder.`);
   }
 
   // ── Form filling ───────────────────────────────────────────────────────────

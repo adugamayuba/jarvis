@@ -122,4 +122,61 @@ router.post("/mark-emailed", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/extension/outreach-queue — investors + contacts ready for Gmail outreach
+router.get("/outreach-queue", async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const [invSnap, contactSnap] = await Promise.all([
+      db.collection(COLLECTIONS.INVESTORS).orderBy("createdAt", "desc").limit(500).get(),
+      db.collection(COLLECTIONS.CONTACTS).orderBy("createdAt", "desc").limit(500).get(),
+    ]);
+
+    const skipStatuses = new Set(["contacted", "passed", "closed", "committed"]);
+
+    const investors = invSnap.docs
+      .map(d => ({ id: d.id, type: "investor" as const, ...d.data() } as Record<string, unknown> & { id: string; type: "investor"; email?: string; status?: string }))
+      .filter(i => i.email && !skipStatuses.has(i.status || ""));
+
+    const contacts = contactSnap.docs
+      .map(d => ({ id: d.id, type: "contact" as const, ...d.data() } as Record<string, unknown> & { id: string; type: "contact"; email?: string; emailSent?: boolean }))
+      .filter(c => c.email && !c.emailSent);
+
+    res.json({
+      success: true,
+      data: {
+        investors,
+        contacts,
+        total: investors.length + contacts.length,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /api/extension/mark-investor-contacted
+router.post("/mark-investor-contacted", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.body as { id?: string };
+    if (!id) {
+      res.status(400).json({ success: false, error: "id required" });
+      return;
+    }
+
+    const db = getDb();
+    const ref = db.collection(COLLECTIONS.INVESTORS).doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      res.status(404).json({ success: false, error: "Investor not found" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    await ref.update({ status: "contacted", updatedAt: now, contactedAt: now });
+    res.json({ success: true, message: "Investor marked as contacted" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 export default router;

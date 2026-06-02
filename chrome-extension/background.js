@@ -105,6 +105,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           }),
         });
         sendResponse({ success: result.success, data: result.data, message: result.message, error: result.error });
+      } else if (msg.type === "GET_OUTREACH_QUEUE") {
+        const result = await apiCall("/api/extension/outreach-queue");
+        sendResponse({ success: true, data: result.data });
+      } else if (msg.type === "GET_EMAIL_DRAFTS") {
+        const result = await apiCall("/api/email/drafts");
+        sendResponse({ success: true, data: result.data });
+      } else if (msg.type === "MARK_INVESTOR_CONTACTED") {
+        const result = await apiCall("/api/extension/mark-investor-contacted", {
+          method: "POST",
+          body: JSON.stringify({ id: msg.id }),
+        });
+        sendResponse({ success: result.success, message: result.message, error: result.error });
       } else if (msg.type === "OPEN_SIDEBAR") {
         // Sidebar is injected by content script — tell the tab to open it
         sendResponse({ success: true });

@@ -8,29 +8,103 @@
     return location.hostname === "mail.google.com";
   }
 
+  function isVisible(el) {
+    if (!el) return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && el.offsetParent !== null;
+  }
+
+  function walkShadowRoots(root, fn) {
+    const result = fn(root);
+    if (result) return result;
+    const nodes = root.querySelectorAll ? root.querySelectorAll("*") : [];
+    for (const node of nodes) {
+      if (node.shadowRoot) {
+        const inner = walkShadowRoots(node.shadowRoot, fn);
+        if (inner) return inner;
+      }
+    }
+    return null;
+  }
+
+  function queryAllDocuments(fn) {
+    const top = fn(document);
+    if (top) return top;
+    for (const iframe of document.querySelectorAll("iframe")) {
+      try {
+        const doc = iframe.contentDocument;
+        if (doc) {
+          const found = fn(doc);
+          if (found) return found;
+        }
+      } catch { /* cross-origin */ }
+    }
+    return null;
+  }
+
   function findComposeButton() {
-    return (
-      document.querySelector('[gh="cm"]') ||
-      document.querySelector('[data-tooltip="Compose"]') ||
-      [...document.querySelectorAll('div[role="button"]')].find((el) => {
-        const label = el.getAttribute("aria-label") || el.getAttribute("data-tooltip") || "";
-        return label === "Compose" || label.startsWith("Compose");
+    return queryAllDocuments((doc) =>
+      walkShadowRoots(doc, (root) => {
+        const selectors = [
+          '[gh="cm"]',
+          '[data-tooltip="Compose"]',
+          '[data-tooltip^="Compose"]',
+          'div[role="button"][aria-label="Compose"]',
+          'div[role="button"][aria-label^="Compose"]',
+          ".T-I-KE",
+          'a[href*="compose"]',
+        ];
+        for (const sel of selectors) {
+          const el = root.querySelector(sel);
+          if (isVisible(el)) return el;
+        }
+
+        for (const el of root.querySelectorAll('[role="button"], button, a, div.T-I')) {
+          const label = (
+            el.getAttribute("aria-label") ||
+            el.getAttribute("data-tooltip") ||
+            el.getAttribute("title") ||
+            ""
+          ).trim();
+          const text = (el.textContent || "").trim();
+          if (/^compose$/i.test(label) || /^compose$/i.test(text) || label.startsWith("Compose ")) {
+            if (isVisible(el)) return el;
+          }
+        }
+
+        // Sidebar compose: div containing "Compose" text
+        for (const span of root.querySelectorAll("span, div")) {
+          if (span.children.length > 0) continue;
+          if ((span.textContent || "").trim() !== "Compose") continue;
+          const btn = span.closest('[role="button"]') || span.closest(".T-I") || span.closest("div[tabindex]");
+          if (isVisible(btn)) return btn;
+        }
+
+        return null;
       })
     );
   }
 
   function getComposeDialog() {
-    const dialogs = [...document.querySelectorAll('[role="dialog"]')];
-    for (let i = dialogs.length - 1; i >= 0; i--) {
-      const d = dialogs[i];
-      if (d.querySelector('input[name="subjectbox"], input[aria-label*="Subject"]')) return d;
-    }
-    return (
-      document.querySelector(".AD") ||
-      document.querySelector(".aoI") ||
-      document.querySelector('[aria-label="New Message"]')?.closest('[role="dialog"]') ||
-      null
-    );
+    return queryAllDocuments((doc) => {
+      const dialogs = [...doc.querySelectorAll('[role="dialog"]')];
+      for (let i = dialogs.length - 1; i >= 0; i--) {
+        const d = dialogs[i];
+        if (d.querySelector('input[name="subjectbox"], input[aria-label*="Subject"], input[aria-label*="subject"]')) {
+          return d;
+        }
+      }
+
+      const inline =
+        doc.querySelector(".AD") ||
+        doc.querySelector(".aoI") ||
+        doc.querySelector('[aria-label="New Message"]')?.closest('[role="dialog"]') ||
+        doc.querySelector('[aria-label="New Message"]')?.closest(".AD") ||
+        doc.querySelector('input[name="subjectbox"]')?.closest('[role="dialog"]') ||
+        doc.querySelector('input[name="subjectbox"]')?.closest(".AD");
+
+      return inline || null;
+    });
   }
 
   async function waitForCompose(timeoutMs = 12000) {
@@ -40,7 +114,39 @@
       if (dialog) return dialog;
       await sleep(200);
     }
-    throw new Error("Compose window did not open — click Compose manually first");
+    throw new Error("Compose window did not open");
+  }
+
+  async function triggerComposeKeyboard() {
+    const target =
+      document.querySelector('[role="main"]') ||
+      document.querySelector(".nH") ||
+      document.body;
+    target.focus();
+    await sleep(150);
+
+    for (const type of ["keydown", "keypress", "keyup"]) {
+      target.dispatchEvent(
+        new KeyboardEvent(type, {
+          key: "c",
+          code: "KeyC",
+          keyCode: type === "keypress" ? 99 : 67,
+          which: type === "keypress" ? 99 : 67,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    }
+    await sleep(600);
+  }
+
+  async function triggerComposeHash() {
+    const current = window.location.hash || "#inbox";
+    const base = current.split("?")[0] || "#inbox";
+    if (!current.includes("compose")) {
+      window.location.hash = `${base}?compose=new`;
+      await sleep(1200);
+    }
   }
 
   function findToField(dialog) {
@@ -54,24 +160,23 @@
       'div[aria-label="To recipients"] input',
       '[aria-label="To recipients"]',
       '[aria-label="To"]',
+      '[role="combobox"][aria-label*="To"]',
+      '[role="combobox"][aria-label*="to"]',
     ];
     for (const sel of selectors) {
       const el = dialog.querySelector(sel);
       if (el) return el;
     }
 
-    // First combobox/text input in compose header area
-    const combobox = dialog.querySelector('[role="combobox"][aria-label*="To"], [role="combobox"][aria-label*="to"]');
-    if (combobox) return combobox;
-
     const editables = [...dialog.querySelectorAll('[contenteditable="true"]')];
-    const toEditable = editables.find(el => {
-      const label = el.getAttribute("aria-label") || el.closest("[aria-label]")?.getAttribute("aria-label") || "";
+    const toEditable = editables.find((el) => {
+      const label =
+        el.getAttribute("aria-label") ||
+        el.closest("[aria-label]")?.getAttribute("aria-label") ||
+        "";
       return /to/i.test(label);
     });
-    if (toEditable) return toEditable;
-
-    return editables[0] || null;
+    return toEditable || editables[0] || null;
   }
 
   async function typeIntoElement(el, text) {
@@ -103,10 +208,24 @@
     await typeIntoElement(toEl, email);
     await sleep(300);
 
-    // Confirm email chip with Enter then Tab
     for (const key of ["Enter", "Tab"]) {
-      toEl.dispatchEvent(new KeyboardEvent("keydown", { key, code: key, keyCode: key === "Enter" ? 13 : 9, bubbles: true, cancelable: true }));
-      toEl.dispatchEvent(new KeyboardEvent("keyup", { key, code: key, keyCode: key === "Enter" ? 13 : 9, bubbles: true }));
+      toEl.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key,
+          code: key,
+          keyCode: key === "Enter" ? 13 : 9,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      toEl.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          key,
+          code: key,
+          keyCode: key === "Enter" ? 13 : 9,
+          bubbles: true,
+        })
+      );
       await sleep(250);
     }
 
@@ -127,29 +246,19 @@
       const el = dialog.querySelector(sel);
       if (el) return el;
     }
-    // Click "Cc" link to reveal field if hidden
-    const ccLink = [...dialog.querySelectorAll("span, div")].find(el =>
-      el.textContent?.trim() === "Cc" && el.getAttribute("role") !== "button"
-    );
-    if (ccLink) {
-      ccLink.click();
-    }
-    for (const sel of selectors) {
-      const el = dialog.querySelector(sel);
-      if (el) return el;
-    }
     return null;
   }
 
   async function fillCc(dialog, ccEmail) {
     if (!ccEmail) return;
+
     let ccEl = findCcField(dialog);
     if (!ccEl) {
-      // Try clicking Cc Bcc toggle
-      const toggle = dialog.querySelector('[aria-label="Cc Bcc"]') ||
-        [...dialog.querySelectorAll("span")].find(s => s.textContent === "Cc");
+      const toggle =
+        dialog.querySelector('[aria-label="Cc Bcc"]') ||
+        [...dialog.querySelectorAll("span, div, button")].find((s) => (s.textContent || "").trim() === "Cc");
       toggle?.click();
-      await sleep(300);
+      await sleep(400);
       ccEl = findCcField(dialog);
     }
     if (!ccEl) {
@@ -166,6 +275,7 @@
     const subjectEl =
       dialog.querySelector('input[name="subjectbox"]') ||
       dialog.querySelector('input[aria-label*="Subject"]') ||
+      dialog.querySelector('input[aria-label*="subject"]') ||
       dialog.querySelector('input[placeholder*="Subject"]');
     if (!subjectEl) throw new Error("Could not find Subject field");
 
@@ -225,17 +335,38 @@
   }
 
   async function openCompose() {
-    // Always start fresh — discard stale compose windows
     const existing = getComposeDialog();
     if (existing) {
       await discardCompose(existing);
       await sleep(500);
     }
 
+    // 1. Click Compose button (many Gmail layouts)
     const composeBtn = findComposeButton();
-    if (!composeBtn) throw new Error("Compose button not found — open Gmail inbox first");
-    composeBtn.click();
-    return waitForCompose();
+    if (composeBtn) {
+      composeBtn.click();
+      try {
+        return await waitForCompose(8000);
+      } catch { /* try fallbacks */ }
+    }
+
+    // 2. Gmail keyboard shortcut: c
+    await triggerComposeKeyboard();
+    try {
+      return await waitForCompose(5000);
+    } catch { /* try hash */ }
+
+    // 3. URL hash compose
+    await triggerComposeHash();
+    try {
+      return await waitForCompose(8000);
+    } catch { /* failed */ }
+
+    // 4. If user already opened compose manually, use it
+    const manual = getComposeDialog();
+    if (manual) return manual;
+
+    throw new Error("Could not open compose — click Compose once, then hit Test again");
   }
 
   async function sendOneEmail({ to, cc, subject, body, bodyHtml }) {

@@ -204,6 +204,12 @@
       }
       .jarvis-draft-btn:hover { border-color: #525252; color: #fff; }
       .jarvis-stop-btn { background: #450a0a !important; color: #fca5a5 !important; border: 1px solid #7f1d1d !important; }
+      .jarvis-test-btn {
+        flex: 1; min-width: 140px; background: #1a1a1a; border: 1px solid #404040; color: #d4d4d4;
+        border-radius: 6px; padding: 6px 8px; font-size: 10px; cursor: pointer; text-align: left;
+      }
+      .jarvis-test-btn:hover { border-color: #737373; color: #fff; }
+      .jarvis-test-btn:disabled { opacity: 0.5; cursor: wait; }
     `;
     document.head.appendChild(style);
     document.body.appendChild(container);
@@ -243,6 +249,11 @@
   let sendQueueRunning = false;
   let sendQueueStop = false;
   let sendTemplate = { subject: "", body: "", cc: "ligia@reelin.ai" };
+
+  const TEST_EMAILS = [
+    { name: "Abel", email: "adugamhq@gmail.com", label: "adugamhq@gmail.com" },
+    { name: "Abel", email: "abel@gigadroom.com", label: "abel@gigadroom.com" },
+  ];
 
   function initDefaultTemplate() {
     const tpl = window.__jarvisEmailTemplate;
@@ -914,6 +925,12 @@
         <input id="jarvis-send-subject" class="jarvis-template-input" placeholder="Subject" value="${escapeHtml(sendTemplate.subject)}" style="margin-bottom:6px" />
         <textarea id="jarvis-send-body" class="jarvis-template-input jarvis-template-body" placeholder="Email body...">${escapeHtml(sendTemplate.body)}</textarea>
       </div>
+      <div style="margin-bottom:12px;padding:10px;border:1px solid #262626;border-radius:8px;background:#111">
+        <p style="font-size:10px;color:#737373;margin:0 0 8px;font-weight:600">Test send (won't mark contacts as sent)</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${TEST_EMAILS.map(t => `<button type="button" class="jarvis-test-btn" data-test-email="${escapeHtml(t.email)}">Test → ${escapeHtml(t.label)}</button>`).join("")}
+        </div>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <p style="font-size:11px;color:#a3a3a3;margin:0;font-weight:600">Recipients (${selectedCount} selected)</p>
         <button id="jarvis-select-all" style="font-size:10px;background:none;border:none;color:#737373;cursor:pointer">Toggle all</button>
@@ -933,9 +950,14 @@
       renderSendPanel();
     });
 
+    panel.querySelectorAll(".jarvis-test-btn").forEach(btn => {
+      btn.addEventListener("click", () => sendTestEmail(btn.dataset.testEmail, btn));
+    });
+
     const list = document.getElementById("jarvis-send-list");
     if (!outreachQueue.length) {
-      list.innerHTML = `<p style="font-size:12px;color:#525252;text-align:center;padding:20px 0">No contacts with email (not sent yet).<br><span style="font-size:11px;color:#404040">Import contacts in Jarvis → Contacts page. Only shows contacts without the Sent tag.</span></p>`;
+      list.innerHTML = `<p style="font-size:12px;color:#525252;text-align:center;padding:20px 0">No contacts with email (not sent yet).<br><span style="font-size:11px;color:#404040">Use test buttons above first, then import contacts in Jarvis.</span></p>`;
+      updateSendActionLabel();
       return;
     }
 
@@ -976,6 +998,62 @@
       .replace(/"/g, "&quot;");
   }
 
+  function syncTemplateFromForm() {
+    sendTemplate.subject = document.getElementById("jarvis-send-subject")?.value || sendTemplate.subject;
+    sendTemplate.body = document.getElementById("jarvis-send-body")?.value || sendTemplate.body;
+  }
+
+  async function deliverEmail(person, { markSent = true } = {}) {
+    const firstName = (person.name || "").split(/\s+/)[0] || "there";
+    const subject = interpolateTemplate(sendTemplate.subject, person);
+    const tpl = window.__jarvisEmailTemplate;
+    const bodyHtml = tpl ? tpl.buildHtml(firstName) : null;
+    const body = tpl ? tpl.buildPlain(firstName) : interpolateTemplate(sendTemplate.body, person);
+
+    await window.__jarvisGmail.sendOneEmail({
+      to: person.email,
+      cc: sendTemplate.cc || "ligia@reelin.ai",
+      subject,
+      body,
+      bodyHtml,
+    });
+
+    if (markSent) {
+      await sendMessage({
+        type: "MARK_EMAILED",
+        name: person.name,
+        email: person.email,
+        title: person.title || "",
+        company: person.company || "",
+        pageUrl: window.location.href,
+      });
+    }
+  }
+
+  async function sendTestEmail(email, btn) {
+    if (sendQueueRunning) { setStatus("Wait — bulk send in progress"); return; }
+    const test = TEST_EMAILS.find(t => t.email === email);
+    if (!test) return;
+
+    syncTemplateFromForm();
+    if (!sendTemplate.subject.trim()) { setStatus("Subject is required"); return; }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Sending..."; }
+
+    try {
+      setStatus(`Test send → ${test.email}...`);
+      await deliverEmail(test, { markSent: false });
+      setStatus(`Test sent to ${test.email} — check inbox & formatting`);
+    } catch (err) {
+      setStatus(`Test failed: ${err.message || err}`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = `Test → ${test.label}`;
+      }
+    }
+  }
+
   function stopSendQueue() {
     sendQueueStop = true;
     setStatus("Stopping after current email...");
@@ -1009,32 +1087,12 @@
       setStatus(`Sending ${sent + failed + 1}/${queue.length} → ${person.name}...`);
 
       try {
-        const firstName = (person.name || "").split(/\s+/)[0] || "";
-        const subject = interpolateTemplate(sendTemplate.subject, person);
-        const tpl = window.__jarvisEmailTemplate;
-        const bodyHtml = tpl ? tpl.buildHtml(firstName) : null;
-        const body = tpl ? tpl.buildPlain(firstName) : interpolateTemplate(sendTemplate.body, person);
-
-        await window.__jarvisGmail.sendOneEmail({
-          to: person.email,
-          cc: sendTemplate.cc || "ligia@reelin.ai",
-          subject,
-          body,
-          bodyHtml,
-        });
+        syncTemplateFromForm();
+        await deliverEmail(person, { markSent: true });
 
         person.sent = true;
         person.selected = false;
         sent++;
-
-        await sendMessage({
-          type: "MARK_EMAILED",
-          name: person.name,
-          email: person.email,
-          title: person.title || "",
-          company: person.company || "",
-          pageUrl: window.location.href,
-        });
 
         renderSendPanel();
         await sleep(2500);

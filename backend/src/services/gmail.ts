@@ -92,6 +92,52 @@ export interface GmailDraft {
   snippet: string;
 }
 
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function extractBodyFromPayload(payload: { mimeType?: string | null; body?: { data?: string | null }; parts?: Array<{ mimeType?: string | null; body?: { data?: string | null }; parts?: unknown[] }> } | undefined): string {
+  if (!payload) return "";
+
+  if (payload.mimeType === "text/plain" && payload.body?.data) {
+    return Buffer.from(payload.body.data, "base64").toString("utf-8");
+  }
+
+  if (payload.mimeType === "text/html" && payload.body?.data) {
+    return htmlToPlainText(Buffer.from(payload.body.data, "base64").toString("utf-8"));
+  }
+
+  const parts = payload.parts || [];
+  const plain = parts.find(p => p.mimeType === "text/plain");
+  if (plain) return extractBodyFromPayload(plain as typeof payload);
+
+  const html = parts.find(p => p.mimeType === "text/html");
+  if (html) return extractBodyFromPayload(html as typeof payload);
+
+  for (const part of parts) {
+    const nested = extractBodyFromPayload(part as typeof payload);
+    if (nested.trim()) return nested;
+  }
+
+  if (payload.body?.data) {
+    const raw = Buffer.from(payload.body.data, "base64").toString("utf-8");
+    return payload.mimeType?.includes("html") ? htmlToPlainText(raw) : raw;
+  }
+
+  return "";
+}
+
 // Fetch Gmail drafts to use as templates
 export async function getDrafts(): Promise<GmailDraft[]> {
   const gmail = createGmailClient();
@@ -108,21 +154,12 @@ export async function getDrafts(): Promise<GmailDraft[]> {
     const msg = res.data.message!;
     const headers = msg.payload?.headers || [];
     const subject = headers.find((h) => h.name === "Subject")?.value || "(no subject)";
-
-    // Extract plain text body
-    let body = "";
-    const parts = msg.payload?.parts || [];
-    const textPart = parts.find((p) => p.mimeType === "text/plain");
-    if (textPart?.body?.data) {
-      body = Buffer.from(textPart.body.data, "base64").toString("utf-8");
-    } else if (msg.payload?.body?.data) {
-      body = Buffer.from(msg.payload.body.data, "base64").toString("utf-8");
-    }
+    const body = extractBodyFromPayload(msg.payload as Parameters<typeof extractBodyFromPayload>[0]);
 
     return {
       id: res.data.id!,
       subject,
-      body,
+      body: body || msg.snippet || "",
       snippet: msg.snippet || "",
     };
   });

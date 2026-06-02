@@ -131,23 +131,67 @@ router.get("/outreach-queue", async (_req: Request, res: Response) => {
       db.collection(COLLECTIONS.CONTACTS).orderBy("createdAt", "desc").limit(500).get(),
     ]);
 
-    const skipStatuses = new Set(["contacted", "passed", "closed", "committed"]);
+    function getEmail(data: Record<string, unknown>): string {
+      const email = data.email as string | undefined;
+      if (email?.includes("@")) return email.trim().toLowerCase();
+      const emails = data.emails as string[] | undefined;
+      const found = emails?.find(e => e?.includes("@"));
+      return found ? found.trim().toLowerCase() : "";
+    }
 
-    const investors = invSnap.docs
-      .map(d => ({ id: d.id, type: "investor" as const, ...d.data() } as Record<string, unknown> & { id: string; type: "investor"; email?: string; status?: string }))
-      .filter(i => i.email && !skipStatuses.has(i.status || ""));
+    const seen = new Set<string>();
+    type Recipient = {
+      id: string;
+      type: "investor" | "contact";
+      name: string;
+      email: string;
+      company?: string;
+      title?: string;
+      status?: string;
+    };
+    const recipients: Recipient[] = [];
 
-    const contacts = contactSnap.docs
-      .map(d => ({ id: d.id, type: "contact" as const, ...d.data() } as Record<string, unknown> & { id: string; type: "contact"; email?: string; emailSent?: boolean }))
-      .filter(c => c.email && !c.emailSent);
+    for (const doc of invSnap.docs) {
+      const data = doc.data() as Record<string, unknown>;
+      const email = getEmail(data);
+      if (!email || seen.has(email)) continue;
+      const status = (data.status as string) || "prospect";
+      if (status === "passed" || status === "closed") continue;
+      seen.add(email);
+      recipients.push({
+        id: doc.id,
+        type: "investor",
+        name: (data.name as string) || email.split("@")[0],
+        email,
+        company: (data.company as string) || "",
+        title: (data.title as string) || "",
+        status,
+      });
+    }
+
+    for (const doc of contactSnap.docs) {
+      const data = doc.data() as Record<string, unknown>;
+      const email = getEmail(data);
+      if (!email || seen.has(email)) continue;
+      if (data.emailSent) continue;
+      seen.add(email);
+      recipients.push({
+        id: doc.id,
+        type: "contact",
+        name: (data.name as string) || email.split("@")[0],
+        email,
+        company: (data.company as string) || "",
+        title: (data.title as string) || "",
+        status: "prospect",
+      });
+    }
+
+    const investors = recipients.filter(r => r.type === "investor");
+    const contacts = recipients.filter(r => r.type === "contact");
 
     res.json({
       success: true,
-      data: {
-        investors,
-        contacts,
-        total: investors.length + contacts.length,
-      },
+      data: { recipients, investors, contacts, total: recipients.length },
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });

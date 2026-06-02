@@ -813,11 +813,20 @@
 
   function interpolateTemplate(text, person) {
     const firstName = (person.name || "").split(/\s+/)[0] || person.name || "";
-    return (text || "")
+    let result = (text || "")
       .replace(/\{\{firstName\}\}/gi, firstName)
       .replace(/\{\{name\}\}/gi, person.name || "")
       .replace(/\{\{company\}\}/gi, person.company || "")
       .replace(/\{\{email\}\}/gi, person.email || "");
+    result = personalizeGreeting(result, firstName);
+    return result;
+  }
+
+  /** Insert investor first name into "Hello," → "Hello Mark," */
+  function personalizeGreeting(text, firstName) {
+    if (!firstName || !text) return text;
+    if (new RegExp(`Hello\\s+${firstName}\\b`, "i").test(text)) return text;
+    return text.replace(/\bHello\b(\s*,)?/i, (_, comma) => `Hello ${firstName}${comma || ","}`);
   }
 
   async function loadOutreachQueue() {
@@ -845,18 +854,34 @@
 
     emailDrafts = draftsRes.success ? (draftsRes.data || []) : [];
     const data = queueRes.data || {};
-    outreachQueue = [
-      ...(data.investors || []).map(i => ({ ...i, selected: true, sent: false })),
-      ...(data.contacts || []).map(c => ({ ...c, selected: false, sent: false })),
-    ];
 
-    if (!sendTemplate.subject && emailDrafts.length) {
-      sendTemplate.subject = emailDrafts[0].subject || "";
-      sendTemplate.body = emailDrafts[0].body || "";
+    // Unified recipients list (investors + contacts, deduped by email)
+    const rawList = data.recipients?.length
+      ? data.recipients
+      : [...(data.investors || []), ...(data.contacts || [])];
+
+    outreachQueue = rawList.map(r => ({
+      ...r,
+      selected: r.type === "contact" ? true : (r.status === "prospect" || !r.status),
+      sent: false,
+    }));
+
+    // Auto-load Gmail draft template (user's only draft)
+    if (emailDrafts.length) {
+      const draft = emailDrafts[0];
+      sendTemplate.subject = draft.subject && draft.subject !== "(no subject)" ? draft.subject : sendTemplate.subject;
+      sendTemplate.body = draft.body || draft.snippet || sendTemplate.body;
     }
 
     renderSendPanel();
-    setStatus(`${outreachQueue.length} ready to email (${data.investors?.length || 0} investors)`);
+
+    if (!outreachQueue.length) {
+      setStatus("No recipients with email — add investors in Jarvis Contacts or Investors page");
+    } else if (!sendTemplate.body) {
+      setStatus(`${outreachQueue.length} recipients loaded — draft body empty, check Gmail draft exists`);
+    } else {
+      setStatus(`${outreachQueue.length} recipients · template loaded from Gmail draft`);
+    }
   }
 
   function renderSendPanel() {
@@ -867,15 +892,21 @@
     panel.style.display = "block";
 
     const selectedCount = outreachQueue.filter(p => p.selected && !p.sent).length;
+    const draftLoaded = emailDrafts.length > 0 && sendTemplate.body;
     const draftsHtml = emailDrafts.length
-      ? `<div style="margin-bottom:8px"><p style="font-size:10px;color:#525252;margin:0 0 4px">Load from Gmail draft:</p>${emailDrafts.slice(0, 5).map((d, i) =>
-          `<button class="jarvis-draft-btn" data-draft-idx="${i}">${(d.subject || "Draft").substring(0, 30)}</button>`
-        ).join("")}</div>`
-      : "";
+      ? `<div style="margin-bottom:8px">
+          <p style="font-size:10px;color:${draftLoaded ? '#34d399' : '#525252'};margin:0 0 4px">
+            ${draftLoaded ? `✓ Using Gmail draft: ${escapeHtml((emailDrafts[0].subject || "Draft").substring(0, 40))}` : "Gmail draft found but body empty"}
+          </p>
+          ${emailDrafts.slice(0, 3).map((d, i) =>
+            `<button class="jarvis-draft-btn" data-draft-idx="${i}">${escapeHtml((d.subject || "Draft").substring(0, 30))}</button>`
+          ).join("")}
+        </div>`
+      : `<p style="font-size:10px;color:#f87171;margin:0 0 8px">No Gmail drafts found — create a draft in Gmail first</p>`;
 
     panel.innerHTML = `
       <div style="margin-bottom:12px">
-        <p style="font-size:11px;color:#737373;margin:0 0 8px">Email template — use {{firstName}}, {{name}}, {{company}}</p>
+        <p style="font-size:11px;color:#737373;margin:0 0 8px">Template auto-loads your Gmail draft · "Hello" becomes "Hello [first name],"</p>
         ${draftsHtml}
         <input id="jarvis-send-subject" class="jarvis-template-input" placeholder="Subject" value="${escapeHtml(sendTemplate.subject)}" style="margin-bottom:6px" />
         <textarea id="jarvis-send-body" class="jarvis-template-input jarvis-template-body" placeholder="Email body...">${escapeHtml(sendTemplate.body)}</textarea>
@@ -910,7 +941,7 @@
 
     const list = document.getElementById("jarvis-send-list");
     if (!outreachQueue.length) {
-      list.innerHTML = `<p style="font-size:12px;color:#525252;text-align:center;padding:20px 0">No investors with email in Jarvis</p>`;
+      list.innerHTML = `<p style="font-size:12px;color:#525252;text-align:center;padding:20px 0">No recipients with email.<br><span style="font-size:11px;color:#404040">Add contacts in Jarvis (Contacts or Investors page) with email addresses.</span></p>`;
       return;
     }
 

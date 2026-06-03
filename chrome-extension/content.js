@@ -977,9 +977,10 @@
             id: c.id,
             type: "contact",
             name: c.name || "",
-            email: (c.email?.includes("@") ? c.email : c.emails?.find(e => e?.includes("@"))) || "",
+            email: ((c.email?.includes("@") ? c.email : c.emails?.find(e => e?.includes("@"))) || "").trim().toLowerCase(),
             company: c.company || "",
             title: c.title || "",
+            emails: c.emails,
           }));
       }
     }
@@ -1116,14 +1117,19 @@
     });
 
     if (markSent) {
-      await sendMessage({
+      const markRes = await sendMessage({
         type: "MARK_EMAILED",
+        id: person.id,
         name: person.name,
-        email: person.email,
+        email: (person.email || "").trim().toLowerCase(),
+        emails: person.emails,
         title: person.title || "",
         company: person.company || "",
         pageUrl: window.location.href,
       });
+      if (!markRes?.success) {
+        throw new Error(markRes?.error || "Failed to mark contact as sent in Jarvis");
+      }
     }
   }
 

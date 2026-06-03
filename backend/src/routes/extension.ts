@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { findPeopleEmailsOnPage } from "../services/pagePeopleFinder";
 import { getDb, COLLECTIONS } from "../services/firebase";
+import * as admin from "firebase-admin";
 
 const router = Router();
 
@@ -27,6 +28,64 @@ function normalizeEmails(email?: string, emails?: string[]): string[] {
   return [...new Set(all)];
 }
 
+async function findContactDocByEmail(db: admin.firestore.Firestore, email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes("@")) return null;
+
+  const byPrimary = await db
+    .collection(COLLECTIONS.CONTACTS)
+    .where("email", "==", normalized)
+    .limit(1)
+    .get();
+  if (!byPrimary.empty) return byPrimary.docs[0];
+
+  const byEmailsArray = await db
+    .collection(COLLECTIONS.CONTACTS)
+    .where("emails", "array-contains", normalized)
+    .limit(1)
+    .get();
+  if (!byEmailsArray.empty) return byEmailsArray.docs[0];
+
+  // Legacy docs may store mixed-case email on the primary field
+  if (email.trim() !== normalized) {
+    const byOriginal = await db
+      .collection(COLLECTIONS.CONTACTS)
+      .where("email", "==", email.trim())
+      .limit(1)
+      .get();
+    if (!byOriginal.empty) return byOriginal.docs[0];
+  }
+
+  return null;
+}
+
+async function markContactDocEmailed(
+  doc: admin.firestore.DocumentSnapshot,
+  sentEmail?: string
+): Promise<{ id: string; updated: true }> {
+  const data = doc.data() || {};
+  const now = new Date().toISOString();
+  const updates: Record<string, unknown> = {
+    emailSent: true,
+    emailSentAt: now,
+    updatedAt: now,
+  };
+
+  if (sentEmail?.includes("@")) {
+    const normalized = sentEmail.trim().toLowerCase();
+    const merged = [...new Set([
+      ...(Array.isArray(data.emails) ? (data.emails as string[]) : []),
+      ...(data.email ? [String(data.email)] : []),
+      normalized,
+    ])].map(e => e.trim().toLowerCase()).filter(e => e.includes("@"));
+    updates.email = merged[0];
+    updates.emails = merged;
+  }
+
+  await doc.ref.update(updates);
+  return { id: doc.id, updated: true };
+}
+
 async function upsertExtensionContact(
   input: ExtensionContactInput,
   opts: { pageUrl?: string; company?: string; markEmailed?: boolean }
@@ -43,20 +102,15 @@ async function upsertExtensionContact(
   const db = getDb();
   const now = new Date().toISOString();
 
-  const existing = await db
-    .collection(COLLECTIONS.CONTACTS)
-    .where("email", "==", primaryEmail)
-    .limit(1)
-    .get();
+  const existingDoc = await findContactDocByEmail(db, primaryEmail);
 
-  if (!existing.empty) {
-    const doc = existing.docs[0];
-    const data = doc.data();
+  if (existingDoc) {
+    const data = existingDoc.data();
     const mergedEmails = [...new Set([
       ...(Array.isArray(data.emails) ? data.emails as string[] : []),
-      ...(data.email ? [data.email as string] : []),
+      ...(data.email ? [String(data.email)] : []),
       ...allEmails,
-    ])].filter(e => e.includes("@"));
+    ])].map(e => e.trim().toLowerCase()).filter(e => e.includes("@"));
 
     const updates: Record<string, unknown> = {
       email: mergedEmails[0],
@@ -71,8 +125,8 @@ async function upsertExtensionContact(
       updates.emailSentAt = now;
     }
 
-    await doc.ref.update(updates);
-    return { id: doc.id, updated: true };
+    await existingDoc.ref.update(updates);
+    return { id: existingDoc.id, updated: true };
   }
 
   const oneLiner = [title, company].filter(Boolean).join(" · ");
@@ -131,20 +185,55 @@ router.post("/people-emails", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/extension/mark-emailed — add to Jarvis contacts and mark as emailed
+// POST /api/extension/mark-emailed — mark contact as emailed (by id or email lookup)
 router.post("/mark-emailed", async (req: Request, res: Response) => {
   try {
-    const { name, email, emails, title, company, pageUrl } = req.body as ExtensionContactInput & {
+    const { id, name, email, emails, title, company, pageUrl } = req.body as ExtensionContactInput & {
+      id?: string;
       pageUrl?: string;
     };
 
-    if (!name?.trim() || (!email?.trim() && (!emails || emails.length === 0))) {
+    const db = getDb();
+    const allEmails = normalizeEmails(email, emails);
+    const sentEmail = allEmails[0] || email?.trim().toLowerCase();
+
+    // Prefer direct contact id from outreach queue — most reliable
+    if (id?.trim()) {
+      const ref = db.collection(COLLECTIONS.CONTACTS).doc(id.trim());
+      const doc = await ref.get();
+      if (!doc.exists) {
+        res.status(404).json({ success: false, error: "Contact not found" });
+        return;
+      }
+
+      const result = await markContactDocEmailed(doc, sentEmail);
+      const contactName = String(doc.data()?.name || name?.trim() || sentEmail || "Contact");
+      res.json({
+        success: true,
+        data: result,
+        message: `${contactName} marked as emailed`,
+      });
+      return;
+    }
+
+    if (!name?.trim() || !sentEmail) {
       res.status(400).json({ success: false, error: "name and email are required" });
       return;
     }
 
+    const existingDoc = await findContactDocByEmail(db, sentEmail);
+    if (existingDoc) {
+      const result = await markContactDocEmailed(existingDoc, sentEmail);
+      res.json({
+        success: true,
+        data: result,
+        message: `${name.trim()} marked as emailed`,
+      });
+      return;
+    }
+
     const result = await upsertExtensionContact(
-      { name, email, emails, title, company },
+      { name, email: sentEmail, emails: allEmails, title, company },
       { pageUrl, company, markEmailed: true }
     );
 

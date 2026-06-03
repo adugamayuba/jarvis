@@ -97,6 +97,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const result = await apiCall("/api/extension/mark-emailed", {
           method: "POST",
           body: JSON.stringify({
+            id: msg.id,
             name: msg.name,
             email: msg.email,
             emails: msg.emails,
@@ -105,7 +106,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             pageUrl: msg.pageUrl,
           }),
         });
-        sendResponse({ success: result.success, data: result.data, message: result.message, error: result.error });
+        sendResponse({ success: result.success !== false, data: result.data, message: result.message, error: result.error });
       } else if (msg.type === "ADD_CONTACTS") {
         const result = await apiCall("/api/extension/add-contacts", {
           method: "POST",

@@ -231,7 +231,7 @@ export default function ScraperPage() {
                 </div>
                 <div>
                   <label className="text-[11px] text-neutral-500 uppercase tracking-wider mb-1.5 block">Email domain</label>
-                  <Select value={emailDomain} onValueChange={setEmailDomain}>
+                  <Select value={emailDomain} onValueChange={(v) => v && setEmailDomain(v)}>
                     <SelectTrigger className="w-full bg-neutral-800/50 border-neutral-700 text-neutral-200 text-[13px] h-9">
                       <SelectValue />
                     </SelectTrigger>

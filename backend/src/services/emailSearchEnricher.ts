@@ -17,6 +17,7 @@ const SKIP_EMAIL_DOMAINS = [
   "adobe.com", "google.com", "facebook.com", "twitter.com", "placeholder",
   "yoursite.com", "domain.com", "email.com", "user.com", "company.com",
   "linkedin.com", "crunchbase.com", "wikipedia.org", "contactout.com",
+  "twitter.com", "x.com", "instagram.com", "facebook.com", "tiktok.com",
 ];
 
 export function cleanEmails(text: string): string[] {

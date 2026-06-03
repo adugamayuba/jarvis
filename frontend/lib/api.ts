@@ -35,8 +35,35 @@ export async function checkHealth(): Promise<boolean> {
 }
 
 // ── Scraping ──────────────────────────────────────────────────────────────────
-export async function startScrapeJob(url: string, source: "crunchbase" | "linkedin" | "twitter" = "crunchbase"): Promise<ApiResponse<{ jobId: string }>> {
+export type ScrapeSource = "crunchbase" | "linkedin" | "social_google";
+
+export interface SocialScrapeParams {
+  keyword?: string;
+  emailDomain?: string;
+  platforms?: Array<"twitter" | "instagram" | "facebook" | "tiktok">;
+  maxPagesPerQuery?: number;
+  maxProfiles?: number;
+}
+
+export async function startScrapeJob(
+  url: string,
+  source: ScrapeSource = "crunchbase"
+): Promise<ApiResponse<{ jobId: string }>> {
   const res = await api.post("/api/scrape", { url, source });
+  return res.data;
+}
+
+export async function startSocialGoogleScrape(
+  params: SocialScrapeParams
+): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/scrape", {
+    source: "social_google",
+    keyword: params.keyword || "angel investor",
+    emailDomain: params.emailDomain || "gmail.com",
+    platforms: params.platforms || ["twitter", "instagram"],
+    maxPagesPerQuery: params.maxPagesPerQuery ?? 2,
+    maxProfiles: params.maxProfiles ?? 150,
+  });
   return res.data;
 }
 

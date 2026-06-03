@@ -15,7 +15,6 @@ export type SocialPlatform = "twitter" | "instagram" | "facebook" | "tiktok";
 
 export interface SocialGoogleScrapeOptions {
   keyword?: string;
-  emailDomain?: string;
   platforms?: SocialPlatform[];
   maxPagesPerQuery?: number;
   maxProfiles?: number;
@@ -60,19 +59,14 @@ async function waitForApifyRun(runId: string, maxWaitMs = 120_000): Promise<bool
   return false;
 }
 
-function buildGoogleQuery(platform: SocialPlatform, keyword: string, emailDomain: string): string {
+function buildGoogleQuery(platform: SocialPlatform, keyword: string): string {
   const sites = PLATFORM_SITES[platform];
   const siteClause =
     sites.length === 1
       ? `site:${sites[0]}`
       : `(${sites.map(s => `site:${s}`).join(" OR ")})`;
 
-  const emailClause =
-    emailDomain === "any"
-      ? `"@" email contact`
-      : `"@${emailDomain.replace(/^@/, "")}"`;
-
-  return `${siteClause} ${emailClause} "${keyword}"`;
+  return `${siteClause} "${keyword}"`;
 }
 
 function detectPlatformFromUrl(url: string): SocialPlatform | null {
@@ -264,20 +258,18 @@ function toScrapedContact(c: ProfileCandidate): ScrapedContact & { emails?: stri
 export function buildSocialScrapeLabel(opts: SocialGoogleScrapeOptions): string {
   const platforms = opts.platforms?.join(",") || "twitter,instagram";
   const keyword = opts.keyword || "angel investor";
-  const email = opts.emailDomain || "gmail.com";
-  return `google:social|platforms=${platforms}|keyword=${keyword}|email=${email}`;
+  return `google:social|platforms=${platforms}|keyword=${keyword}`;
 }
 
 export async function scrapeSocialViaGoogle(
   opts: SocialGoogleScrapeOptions = {}
 ): Promise<Array<ScrapedContact & { emails?: string[]; platform: SocialPlatform; profileUrl: string }>> {
   const keyword = opts.keyword?.trim() || "angel investor";
-  const emailDomain = opts.emailDomain?.trim() || "gmail.com";
   const platforms = opts.platforms?.length ? opts.platforms : (["twitter", "instagram"] as SocialPlatform[]);
   const maxPagesPerQuery = opts.maxPagesPerQuery ?? 2;
   const maxProfiles = opts.maxProfiles ?? 150;
 
-  const queries = platforms.map(p => buildGoogleQuery(p, keyword, emailDomain));
+  const queries = platforms.map(p => buildGoogleQuery(p, keyword));
   console.log(`🔍 Social Google scrape — ${queries.length} queries for "${keyword}"`);
 
   const organicResults = await runGoogleSearches(queries, maxPagesPerQuery);

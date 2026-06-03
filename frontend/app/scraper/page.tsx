@@ -62,7 +62,7 @@ function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
 
   const label =
     job.source === "social_google"
-      ? `Google: ${job.platforms?.join(", ") || "social"} · "${job.keyword || "angel investor"}" · @${job.emailDomain || "gmail.com"}`
+      ? `Google: ${job.platforms?.join(", ") || "social"} · "${job.keyword || "angel investor"}"`
       : job.url;
 
   return (
@@ -107,7 +107,6 @@ export default function ScraperPage() {
   const [url, setUrl] = useState("");
   const [source, setSource] = useState<"crunchbase" | "linkedin">("crunchbase");
   const [keyword, setKeyword] = useState("angel investor");
-  const [emailDomain, setEmailDomain] = useState("gmail.com");
   const [selectedPlatforms, setSelectedPlatforms] = useState<SocialPlatformId[]>(["twitter", "instagram"]);
   const queryClient = useQueryClient();
 
@@ -135,7 +134,6 @@ export default function ScraperPage() {
   const socialScrapeMutation = useMutation({
     mutationFn: () => startSocialGoogleScrape({
       keyword: keyword.trim(),
-      emailDomain: emailDomain.trim(),
       platforms: selectedPlatforms,
     }),
     onSuccess: (res) => {
@@ -214,7 +212,7 @@ export default function ScraperPage() {
               <p className="text-[12px] text-neutral-500 mb-4">
                 Searches Google like{" "}
                 <code className="text-neutral-400 font-mono text-[11px]">
-                  site:twitter.com &quot;@gmail.com&quot; &quot;angel investor&quot;
+                  site:twitter.com &quot;angel investor&quot;
                 </code>
                 , extracts names + emails from results, then scrapes each profile page for more.
               </p>
@@ -228,21 +226,6 @@ export default function ScraperPage() {
                     placeholder="angel investor"
                     className="bg-neutral-800/50 border-neutral-700 text-neutral-200 placeholder:text-neutral-600 text-[13px] h-9"
                   />
-                </div>
-                <div>
-                  <label className="text-[11px] text-neutral-500 uppercase tracking-wider mb-1.5 block">Email domain</label>
-                  <Select value={emailDomain} onValueChange={(v) => v && setEmailDomain(v)}>
-                    <SelectTrigger className="w-full bg-neutral-800/50 border-neutral-700 text-neutral-200 text-[13px] h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-700">
-                      {["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "any"].map(d => (
-                        <SelectItem key={d} value={d} className="text-neutral-200 text-[13px]">
-                          {d === "any" ? "Any email (@)" : `@${d}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div>
                   <label className="text-[11px] text-neutral-500 uppercase tracking-wider mb-1.5 block">Platforms</label>
@@ -311,7 +294,7 @@ export default function ScraperPage() {
       <div className="grid grid-cols-3 gap-3 mb-8">
         {mode === "social_google" ? (
           [
-            { step: "01", label: "Google site: search", desc: "site:twitter.com \"@gmail.com\" + keyword" },
+            { step: "01", label: "Google site: search", desc: "site:twitter.com + keyword" },
             { step: "02", label: "Parse + scrape profiles", desc: "Names/emails from snippets + profile pages" },
             { step: "03", label: "Contacts saved", desc: "Multiple emails per person in Firebase" },
           ].map(({ step, label, desc }) => (

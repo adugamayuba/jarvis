@@ -22,7 +22,6 @@ const ScrapeRequestSchema = z.object({
   source: z.enum(["crunchbase", "linkedin", "twitter", "social_google"]).default("crunchbase"),
   url: z.string().optional(),
   keyword: z.string().optional(),
-  emailDomain: z.string().optional(),
   platforms: z.array(SocialPlatformSchema).optional(),
   maxPagesPerQuery: z.number().int().min(1).max(5).optional(),
   maxProfiles: z.number().int().min(10).max(500).optional(),
@@ -106,12 +105,12 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const { source, url, keyword, emailDomain, platforms, maxPagesPerQuery, maxProfiles } = parsed.data;
+    const { source, url, keyword, platforms, maxPagesPerQuery, maxProfiles } = parsed.data;
     const db = getDb();
 
     const jobLabel =
       source === "social_google"
-        ? buildSocialScrapeLabel({ keyword, emailDomain, platforms: platforms as SocialPlatform[] | undefined })
+        ? buildSocialScrapeLabel({ keyword, platforms: platforms as SocialPlatform[] | undefined })
         : url!;
 
     const jobRef = await db.collection(COLLECTIONS.SCRAPE_JOBS).add({
@@ -119,7 +118,6 @@ router.post("/", async (req: Request, res: Response) => {
       source,
       status: "running",
       keyword: keyword || undefined,
-      emailDomain: emailDomain || undefined,
       platforms: platforms || undefined,
       createdAt: new Date().toISOString(),
     } satisfies Omit<ScrapeJob, "id">);
@@ -131,7 +129,6 @@ router.post("/", async (req: Request, res: Response) => {
         if (source === "social_google") {
           const scraped = await scrapeSocialViaGoogle({
             keyword: keyword || "angel investor",
-            emailDomain: emailDomain || "gmail.com",
             platforms: (platforms as SocialPlatform[] | undefined) || ["twitter", "instagram"],
             maxPagesPerQuery: maxPagesPerQuery || 2,
             maxProfiles: maxProfiles || 150,

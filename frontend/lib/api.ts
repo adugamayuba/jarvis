@@ -39,7 +39,6 @@ export type ScrapeSource = "crunchbase" | "linkedin" | "social_google";
 
 export interface SocialScrapeParams {
   keyword?: string;
-  emailDomain?: string;
   platforms?: Array<"twitter" | "instagram" | "facebook" | "tiktok">;
   maxPagesPerQuery?: number;
   maxProfiles?: number;
@@ -59,7 +58,6 @@ export async function startSocialGoogleScrape(
   const res = await api.post("/api/scrape", {
     source: "social_google",
     keyword: params.keyword || "angel investor",
-    emailDomain: params.emailDomain || "gmail.com",
     platforms: params.platforms || ["twitter", "instagram"],
     maxPagesPerQuery: params.maxPagesPerQuery ?? 2,
     maxProfiles: params.maxProfiles ?? 150,

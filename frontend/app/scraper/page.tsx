@@ -130,7 +130,7 @@ export default function ScraperPage() {
         toast.error(res.error || "Failed to start scrape");
       }
     },
-    onError: () => toast.error("Cannot connect to backend"),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Cannot connect to backend"),
   });
 
   const socialScrapeMutation = useMutation({
@@ -147,7 +147,7 @@ export default function ScraperPage() {
         toast.error(res.error || "Failed to start scrape");
       }
     },
-    onError: () => toast.error("Cannot connect to backend"),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Cannot connect to backend"),
   });
 
   const techcrunchScrapeMutation = useMutation({
@@ -161,7 +161,7 @@ export default function ScraperPage() {
         toast.error(res.error || "Failed to start scrape");
       }
     },
-    onError: () => toast.error("Cannot connect to backend"),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Cannot connect to backend"),
   });
 
   const jobs = jobsData?.data || [];

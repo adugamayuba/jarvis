@@ -39,6 +39,13 @@ const ScrapeRequestSchema = z.object({
   }
 });
 
+function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
+
 function profileDocId(profileUrl: string, prefix = "social"): string {
   const slug = profileUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(-55);
   return `${prefix}_${slug}`;
@@ -121,14 +128,16 @@ router.post("/", async (req: Request, res: Response) => {
           ? url || "https://techcrunch.com/about-techcrunch/"
           : url!;
 
-    const jobRef = await db.collection(COLLECTIONS.SCRAPE_JOBS).add({
-      url: jobLabel,
-      source,
-      status: "running",
-      keyword: keyword || undefined,
-      platforms: platforms || undefined,
-      createdAt: new Date().toISOString(),
-    } satisfies Omit<ScrapeJob, "id">);
+    const jobRef = await db.collection(COLLECTIONS.SCRAPE_JOBS).add(
+      omitUndefined({
+        url: jobLabel,
+        source,
+        status: "running",
+        keyword,
+        platforms,
+        createdAt: new Date().toISOString(),
+      }) as Omit<ScrapeJob, "id">
+    );
 
     (async () => {
       try {

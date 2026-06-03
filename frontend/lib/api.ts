@@ -35,7 +35,7 @@ export async function checkHealth(): Promise<boolean> {
 }
 
 // ── Scraping ──────────────────────────────────────────────────────────────────
-export type ScrapeSource = "crunchbase" | "linkedin" | "social_google";
+export type ScrapeSource = "crunchbase" | "linkedin" | "social_google" | "techcrunch";
 
 export interface SocialScrapeParams {
   keyword?: string;
@@ -61,6 +61,16 @@ export async function startSocialGoogleScrape(
     platforms: params.platforms || ["twitter", "instagram"],
     maxPagesPerQuery: params.maxPagesPerQuery ?? 2,
     maxProfiles: params.maxProfiles ?? 150,
+  });
+  return res.data;
+}
+
+export async function startTechCrunchScrape(
+  url?: string
+): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/scrape", {
+    source: "techcrunch",
+    url: url || "https://techcrunch.com/about-techcrunch/",
   });
   return res.data;
 }

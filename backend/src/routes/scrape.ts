@@ -10,6 +10,7 @@ import {
   socialPlatformToContactSource,
   SocialPlatform,
 } from "../services/socialGoogleScraper";
+import { scrapeTechCrunchJournalists } from "../services/techcrunchScraper";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import * as admin from "firebase-admin";
 import { Contact, ScrapeJob } from "../types";
@@ -19,14 +20,14 @@ const router = Router();
 const SocialPlatformSchema = z.enum(["twitter", "instagram", "facebook", "tiktok"]);
 
 const ScrapeRequestSchema = z.object({
-  source: z.enum(["crunchbase", "linkedin", "twitter", "social_google"]).default("crunchbase"),
+  source: z.enum(["crunchbase", "linkedin", "twitter", "social_google", "techcrunch"]).default("crunchbase"),
   url: z.string().optional(),
   keyword: z.string().optional(),
   platforms: z.array(SocialPlatformSchema).optional(),
   maxPagesPerQuery: z.number().int().min(1).max(5).optional(),
   maxProfiles: z.number().int().min(10).max(500).optional(),
 }).superRefine((data, ctx) => {
-  if (data.source === "social_google") return;
+  if (data.source === "social_google" || data.source === "techcrunch") return;
   if (!data.url?.trim()) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "url is required for this source", path: ["url"] });
     return;
@@ -38,8 +39,9 @@ const ScrapeRequestSchema = z.object({
   }
 });
 
-function profileDocId(profileUrl: string): string {
-  return `social_${profileUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(-55)}`;
+function profileDocId(profileUrl: string, prefix = "social"): string {
+  const slug = profileUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(-55);
+  return `${prefix}_${slug}`;
 }
 
 async function saveContacts(
@@ -55,6 +57,7 @@ async function saveContacts(
     crunchbaseUrl?: string;
     source: Contact["source"];
     profileUrl?: string;
+    tags?: string[];
   }>
 ): Promise<number> {
   const BATCH_SIZE = 400;
@@ -66,11 +69,12 @@ async function saveContacts(
     const now = new Date().toISOString();
 
     for (const c of chunk) {
-      const docId = c.profileUrl ? profileDocId(c.profileUrl) : db.collection(COLLECTIONS.CONTACTS).doc().id;
+      const prefix = c.source === "techcrunch" ? "tc" : "social";
+      const docId = c.profileUrl ? profileDocId(c.profileUrl, prefix) : db.collection(COLLECTIONS.CONTACTS).doc().id;
       const ref = db.collection(COLLECTIONS.CONTACTS).doc(docId);
       const payload: Record<string, unknown> = {
         name: c.name,
-        email: c.email || "",
+        email: (c.email || "").trim().toLowerCase(),
         oneLiner: c.oneLiner || "",
         title: c.title || "",
         company: c.company || "",
@@ -78,10 +82,12 @@ async function saveContacts(
         emailSent: false,
         updatedAt: now,
       };
-      if (c.emails?.length) payload.emails = c.emails;
+      if (c.emails?.length) payload.emails = c.emails.map(e => e.toLowerCase());
       if (c.linkedinUrl) payload.linkedinUrl = c.linkedinUrl;
       if (c.crunchbaseUrl) payload.crunchbaseUrl = c.crunchbaseUrl;
-      if (c.profileUrl) payload.tags = [`profile:${c.profileUrl}`];
+      const tags = [...(c.tags || [])];
+      if (c.profileUrl) tags.push(`profile:${c.profileUrl}`);
+      if (tags.length) payload.tags = [...new Set(tags)];
 
       batch.set(ref, { ...payload, createdAt: now }, { merge: true });
       saved++;
@@ -111,7 +117,9 @@ router.post("/", async (req: Request, res: Response) => {
     const jobLabel =
       source === "social_google"
         ? buildSocialScrapeLabel({ keyword, platforms: platforms as SocialPlatform[] | undefined })
-        : url!;
+        : source === "techcrunch"
+          ? url || "https://techcrunch.com/about-techcrunch/"
+          : url!;
 
     const jobRef = await db.collection(COLLECTIONS.SCRAPE_JOBS).add({
       url: jobLabel,
@@ -147,6 +155,25 @@ router.post("/", async (req: Request, res: Response) => {
               crunchbaseUrl: c.profileUrl,
               profileUrl: c.profileUrl,
               source: socialPlatformToContactSource(c.platform),
+            }))
+          );
+        } else if (source === "techcrunch") {
+          const scraped = await scrapeTechCrunchJournalists(
+            url || "https://techcrunch.com/about-techcrunch/"
+          );
+          savedCount = await saveContacts(
+            db,
+            scraped.map(c => ({
+              name: c.name,
+              email: c.email,
+              emails: c.emails,
+              oneLiner: c.oneLiner,
+              title: c.title,
+              company: c.company || "TechCrunch",
+              crunchbaseUrl: c.profileUrl,
+              profileUrl: c.profileUrl,
+              source: "techcrunch" as const,
+              tags: ["journalist"],
             }))
           );
         } else if (source === "crunchbase") {

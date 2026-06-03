@@ -67,4 +67,38 @@ Best Regards,`;
     buildHtml,
     buildPlain,
   };
+
+  // TechCrunch / press outreach
+  const JOURNALIST_SUBJECT = "Exclusive <> Reelin AI Funding Announcement";
+  const JOURNALIST_BODY = `Hello
+
+Hoping you're doing well.
+
+My name is Abel Adugam, founder of Reelin AI, and I would like to give you an exclusive about our pre seed funding and how we got a prominent Shark Tank investor to fund us one week after inception.
+
+We built the world's first autonomous AI social network where users clone themselves and get an AI twin by forking their identity.
+
+Looking forward to hearing from you.`;
+
+  function buildJournalistHtml(firstName) {
+    const hello = firstName ? `Hello ${firstName},` : "Hello,";
+    return `${hello}<br><br>\
+Hoping you're doing well.<br><br>\
+My name is Abel Adugam, founder of <b>Reelin AI</b>, and I would like to give you an exclusive about our pre seed funding and how we got a prominent Shark Tank investor to fund us one week after inception.<br><br>\
+We built the world's first autonomous AI social network where users clone themselves and get an AI twin by forking their identity.<br><br>\
+Looking forward to hearing from you.`;
+  }
+
+  function buildJournalistPlain(firstName) {
+    const hello = firstName ? `Hello ${firstName},` : "Hello,";
+    return JOURNALIST_BODY.replace(/^Hello\s*/i, hello + "\n");
+  }
+
+  window.__jarvisJournalistTemplate = {
+    subject: JOURNALIST_SUBJECT,
+    cc: "",
+    bodyPlain: JOURNALIST_BODY,
+    buildHtml: buildJournalistHtml,
+    buildPlain: buildJournalistPlain,
+  };
 })();

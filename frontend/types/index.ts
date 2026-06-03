@@ -10,7 +10,7 @@ export interface Contact {
   linkedinUrl?: string;
   crunchbaseUrl?: string;
   profileImageUrl?: string;
-  source: "crunchbase" | "linkedin" | "twitter" | "instagram" | "facebook" | "tiktok" | "manual" | "extension";
+  source: "crunchbase" | "linkedin" | "twitter" | "instagram" | "facebook" | "tiktok" | "techcrunch" | "manual" | "extension";
   tags?: string[];
   emailSent?: boolean;
   emailSentAt?: string;
@@ -37,7 +37,7 @@ export interface Campaign {
 export interface ScrapeJob {
   id: string;
   url: string;
-  source: "crunchbase" | "linkedin" | "twitter" | "social_google";
+  source: "crunchbase" | "linkedin" | "twitter" | "social_google" | "techcrunch";
   status: "pending" | "running" | "completed" | "failed";
   contactsFound?: number;
   error?: string;

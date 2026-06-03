@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { startScrapeJob, startSocialGoogleScrape, getScrapeJob, getScrapeJobs } from "@/lib/api";
+import { startScrapeJob, startSocialGoogleScrape, startTechCrunchScrape, getScrapeJob, getScrapeJobs } from "@/lib/api";
 import { ScrapeJob } from "@/types";
 import { toast } from "sonner";
 import { Loader2, ExternalLink } from "lucide-react";
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type ScrapeMode = "url" | "social_google";
+type ScrapeMode = "url" | "social_google" | "techcrunch";
 
 const urlSourceOptions = [
   { value: "crunchbase", label: "Crunchbase" },
@@ -63,14 +63,16 @@ function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
   const label =
     job.source === "social_google"
       ? `Google: ${job.platforms?.join(", ") || "social"} · "${job.keyword || "angel investor"}"`
-      : job.url;
+      : job.source === "techcrunch"
+        ? job.url || "TechCrunch staff page"
+        : job.url;
 
   return (
     <tr className="border-b border-neutral-800/50 hover:bg-neutral-800/20 transition-colors group">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-[13px] text-neutral-300 font-mono truncate max-w-sm">{label}</span>
-          {job.source !== "social_google" && (
+          {job.source !== "social_google" && job.source !== "techcrunch" && (
             <a href={job.url} target="_blank" rel="noreferrer" className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-600 hover:text-neutral-400">
               <ExternalLink className="w-3 h-3" />
             </a>
@@ -82,7 +84,7 @@ function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
       </td>
       <td className="px-4 py-3">
         <span className="text-[12px] text-neutral-500 capitalize">
-          {job.source === "social_google" ? "Google + Social" : job.source}
+          {job.source === "social_google" ? "Google + Social" : job.source === "techcrunch" ? "TechCrunch" : job.source}
         </span>
       </td>
       <td className="px-4 py-3">
@@ -148,8 +150,22 @@ export default function ScraperPage() {
     onError: () => toast.error("Cannot connect to backend"),
   });
 
+  const techcrunchScrapeMutation = useMutation({
+    mutationFn: () => startTechCrunchScrape(),
+    onSuccess: (res) => {
+      if (res.success) {
+        toast.success("TechCrunch journalist scrape started");
+        queryClient.invalidateQueries({ queryKey: ["scrapeJobs"] });
+        queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      } else {
+        toast.error(res.error || "Failed to start scrape");
+      }
+    },
+    onError: () => toast.error("Cannot connect to backend"),
+  });
+
   const jobs = jobsData?.data || [];
-  const isPending = urlScrapeMutation.isPending || socialScrapeMutation.isPending;
+  const isPending = urlScrapeMutation.isPending || socialScrapeMutation.isPending || techcrunchScrapeMutation.isPending;
 
   function togglePlatform(id: SocialPlatformId) {
     setSelectedPlatforms(prev =>
@@ -159,6 +175,10 @@ export default function ScraperPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (mode === "techcrunch") {
+      techcrunchScrapeMutation.mutate();
+      return;
+    }
     if (mode === "url") {
       if (!url.trim()) return toast.error("Enter a URL first");
       urlScrapeMutation.mutate();
@@ -174,7 +194,7 @@ export default function ScraperPage() {
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-white">Scraper</h1>
         <p className="text-[13px] text-neutral-500 mt-0.5">
-          Scrape list URLs or find investors on social via Google
+          Scrape investors from lists/social, or TechCrunch journalists for press outreach
         </p>
       </div>
 
@@ -194,6 +214,18 @@ export default function ScraperPage() {
           </button>
           <button
             type="button"
+            onClick={() => setMode("techcrunch")}
+            className={cn(
+              "flex-1 text-[12px] font-medium py-2 rounded-md border transition-colors",
+              mode === "techcrunch"
+                ? "bg-white text-neutral-900 border-white"
+                : "bg-neutral-800/50 text-neutral-400 border-neutral-700 hover:border-neutral-600"
+            )}
+          >
+            TechCrunch
+          </button>
+          <button
+            type="button"
             onClick={() => setMode("url")}
             className={cn(
               "flex-1 text-[12px] font-medium py-2 rounded-md border transition-colors",
@@ -207,7 +239,22 @@ export default function ScraperPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {mode === "social_google" ? (
+          {mode === "techcrunch" ? (
+            <>
+              <p className="text-[12px] text-neutral-500 mb-4">
+                Scrapes{" "}
+                <a
+                  href="https://techcrunch.com/about-techcrunch/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-neutral-400 underline underline-offset-2 hover:text-white"
+                >
+                  techcrunch.com/about-techcrunch
+                </a>
+                , visits each author profile, and saves journalists with their emails to Contacts (tagged for press outreach).
+              </p>
+            </>
+          ) : mode === "social_google" ? (
             <>
               <p className="text-[12px] text-neutral-500 mb-4">
                 Searches Google like{" "}
@@ -274,25 +321,39 @@ export default function ScraperPage() {
 
           <div className="flex items-center justify-between gap-3">
             <p className="text-[12px] text-neutral-600">
-              {mode === "social_google"
+              {mode === "techcrunch"
+                ? "Journalists saved with emails · use Gmail extension → Journalists to email"
+                : mode === "social_google"
                 ? "Contacts saved with all emails found · deduped by profile URL"
                 : "e.g. crunchbase.com/lists/... or linkedin.com/search/..."}
             </p>
             <Button
               type="submit"
-              disabled={isPending || (mode === "url" ? !url.trim() : selectedPlatforms.length === 0)}
+              disabled={isPending || (mode === "url" ? !url.trim() : mode === "social_google" ? selectedPlatforms.length === 0 : false)}
               className="bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] font-medium h-9 px-4 shrink-0"
             >
               {isPending ? (
                 <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Running</>
-              ) : mode === "social_google" ? "Scrape Social" : "Scrape"}
+              ) : mode === "techcrunch" ? "Scrape TechCrunch" : mode === "social_google" ? "Scrape Social" : "Scrape"}
             </Button>
           </div>
         </form>
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-8">
-        {mode === "social_google" ? (
+        {mode === "techcrunch" ? (
+          [
+            { step: "01", label: "Fetch staff page", desc: "about-techcrunch author links" },
+            { step: "02", label: "Scrape author profiles", desc: "Names, titles, mailto emails" },
+            { step: "03", label: "Contacts saved", desc: "Tagged journalist · email from Gmail" },
+          ].map(({ step, label, desc }) => (
+            <div key={step} className="border border-neutral-800 rounded-lg px-4 py-3">
+              <p className="text-[11px] text-neutral-600 font-mono mb-1.5">{step}</p>
+              <p className="text-[13px] font-medium text-neutral-300">{label}</p>
+              <p className="text-[12px] text-neutral-500 mt-0.5">{desc}</p>
+            </div>
+          ))
+        ) : mode === "social_google" ? (
           [
             { step: "01", label: "Google site: search", desc: "site:twitter.com + keyword" },
             { step: "02", label: "Parse + scrape profiles", desc: "Names/emails from snippets + profile pages" },

@@ -298,10 +298,10 @@ router.post("/add-contacts", async (req: Request, res: Response) => {
 });
 
 // GET /api/extension/outreach-queue — Jarvis contacts with email, not yet sent
-router.get("/outreach-queue", async (_req: Request, res: Response) => {
+router.get("/outreach-queue", async (req: Request, res: Response) => {
   try {
+    const audience = typeof req.query.audience === "string" ? req.query.audience : "investor";
     const db = getDb();
-    // No orderBy — avoids missing-index / missing createdAt issues on older docs
     const contactSnap = await db.collection(COLLECTIONS.CONTACTS).limit(2000).get();
 
     function getEmail(data: Record<string, unknown>): string {
@@ -310,6 +310,11 @@ router.get("/outreach-queue", async (_req: Request, res: Response) => {
       const emails = data.emails as string[] | undefined;
       const found = emails?.find(e => e?.includes("@"));
       return found ? found.trim().toLowerCase() : "";
+    }
+
+    function isJournalist(data: Record<string, unknown>): boolean {
+      const tags = (data.tags as string[] | undefined) || [];
+      return data.source === "techcrunch" || tags.includes("journalist");
     }
 
     const recipients: Array<{
@@ -323,8 +328,12 @@ router.get("/outreach-queue", async (_req: Request, res: Response) => {
 
     for (const doc of contactSnap.docs) {
       const data = doc.data() as Record<string, unknown>;
-      // Only contacts with email that haven't been marked sent
       if (data.emailSent === true) continue;
+
+      const journalist = isJournalist(data);
+      if (audience === "journalist" && !journalist) continue;
+      if (audience === "investor" && journalist) continue;
+
       const email = getEmail(data);
       if (!email) continue;
 
@@ -342,7 +351,7 @@ router.get("/outreach-queue", async (_req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: { recipients, total: recipients.length },
+      data: { recipients, total: recipients.length, audience },
     });
   } catch (err) {
     console.error("Outreach queue error:", err);

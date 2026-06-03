@@ -193,12 +193,22 @@
       .jarvis-add-all-btn-done {
         background: #052e16 !important; border-color: #166534 !important; color: #34d399 !important;
       }
+      .jarvis-send-delete {
+        background: none; border: 1px solid #3f1d1d; color: #f87171;
+        border-radius: 4px; padding: 2px 7px; font-size: 10px; cursor: pointer; flex-shrink: 0;
+      }
+      .jarvis-send-delete:hover { border-color: #ef4444; color: #fca5a5; }
+      .jarvis-audience-btn {
+        flex: 1; background: #1a1a1a; color: #737373; border: 1px solid #262626;
+        border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 500; cursor: pointer;
+      }
+      .jarvis-audience-active { background: #fff; color: #0a0a0a; border-color: #fff; }
       .jarvis-email-extra {
         font-size: 9px; color: #525252; font-family: monospace;
       }
       .jarvis-send-item {
         border: 1px solid #1f1f1f; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px;
-        background: #111; display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
+        background: #111; display: flex; align-items: flex-start; gap: 8px;
       }
       .jarvis-send-item:hover { border-color: #333; }
       .jarvis-send-item.jarvis-send-done { opacity: 0.5; }
@@ -261,6 +271,7 @@
   let emailDrafts = [];
   let sendQueueRunning = false;
   let sendQueueStop = false;
+  let sendAudience = "investor";
   let sendTemplate = { subject: "", body: "", cc: "ligia@reelin.ai" };
 
   const TEST_EMAILS = [
@@ -268,12 +279,20 @@
     { name: "Abel", email: "abel@gigadroom.com", label: "abel@gigadroom.com" },
   ];
 
-  function initDefaultTemplate() {
-    const tpl = window.__jarvisEmailTemplate;
+  function getActiveTemplate() {
+    return sendAudience === "journalist"
+      ? window.__jarvisJournalistTemplate
+      : window.__jarvisEmailTemplate;
+  }
+
+  function initDefaultTemplate(audience = sendAudience) {
+    const tpl = audience === "journalist"
+      ? window.__jarvisJournalistTemplate
+      : window.__jarvisEmailTemplate;
     if (!tpl) return;
     sendTemplate.subject = tpl.subject;
     sendTemplate.body = tpl.bodyPlain;
-    sendTemplate.cc = tpl.cc;
+    sendTemplate.cc = tpl.cc || "";
   }
   initDefaultTemplate();
 
@@ -946,17 +965,18 @@
     return text.replace(/\bHello\b(\s*,)?/i, (_, comma) => `Hello ${firstName}${comma || ","}`);
   }
 
-  async function loadOutreachQueue() {
+  async function loadOutreachQueue(audience = sendAudience) {
     if (!window.__jarvisGmail?.isGmail()) {
       setStatus("Open Gmail to use Send Emails mode");
       return;
     }
 
-    initDefaultTemplate();
+    sendAudience = audience;
+    initDefaultTemplate(audience);
     showLoading(true);
     showEmpty(false);
 
-    const queueRes = await sendMessage({ type: "GET_OUTREACH_QUEUE" });
+    const queueRes = await sendMessage({ type: "GET_OUTREACH_QUEUE", audience });
 
     showLoading(false);
 
@@ -971,7 +991,11 @@
         rawList = contactsRes.data
           .filter(c => {
             const hasEmail = c.email?.includes("@") || c.emails?.some(e => e?.includes("@"));
-            return hasEmail && c.emailSent !== true;
+            if (!hasEmail || c.emailSent === true) return false;
+            const isJournalist = c.source === "techcrunch" || c.tags?.includes("journalist");
+            if (audience === "journalist") return isJournalist;
+            if (audience === "investor") return !isJournalist;
+            return true;
           })
           .map(c => ({
             id: c.id,
@@ -1002,10 +1026,31 @@
     renderSendPanel();
 
     if (!outreachQueue.length) {
-      setStatus("No contacts with email (not sent) — check Jarvis Contacts page");
+      setStatus(audience === "journalist"
+        ? "No journalists with email — scrape TechCrunch in Jarvis Scraper first"
+        : "No contacts with email (not sent) — check Jarvis Contacts page");
     } else {
-      setStatus(`${outreachQueue.length} contacts ready · CC: ${sendTemplate.cc}`);
+      const ccNote = sendTemplate.cc ? ` · CC: ${sendTemplate.cc}` : "";
+      setStatus(`${outreachQueue.length} ${audience === "journalist" ? "journalists" : "contacts"} ready${ccNote}`);
     }
+  }
+
+  async function removeFromQueue(idx) {
+    const person = outreachQueue[idx];
+    if (!person || person.sent) return;
+    if (!confirm(`Remove ${person.name} (${person.email}) from this list?${person.id ? " They will be deleted from Jarvis Contacts." : ""}`)) return;
+
+    if (person.id) {
+      const res = await sendMessage({ type: "DELETE_CONTACT", id: person.id });
+      if (!res?.success) {
+        setStatus(res?.error || "Failed to delete contact");
+        return;
+      }
+    }
+
+    outreachQueue.splice(idx, 1);
+    renderSendPanel();
+    setStatus(`Removed ${person.name} from send list`);
   }
 
   function renderSendPanel() {
@@ -1017,9 +1062,16 @@
 
     const selectedCount = outreachQueue.filter(p => p.selected && !p.sent).length;
 
+    const audienceLabel = sendAudience === "journalist" ? "Press / TechCrunch template" : "Investor seed template";
+    const ccLine = sendTemplate.cc ? ` · CC: ${escapeHtml(sendTemplate.cc)}` : "";
+
     panel.innerHTML = `
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button type="button" id="jarvis-audience-investor" class="jarvis-audience-btn${sendAudience === "investor" ? " jarvis-audience-active" : ""}">Investors</button>
+        <button type="button" id="jarvis-audience-journalist" class="jarvis-audience-btn${sendAudience === "journalist" ? " jarvis-audience-active" : ""}">Journalists</button>
+      </div>
       <div style="margin-bottom:12px">
-        <p style="font-size:10px;color:#34d399;margin:0 0 8px">✓ Reelin AI seed template loaded · Hello → Hello [first name], · CC: ${escapeHtml(sendTemplate.cc)}</p>
+        <p style="font-size:10px;color:#34d399;margin:0 0 8px">✓ ${audienceLabel} loaded${ccLine}</p>
         <input id="jarvis-send-subject" class="jarvis-template-input" placeholder="Subject" value="${escapeHtml(sendTemplate.subject)}" style="margin-bottom:6px" />
         <textarea id="jarvis-send-body" class="jarvis-template-input jarvis-template-body" placeholder="Email body...">${escapeHtml(sendTemplate.body)}</textarea>
       </div>
@@ -1035,6 +1087,9 @@
       </div>
       <div id="jarvis-send-list"></div>
     `;
+
+    document.getElementById("jarvis-audience-investor").addEventListener("click", () => loadOutreachQueue("investor"));
+    document.getElementById("jarvis-audience-journalist").addEventListener("click", () => loadOutreachQueue("journalist"));
 
     document.getElementById("jarvis-send-subject").addEventListener("input", (e) => {
       sendTemplate.subject = e.target.value;
@@ -1060,21 +1115,30 @@
     }
 
     outreachQueue.forEach((person, idx) => {
-      const item = document.createElement("label");
+      const item = document.createElement("div");
       item.className = `jarvis-send-item${person.sent ? " jarvis-send-done" : ""}`;
       item.innerHTML = `
         <input type="checkbox" ${person.selected ? "checked" : ""} ${person.sent ? "disabled" : ""} data-idx="${idx}" />
         <div style="min-width:0;flex:1">
           <p style="font-size:12px;font-weight:600;color:#e5e5e5;margin:0">${escapeHtml(person.name)}</p>
           <p style="font-size:10px;color:#525252;margin:2px 0 0">${escapeHtml(person.email)}${person.company ? ` · ${escapeHtml(person.company)}` : ""}</p>
-          <span style="font-size:9px;color:#404040">contact${person.sent ? " · sent ✓" : ""}</span>
+          <span style="font-size:9px;color:#404040">${sendAudience === "journalist" ? "journalist" : "contact"}${person.sent ? " · sent ✓" : ""}</span>
         </div>
+        ${person.sent ? "" : `<button type="button" class="jarvis-send-delete" data-remove-idx="${idx}" title="Remove from list">✕</button>`}
       `;
       const cb = item.querySelector("input");
       cb.addEventListener("change", () => {
         outreachQueue[idx].selected = cb.checked;
         updateSendActionLabel();
       });
+      const delBtn = item.querySelector(".jarvis-send-delete");
+      if (delBtn) {
+        delBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          removeFromQueue(idx);
+        });
+      }
       list.appendChild(item);
     });
 
@@ -1104,13 +1168,13 @@
   async function deliverEmail(person, { markSent = true } = {}) {
     const firstName = (person.name || "").split(/\s+/)[0] || "there";
     const subject = interpolateTemplate(sendTemplate.subject, person);
-    const tpl = window.__jarvisEmailTemplate;
-    const bodyHtml = tpl ? tpl.buildHtml(firstName) : null;
-    const body = tpl ? tpl.buildPlain(firstName) : interpolateTemplate(sendTemplate.body, person);
+    const tpl = getActiveTemplate();
+    const bodyHtml = tpl?.buildHtml ? tpl.buildHtml(firstName) : null;
+    const body = tpl?.buildPlain ? tpl.buildPlain(firstName) : interpolateTemplate(sendTemplate.body, person);
 
     await window.__jarvisGmail.sendOneEmail({
       to: person.email,
-      cc: sendTemplate.cc || "ligia@reelin.ai",
+      cc: sendTemplate.cc || undefined,
       subject,
       body,
       bodyHtml,

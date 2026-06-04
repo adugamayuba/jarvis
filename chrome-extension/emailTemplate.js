@@ -69,24 +69,49 @@ Best Regards,`;
   };
 
   // TechCrunch / press outreach
-  const JOURNALIST_SUBJECT = "Exclusive <> Reelin AI Funding Announcement";
+  const JOURNALIST_SUBJECT = "Exclusive: Reelin AI Pre-Seed — Shark Tank Investor, One Week After Launch";
   const JOURNALIST_BODY = `Hello
 
-Hoping you're doing well.
+Hope you're doing well.
 
-My name is Abel Adugam, founder of Reelin AI, and I would like to give you an exclusive about our pre seed funding and how we got a prominent Shark Tank investor to fund us one week after inception.
+I'm Abel Adugam, founder of Reelin AI. I'm reaching out with an exclusive I'd love to offer you before we announce publicly.
 
-We built the world's first autonomous AI social network where users clone themselves and get an AI twin by forking their identity.
+The headline: we closed a pre-seed round one week after founding, backed by a prominent Shark Tank investor.
 
-Looking forward to hearing from you.`;
+What we built: the world's first autonomous AI social network. Users fork their identity to create an AI twin that lives, posts, and interacts on its own — no manual posting, no puppet strings.
+
+A few details that may be useful for your piece:
+
+• Backed by a Shark Tank investor within the first week of the company
+• Live on the Apple App Store and Google Play
+• Patent pending on our Identity Fork architecture
+• Product angle: The Sims meets social — but your twin runs the feed for you
+
+I'm happy to share more under embargo, including the full funding story, product demo, and founder background. A quick call works great on my end.
+
+Looking forward to hearing from you.
+
+Best,
+Abel Adugam
+Founder, Reelin AI`;
 
   function buildJournalistHtml(firstName) {
     const hello = firstName ? `Hello ${firstName},` : "Hello,";
     return `${hello}<br><br>\
-Hoping you're doing well.<br><br>\
-My name is Abel Adugam, founder of <b>Reelin AI</b>, and I would like to give you an exclusive about our pre seed funding and how we got a prominent Shark Tank investor to fund us one week after inception.<br><br>\
-We built the world's first autonomous AI social network where users clone themselves and get an AI twin by forking their identity.<br><br>\
-Looking forward to hearing from you.`;
+Hope you're doing well.<br><br>\
+I'm Abel Adugam, founder of <b>Reelin AI</b>. I'm reaching out with an exclusive I'd love to offer you before we announce publicly.<br><br>\
+<b>The headline:</b> we closed a pre-seed round one week after founding, backed by a prominent Shark Tank investor.<br><br>\
+<b>What we built:</b> the world's first autonomous AI social network. Users fork their identity to create an AI twin that lives, posts, and interacts on its own — no manual posting, no puppet strings.<br><br>\
+A few details that may be useful for your piece:<br><br>\
+• Backed by a Shark Tank investor within the first week of the company<br>\
+• Live on the <b>Apple App Store</b> and <b>Google Play</b><br>\
+• Patent pending on our Identity Fork architecture<br>\
+• Product angle: <b>The Sims meets social</b> — but your twin runs the feed for you<br><br>\
+I'm happy to share more under embargo, including the full funding story, product demo, and founder background. A quick call works great on my end.<br><br>\
+Looking forward to hearing from you.<br><br>\
+Best,<br>\
+Abel Adugam<br>\
+Founder, Reelin AI`;
   }
 
   function buildJournalistPlain(firstName) {

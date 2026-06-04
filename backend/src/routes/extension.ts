@@ -59,6 +59,57 @@ async function findContactDocByEmail(db: admin.firestore.Firestore, email: strin
   return null;
 }
 
+function extractContactEmails(data: Record<string, unknown>): string[] {
+  const found: string[] = [];
+  const primary = data.email;
+  if (typeof primary === "string" && primary.includes("@")) {
+    found.push(primary.trim().toLowerCase());
+  }
+  const list = data.emails;
+  if (Array.isArray(list)) {
+    for (const item of list) {
+      if (typeof item === "string" && item.includes("@")) {
+        found.push(item.trim().toLowerCase());
+      }
+    }
+  }
+  return [...new Set(found)].filter(e => e.length > 2 && e.length < 120);
+}
+
+async function fetchAllContactsPaginated(
+  db: admin.firestore.Firestore,
+  maxDocs = 20000
+): Promise<admin.firestore.QueryDocumentSnapshot[]> {
+  const docs: admin.firestore.QueryDocumentSnapshot[] = [];
+  let lastId: string | null = null;
+  const pageSize = 2000;
+
+  while (docs.length < maxDocs) {
+    let query: admin.firestore.Query = db
+      .collection(COLLECTIONS.CONTACTS)
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(pageSize);
+
+    if (lastId) {
+      query = query.startAfter(lastId);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    docs.push(...snap.docs);
+    lastId = snap.docs[snap.docs.length - 1].id;
+    if (snap.docs.length < pageSize) break;
+  }
+
+  return docs;
+}
+
+function isJournalistContact(data: Record<string, unknown>): boolean {
+  const tags = (data.tags as string[] | undefined) || [];
+  return data.source === "techcrunch" || tags.includes("journalist");
+}
+
 async function markContactDocEmailed(
   doc: admin.firestore.DocumentSnapshot,
   sentEmail?: string
@@ -73,13 +124,19 @@ async function markContactDocEmailed(
 
   if (sentEmail?.includes("@")) {
     const normalized = sentEmail.trim().toLowerCase();
-    const merged = [...new Set([
-      ...(Array.isArray(data.emails) ? (data.emails as string[]) : []),
-      ...(data.email ? [String(data.email)] : []),
-      normalized,
-    ])].map(e => e.trim().toLowerCase()).filter(e => e.includes("@"));
-    updates.email = merged[0];
-    updates.emails = merged;
+    const merged = extractContactEmails({
+      ...data,
+      email: normalized,
+      emails: [...(Array.isArray(data.emails) ? (data.emails as string[]) : []), normalized],
+    });
+    updates.email = merged[0] || normalized;
+    updates.emails = merged.length ? merged : [normalized];
+  } else {
+    const existing = extractContactEmails(data);
+    if (existing.length) {
+      updates.email = existing[0];
+      updates.emails = existing;
+    }
   }
 
   await doc.ref.update(updates);
@@ -302,46 +359,46 @@ router.get("/outreach-queue", async (req: Request, res: Response) => {
   try {
     const audience = typeof req.query.audience === "string" ? req.query.audience : "investor";
     const db = getDb();
-    const contactSnap = await db.collection(COLLECTIONS.CONTACTS).limit(2000).get();
-
-    function getEmail(data: Record<string, unknown>): string {
-      const email = data.email as string | undefined;
-      if (email?.includes("@")) return email.trim().toLowerCase();
-      const emails = data.emails as string[] | undefined;
-      const found = emails?.find(e => e?.includes("@"));
-      return found ? found.trim().toLowerCase() : "";
-    }
-
-    function isJournalist(data: Record<string, unknown>): boolean {
-      const tags = (data.tags as string[] | undefined) || [];
-      return data.source === "techcrunch" || tags.includes("journalist");
-    }
+    const allDocs = await fetchAllContactsPaginated(db);
 
     const recipients: Array<{
       id: string;
       type: "contact";
       name: string;
       email: string;
+      emails?: string[];
+      source?: string;
       company?: string;
       title?: string;
     }> = [];
 
-    for (const doc of contactSnap.docs) {
-      const data = doc.data() as Record<string, unknown>;
-      if (data.emailSent === true) continue;
+    let skippedSent = 0;
+    let skippedNoEmail = 0;
 
-      const journalist = isJournalist(data);
+    for (const doc of allDocs) {
+      const data = doc.data() as Record<string, unknown>;
+      if (data.emailSent === true) {
+        skippedSent++;
+        continue;
+      }
+
+      const journalist = isJournalistContact(data);
       if (audience === "journalist" && !journalist) continue;
       if (audience === "investor" && journalist) continue;
 
-      const email = getEmail(data);
-      if (!email) continue;
+      const emails = extractContactEmails(data);
+      if (!emails.length) {
+        skippedNoEmail++;
+        continue;
+      }
 
       recipients.push({
         id: doc.id,
         type: "contact",
-        name: (data.name as string) || email.split("@")[0],
-        email,
+        name: (data.name as string) || emails[0].split("@")[0],
+        email: emails[0],
+        emails,
+        source: (data.source as string) || "",
         company: (data.company as string) || "",
         title: (data.title as string) || "",
       });
@@ -351,7 +408,14 @@ router.get("/outreach-queue", async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: { recipients, total: recipients.length, audience },
+      data: {
+        recipients,
+        total: recipients.length,
+        audience,
+        scanned: allDocs.length,
+        skippedSent,
+        skippedNoEmail,
+      },
     });
   } catch (err) {
     console.error("Outreach queue error:", err);

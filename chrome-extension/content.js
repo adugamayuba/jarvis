@@ -965,6 +965,34 @@
     return text.replace(/\bHello\b(\s*,)?/i, (_, comma) => `Hello ${firstName}${comma || ","}`);
   }
 
+  function getContactEmail(c) {
+    if (c.email?.includes("@")) return c.email.trim().toLowerCase();
+    const found = (c.emails || []).find(e => e?.includes("@"));
+    return found ? found.trim().toLowerCase() : "";
+  }
+
+  async function markPersonAsSent(person) {
+    const payload = {
+      type: "MARK_EMAILED",
+      id: person.id,
+      name: person.name,
+      email: (person.email || "").trim().toLowerCase(),
+      emails: person.emails?.length ? person.emails : (person.email ? [person.email] : []),
+      title: person.title || "",
+      company: person.company || "",
+      pageUrl: window.location.href,
+    };
+
+    let lastError = "Failed to mark contact as sent in Jarvis";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const markRes = await sendMessage(payload);
+      if (markRes?.success) return;
+      lastError = markRes?.error || lastError;
+      await sleep(600);
+    }
+    throw new Error(lastError);
+  }
+
   async function loadOutreachQueue(audience = sendAudience) {
     if (!window.__jarvisGmail?.isGmail()) {
       setStatus("Open Gmail to use Send Emails mode");
@@ -982,16 +1010,16 @@
 
     let rawList = [];
 
-    if (queueRes.success && queueRes.data?.recipients?.length) {
+    if (queueRes.success && Array.isArray(queueRes.data?.recipients)) {
       rawList = queueRes.data.recipients;
     } else {
-      // Fallback: fetch contacts directly
+      // Fallback if outreach-queue API fails
       const contactsRes = await sendMessage({ type: "GET_CONTACTS" });
       if (contactsRes.success && Array.isArray(contactsRes.data)) {
         rawList = contactsRes.data
           .filter(c => {
-            const hasEmail = c.email?.includes("@") || c.emails?.some(e => e?.includes("@"));
-            if (!hasEmail || c.emailSent === true) return false;
+            const email = getContactEmail(c);
+            if (!email || c.emailSent === true) return false;
             const isJournalist = c.source === "techcrunch" || c.tags?.includes("journalist");
             if (audience === "journalist") return isJournalist;
             if (audience === "investor") return !isJournalist;
@@ -1001,10 +1029,11 @@
             id: c.id,
             type: "contact",
             name: c.name || "",
-            email: ((c.email?.includes("@") ? c.email : c.emails?.find(e => e?.includes("@"))) || "").trim().toLowerCase(),
+            email: getContactEmail(c),
+            emails: c.emails || (c.email?.includes("@") ? [c.email] : []),
+            source: c.source || "",
             company: c.company || "",
             title: c.title || "",
-            emails: c.emails,
           }));
       }
     }
@@ -1030,8 +1059,10 @@
         ? "No journalists with email — scrape TechCrunch in Jarvis Scraper first"
         : "No contacts with email (not sent) — check Jarvis Contacts page");
     } else {
+      const scanned = queueRes.data?.scanned;
+      const scanNote = scanned ? ` · scanned ${scanned} contacts` : "";
       const ccNote = sendTemplate.cc ? ` · CC: ${sendTemplate.cc}` : "";
-      setStatus(`${outreachQueue.length} ${audience === "journalist" ? "journalists" : "contacts"} ready${ccNote}`);
+      setStatus(`${outreachQueue.length} ${audience === "journalist" ? "journalists" : "investors"} ready${ccNote}${scanNote}`);
     }
   }
 
@@ -1122,7 +1153,7 @@
         <div style="min-width:0;flex:1">
           <p style="font-size:12px;font-weight:600;color:#e5e5e5;margin:0">${escapeHtml(person.name)}</p>
           <p style="font-size:10px;color:#525252;margin:2px 0 0">${escapeHtml(person.email)}${person.company ? ` · ${escapeHtml(person.company)}` : ""}</p>
-          <span style="font-size:9px;color:#404040">${sendAudience === "journalist" ? "journalist" : "contact"}${person.sent ? " · sent ✓" : ""}</span>
+          <span style="font-size:9px;color:#404040">${person.source || (sendAudience === "journalist" ? "journalist" : "investor")}${person.sent ? " · sent ✓" : ""}</span>
         </div>
         ${person.sent ? "" : `<button type="button" class="jarvis-send-delete" data-remove-idx="${idx}" title="Remove from list">✕</button>`}
       `;
@@ -1169,8 +1200,11 @@
     const firstName = (person.name || "").split(/\s+/)[0] || "there";
     const subject = interpolateTemplate(sendTemplate.subject, person);
     const tpl = getActiveTemplate();
-    const bodyHtml = tpl?.buildHtml ? tpl.buildHtml(firstName) : null;
-    const body = tpl?.buildPlain ? tpl.buildPlain(firstName) : interpolateTemplate(sendTemplate.body, person);
+    const usePlainOnly = tpl?.plainTextOnly === true;
+    const bodyHtml = usePlainOnly ? null : (tpl?.buildHtml ? tpl.buildHtml(firstName) : null);
+    const body = tpl?.buildPlain
+      ? tpl.buildPlain(firstName)
+      : interpolateTemplate(sendTemplate.body, person);
 
     await window.__jarvisGmail.sendOneEmail({
       to: person.email,
@@ -1181,19 +1215,7 @@
     });
 
     if (markSent) {
-      const markRes = await sendMessage({
-        type: "MARK_EMAILED",
-        id: person.id,
-        name: person.name,
-        email: (person.email || "").trim().toLowerCase(),
-        emails: person.emails,
-        title: person.title || "",
-        company: person.company || "",
-        pageUrl: window.location.href,
-      });
-      if (!markRes?.success) {
-        throw new Error(markRes?.error || "Failed to mark contact as sent in Jarvis");
-      }
+      await markPersonAsSent(person);
     }
   }
 

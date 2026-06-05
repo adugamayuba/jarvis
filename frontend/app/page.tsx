@@ -1,54 +1,40 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getContacts, getCampaigns, getScrapeJobs, checkHealth } from "@/lib/api";
+import { getContacts, getCampaigns, getScrapeJobs, checkHealth, getSwiftdroomStats } from "@/lib/api";
 import {
-  Users, Mail, Search, CheckCircle2, AlertCircle,
-  Wifi, ArrowRight, TrendingUp, Target, Zap,
+  Users, Mail, Search, AlertCircle,
+  Wifi, ArrowRight, Zap, Briefcase, Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ScrapeJob, Campaign } from "@/types";
+import {
+  SUBSIDIARIES,
+  getGrowthHubSubsidiaries,
+  fmtMoney,
+  SWIFTDROOM_MRR_GOAL,
+} from "@/lib/subsidiaries";
 
-const RAISE_GOAL = 10_000_000;
-const RAISED = 100_000;
-
-const SOFTDROOM_SUBS = [
-  { name: "Reelin AI", category: "AI Social", status: "Raising $10M", url: "reelin.ai" },
-  { name: "Softdroom AI Capital", category: "Venture Capital", status: "Active", url: "softdroomai.com" },
-  { name: "Dasdroom", category: "Marketing", status: "Active", url: "dasdroom.com" },
-  { name: "Skydroom", category: "Luxury Travel", status: "Active", url: "skydroom.com" },
-  { name: "Droomify", category: "EdTech", status: "Active", url: "droomify.com" },
-  { name: "Stardroom", category: "Real Estate", status: "New 2026", url: "stardroom.com" },
-  { name: "Terradroom", category: "Agriculture", status: "New 2026", url: "terradroom.com" },
-  { name: "Gigadroom", category: "Consulting", status: "New 2026", url: "gigadroom.com" },
-];
-
-function fmt(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n}`;
-}
-
-function ProgressBar({ value, max }: { value: number; max: number }) {
-  const pct = Math.min((value / max) * 100, 100);
+function ProgressBar({ value, max, color = "bg-white" }: { value: number; max: number; color?: string }) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
     <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
-      <div
-        className="h-full bg-white rounded-full transition-all"
-        style={{ width: `${pct}%` }}
-      />
+      <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
 function StatusDot({ status }: { status: ScrapeJob["status"] | Campaign["status"] }) {
   return (
-    <span className={cn("inline-block w-1.5 h-1.5 rounded-full shrink-0",
-      status === "completed" || status === "sent" ? "bg-emerald-500" :
-      status === "running" || status === "sending" ? "bg-amber-400 animate-pulse" :
-      status === "failed" ? "bg-red-500" : "bg-neutral-600"
-    )} />
+    <span
+      className={cn(
+        "inline-block w-1.5 h-1.5 rounded-full shrink-0",
+        status === "completed" || status === "sent" ? "bg-emerald-500" :
+        status === "running" || status === "sending" ? "bg-amber-400 animate-pulse" :
+        status === "failed" ? "bg-red-500" : "bg-neutral-600"
+      )}
+    />
   );
 }
 
@@ -66,73 +52,110 @@ export default function DashboardPage() {
     queryKey: ["scrapeJobs"], queryFn: getScrapeJobs, enabled: isHealthy === true,
   });
 
+  const { data: swiftdroomStats } = useQuery({
+    queryKey: ["swiftdroomStats"],
+    queryFn: getSwiftdroomStats,
+    enabled: isHealthy === true,
+    refetchInterval: 120_000,
+  });
+
   const contacts = contactsData?.data || [];
   const campaigns = campaignsData?.data || [];
   const jobs = jobsData?.data || [];
+  const growthHubs = getGrowthHubSubsidiaries();
+  const portfolioOnly = SUBSIDIARIES.filter(s => !s.hasGrowthHub);
 
-  const emailsSent = contacts.filter((c) => c.emailSent).length;
-  const withEmail = contacts.filter((c) => c.email || (c.emails && c.emails.length > 0)).length;
+  const emailsSent = contacts.filter(c => c.emailSent).length;
+  const withEmail = contacts.filter(c => c.email || (c.emails && c.emails.length > 0)).length;
   const totalSent = campaigns.reduce((s, c) => s + (c.sentCount || 0), 0);
-  const pct = ((RAISED / RAISE_GOAL) * 100).toFixed(2);
+
+  const reelin = growthHubs.find(s => s.id === "reelin");
+  const swiftdroom = growthHubs.find(s => s.id === "swiftdroom");
+  const swiftdroomMrr = swiftdroomStats?.success ? swiftdroomStats.data?.mrr ?? 0 : (swiftdroom?.currentMrr ?? 0);
 
   return (
-    <div className="p-8 max-w-5xl overflow-y-auto h-full">
-      {/* Backend status */}
+    <div className="p-4 sm:p-8 max-w-5xl overflow-y-auto h-full">
       {!healthLoading && !isHealthy && (
         <div className="flex items-center gap-2 text-[12px] px-3 py-2 rounded-md mb-6 w-fit bg-red-500/10 text-red-400 border border-red-500/20">
           <AlertCircle className="w-3.5 h-3.5" />
-          Backend unreachable — check Railway is deployed and <code className="font-mono mx-1">BACKEND_URL</code> is set in Vercel
+          Backend unreachable — check Railway and <code className="font-mono mx-1">BACKEND_URL</code> on Vercel
         </div>
       )}
       {!healthLoading && isHealthy && (
         <div className="flex items-center gap-2 text-[12px] px-3 py-2 rounded-md mb-6 w-fit bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          <Wifi className="w-3.5 h-3.5" /> All systems live
+          <Wifi className="w-3.5 h-3.5" /> Jarvis ops online
         </div>
       )}
 
-      {/* Header */}
-      <div className="mb-7 flex items-start justify-between">
+      <div className="mb-7 flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-mono text-neutral-600 uppercase tracking-widest mb-1">Command Center</p>
-          <h1 className="text-2xl font-semibold text-white">Reelin AI · Softdroom Holdings</h1>
+          <h1 className="text-2xl font-semibold text-white">Softdroom Holdings</h1>
           <p className="text-[13px] text-neutral-500 mt-1">
-            World&apos;s first autonomous AI social network · Global conglomerate HQ Singapore
+            Growth & operations arm — Reelin AI, Swiftdroom, and portfolio subsidiaries
           </p>
         </div>
-        <Link href="/jarvis" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-700 text-[12px] text-neutral-400 hover:text-white hover:border-neutral-600 transition-colors">
+        <Link
+          href="/jarvis"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-700 text-[12px] text-neutral-400 hover:text-white hover:border-neutral-600 transition-colors shrink-0"
+        >
           <Zap className="w-3 h-3" /> Ask Jarvis
         </Link>
       </div>
 
-      {/* Reelin AI Raise */}
-      <div className="border border-neutral-800 rounded-xl p-5 mb-4 bg-neutral-900/20">
-        <div className="flex items-start justify-between mb-1">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded">Raising Now</span>
+      {/* Active growth targets */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        {swiftdroom && (
+          <Link
+            href={`/subsidiaries/${swiftdroom.slug}`}
+            className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/20 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all group"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Briefcase className="w-4 h-4 text-sky-400" />
+              <span className="text-[10px] font-mono text-sky-400 uppercase tracking-widest">Priority · SaaS</span>
             </div>
-            <p className="text-[13px] font-medium text-white">Reelin AI — Seed Round</p>
-            <p className="text-[12px] text-neutral-500 mt-0.5">Mark Cuban backed us at pre-seed · $100K · Now raising $10M</p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-2xl font-semibold text-white tabular-nums">{fmt(RAISED)}</p>
-            <p className="text-[11px] text-neutral-600">of {fmt(RAISE_GOAL)}</p>
-          </div>
-        </div>
-        <ProgressBar value={RAISED} max={RAISE_GOAL} />
-        <div className="mt-3 flex items-center gap-4 text-[12px] text-neutral-600">
-          <span className="flex items-center gap-1.5"><TrendingUp className="w-3 h-3 text-emerald-600" /> {pct}% complete</span>
-          <span>·</span>
-          <span>Min. check $3K · {fmt(RAISE_GOAL - RAISED)} remaining</span>
-        </div>
+            <p className="text-[15px] font-medium text-white group-hover:text-sky-100">Swiftdroom</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">Job application co-pilot · Chrome extension pending</p>
+            <div className="mt-4 flex items-end justify-between">
+              <div>
+                <p className="text-xl font-semibold text-white tabular-nums">{fmtMoney(swiftdroomMrr)}</p>
+                <p className="text-[11px] text-neutral-600">MRR · target {fmtMoney(SWIFTDROOM_MRR_GOAL)}/mo</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-neutral-600 group-hover:text-sky-400 transition-colors" />
+            </div>
+            <ProgressBar value={swiftdroomMrr} max={SWIFTDROOM_MRR_GOAL} color="bg-sky-400" />
+          </Link>
+        )}
+
+        {reelin && (
+          <Link
+            href={`/subsidiaries/${reelin.slug}`}
+            className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/20 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all group"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">Raising Now</span>
+            </div>
+            <p className="text-[15px] font-medium text-white group-hover:text-emerald-100">Reelin AI</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">Mark Cuban backed · autonomous AI social network</p>
+            <div className="mt-4 flex items-end justify-between">
+              <div>
+                <p className="text-xl font-semibold text-white tabular-nums">{fmtMoney(reelin.raised ?? 0)}</p>
+                <p className="text-[11px] text-neutral-600">raised · {fmtMoney(reelin.raiseGoal ?? 0)} seed target</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-neutral-600 group-hover:text-emerald-400 transition-colors" />
+            </div>
+            <ProgressBar value={reelin.raised ?? 0} max={reelin.raiseGoal ?? 1} />
+          </Link>
+        )}
       </div>
 
-      {/* Pipeline stats */}
+      {/* Ops stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         {[
-          { label: "Investors in pipeline", value: contacts.length, sub: `${withEmail} with email` },
-          { label: "Outreach sent", value: emailsSent, sub: `${totalSent} total deliveries` },
-          { label: "Campaigns run", value: campaigns.length, sub: `${campaigns.filter(c => c.status === "sent").length} completed` },
+          { label: "Contacts in pipeline", value: contacts.length, sub: `${withEmail} with email` },
+          { label: "Outreach sent", value: emailsSent, sub: `${totalSent} campaign deliveries` },
+          { label: "Campaigns", value: campaigns.length, sub: `${campaigns.filter(c => c.status === "sent").length} completed` },
           { label: "Scrape jobs", value: jobs.length, sub: `${jobs.filter(j => j.status === "running").length} running` },
         ].map(({ label, value, sub }) => (
           <div key={label} className="border border-neutral-800 rounded-lg px-4 py-3.5 bg-neutral-900/30">
@@ -143,49 +166,43 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Jarvis quick command */}
-      <div className="border border-neutral-800 rounded-xl p-5 mb-6 bg-neutral-900/20">
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
-            <Zap className="w-3 h-3 text-neutral-900" />
-          </div>
-          <p className="text-[13px] font-medium text-white">Jarvis is ready</p>
-        </div>
-        <p className="text-[13px] text-neutral-500 mb-4">
-          I know your goal. Ask me to find investors, scrape Crunchbase lists, draft pitch emails, or research funds.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-          {[
-            "Find 20 angel investors in AI/consumer tech I can email today",
-            "Search Twitter for angels talking about AI social networks",
-            "Draft my Reelin AI investor pitch email (Mark Cuban backed)",
-            "Find investors who backed early-stage AI apps — research their portfolios",
-          ].map((prompt) => (
+      {/* Subsidiary growth hubs */}
+      <div className="mb-8">
+        <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Growth HQ</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {growthHubs.map(sub => (
             <Link
-              key={prompt}
-              href={`/jarvis?q=${encodeURIComponent(prompt)}`}
-              className="text-left px-3 py-2.5 rounded-lg border border-neutral-800 text-[12px] text-neutral-400 hover:text-neutral-200 hover:border-neutral-700 hover:bg-neutral-800/30 transition-all line-clamp-1"
+              key={sub.slug}
+              href={`/subsidiaries/${sub.slug}`}
+              className="border border-neutral-800 rounded-lg px-4 py-4 hover:border-neutral-600 hover:bg-neutral-800/30 transition-all group flex items-start justify-between gap-3"
             >
-              {prompt}
+              <div>
+                <p className="text-[14px] font-medium text-neutral-200 group-hover:text-white">{sub.name}</p>
+                <p className="text-[11px] text-neutral-600 mt-0.5">{sub.category}</p>
+                <p className="text-[12px] text-neutral-500 mt-2 line-clamp-2">{sub.tagline}</p>
+                <span className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded mt-2 inline-block",
+                  sub.status.includes("Raising") || sub.status.includes("pending")
+                    ? "bg-amber-500/10 text-amber-400"
+                    : "bg-emerald-500/10 text-emerald-400"
+                )}>
+                  {sub.status}
+                </span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-neutral-600 group-hover:text-white shrink-0 mt-1 transition-colors" />
             </Link>
           ))}
         </div>
-        <Link
-          href="/jarvis"
-          className="inline-flex items-center gap-1.5 text-[12px] text-neutral-400 hover:text-white transition-colors"
-        >
-          Open Jarvis <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
       </div>
 
-      {/* Pipeline actions */}
+      {/* Quick pipeline */}
       <div className="mb-8">
-        <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Pipeline actions</h2>
+        <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Quick actions</h2>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { href: "/scraper", icon: Search, label: "Find investors", desc: "Scrape Crunchbase lists" },
-            { href: "/contacts", icon: Users, label: "View pipeline", desc: `${contacts.length} contacts` },
-            { href: "/bulk", icon: Mail, label: "Send outreach", desc: "Bulk email with Gmail" },
+            { href: "/subsidiaries/swiftdroom", icon: Briefcase, label: "Swiftdroom growth", desc: "$100K MRR tools" },
+            { href: "/scraper", icon: Search, label: "Find leads", desc: "Scrape & enrich" },
+            { href: "/bulk", icon: Mail, label: "Send outreach", desc: "Gmail bulk send" },
           ].map(({ href, icon: Icon, label, desc }) => (
             <Link
               key={href}
@@ -200,14 +217,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Softdroom Portfolio */}
+      {/* Portfolio */}
       <div className="mb-6">
-        <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Softdroom Holdings — Portfolio</h2>
+        <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Portfolio</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-          {SOFTDROOM_SUBS.map((sub) => (
+          {portfolioOnly.map(sub => (
             <a
-              key={sub.name}
-              href={`https://${sub.url}`}
+              key={sub.id}
+              href={`https://${sub.website}`}
               target="_blank"
               rel="noreferrer"
               className="border border-neutral-800 rounded-lg px-3 py-3 hover:border-neutral-700 hover:bg-neutral-800/20 transition-all group"
@@ -216,10 +233,10 @@ export default function DashboardPage() {
               <p className="text-[11px] text-neutral-600 mt-0.5">{sub.category}</p>
               <span className={cn(
                 "text-[10px] font-medium px-1.5 py-0.5 rounded mt-1.5 inline-block",
-                sub.status === "Raising $10M" ? "bg-emerald-500/10 text-emerald-500" :
-                sub.status.startsWith("New") ? "bg-blue-500/10 text-blue-400" :
-                "bg-neutral-800 text-neutral-500"
-              )}>{sub.status}</span>
+                sub.status.startsWith("New") ? "bg-blue-500/10 text-blue-400" : "bg-neutral-800 text-neutral-500"
+              )}>
+                {sub.status}
+              </span>
             </a>
           ))}
         </div>
@@ -227,18 +244,19 @@ export default function DashboardPage() {
 
       {/* Recent activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Recent scrapes */}
         <div>
           <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Recent scrapes</h2>
           <div className="border border-neutral-800 rounded-lg overflow-hidden">
             {jobs.length === 0 ? (
               <div className="px-4 py-6 text-center">
                 <p className="text-[12px] text-neutral-600">No scrape jobs yet</p>
-                <Link href="/scraper" className="text-[12px] text-neutral-500 hover:text-white underline underline-offset-2 mt-1 inline-block transition-colors">Start scraping →</Link>
+                <Link href="/scraper" className="text-[12px] text-neutral-500 hover:text-white underline underline-offset-2 mt-1 inline-block">
+                  Start scraping →
+                </Link>
               </div>
             ) : (
               <div className="divide-y divide-neutral-800/50">
-                {jobs.slice(0, 4).map((job) => (
+                {jobs.slice(0, 4).map(job => (
                   <div key={job.id} className="px-4 py-3 flex items-center gap-3">
                     <StatusDot status={job.status} />
                     <p className="text-[12px] text-neutral-400 truncate flex-1 font-mono">{job.url}</p>
@@ -250,18 +268,19 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent campaigns */}
         <div>
           <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest mb-3">Recent campaigns</h2>
           <div className="border border-neutral-800 rounded-lg overflow-hidden">
             {campaigns.length === 0 ? (
               <div className="px-4 py-6 text-center">
-                <p className="text-[12px] text-neutral-600">No campaigns sent yet</p>
-                <Link href="/campaigns" className="text-[12px] text-neutral-500 hover:text-white underline underline-offset-2 mt-1 inline-block transition-colors">Create campaign →</Link>
+                <p className="text-[12px] text-neutral-600">No campaigns yet</p>
+                <Link href="/campaigns" className="text-[12px] text-neutral-500 hover:text-white underline underline-offset-2 mt-1 inline-block">
+                  Create campaign →
+                </Link>
               </div>
             ) : (
               <div className="divide-y divide-neutral-800/50">
-                {campaigns.slice(0, 4).map((c) => (
+                {campaigns.slice(0, 4).map(c => (
                   <div key={c.id} className="px-4 py-3 flex items-center gap-3">
                     <StatusDot status={c.status} />
                     <div className="flex-1 min-w-0">

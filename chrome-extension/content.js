@@ -200,7 +200,8 @@
       .jarvis-send-delete:hover { border-color: #ef4444; color: #fca5a5; }
       .jarvis-audience-btn {
         flex: 1; background: #1a1a1a; color: #737373; border: 1px solid #262626;
-        border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 500; cursor: pointer;
+        border-radius: 6px; padding: 5px 6px; font-size: 10px; font-weight: 500; cursor: pointer;
+        min-width: 0;
       }
       .jarvis-audience-active { background: #fff; color: #0a0a0a; border-color: #fff; }
       .jarvis-email-extra {
@@ -279,22 +280,71 @@
     { name: "Abel", email: "abel@gigadroom.com", label: "abel@gigadroom.com" },
   ];
 
+  function resolveTemplate(audience) {
+    switch (audience) {
+      case "journalist":
+        return window.__jarvisJournalistTemplate;
+      case "swiftdroom-b2c":
+        return window.__jarvisSwiftdroomB2CTemplate;
+      case "swiftdroom-b2b":
+        return window.__jarvisSwiftdroomB2BTemplate;
+      default:
+        return window.__jarvisEmailTemplate;
+    }
+  }
+
   function getActiveTemplate() {
-    return sendAudience === "journalist"
-      ? window.__jarvisJournalistTemplate
-      : window.__jarvisEmailTemplate;
+    return resolveTemplate(sendAudience);
   }
 
   function initDefaultTemplate(audience = sendAudience) {
-    const tpl = audience === "journalist"
-      ? window.__jarvisJournalistTemplate
-      : window.__jarvisEmailTemplate;
+    const tpl = resolveTemplate(audience);
     if (!tpl) return;
     sendTemplate.subject = tpl.subject;
     sendTemplate.body = tpl.bodyPlain;
     sendTemplate.cc = tpl.cc || "";
   }
   initDefaultTemplate();
+
+  function audienceLabel(audience) {
+    switch (audience) {
+      case "journalist": return "Press / TechCrunch template";
+      case "swiftdroom-b2c": return "Swiftdroom · job seeker template";
+      case "swiftdroom-b2b": return "Swiftdroom · institution / B2B template";
+      default: return "Reelin AI · investor template";
+    }
+  }
+
+  function audienceQueueHint(audience) {
+    switch (audience) {
+      case "journalist": return "No journalists with email — scrape TechCrunch in Jarvis Scraper first";
+      case "swiftdroom-b2c": return "No B2C contacts — tag contacts swiftdroom-b2c in Jarvis";
+      case "swiftdroom-b2b": return "No B2B contacts — tag contacts swiftdroom-b2b in Jarvis";
+      default: return "No contacts with email (not sent) — check Jarvis Contacts page";
+    }
+  }
+
+  function audienceListLabel(audience) {
+    switch (audience) {
+      case "journalist": return "journalists";
+      case "swiftdroom-b2c": return "job seekers";
+      case "swiftdroom-b2b": return "institutions";
+      default: return "investors";
+    }
+  }
+
+  function matchesAudienceFilter(c, audience) {
+    const isJournalist = c.source === "techcrunch" || c.tags?.includes("journalist");
+    const isB2C = c.tags?.includes("swiftdroom-b2c") || c.tags?.includes("swiftdroom-user");
+    const isB2B = c.tags?.includes("swiftdroom-b2b") || c.tags?.includes("swiftdroom-partner") || c.tags?.includes("swiftdroom-institution");
+    const isSwiftdroom = c.source === "swiftdroom" || isB2C || isB2B;
+    switch (audience) {
+      case "journalist": return isJournalist;
+      case "swiftdroom-b2c": return isB2C;
+      case "swiftdroom-b2b": return isB2B;
+      default: return !isJournalist && !isSwiftdroom;
+    }
+  }
 
   function detectPageIntent() {
     if (window.__jarvisGmail?.isGmail()) return "send";
@@ -1020,10 +1070,7 @@
           .filter(c => {
             const email = getContactEmail(c);
             if (!email || c.emailSent === true) return false;
-            const isJournalist = c.source === "techcrunch" || c.tags?.includes("journalist");
-            if (audience === "journalist") return isJournalist;
-            if (audience === "investor") return !isJournalist;
-            return true;
+            return matchesAudienceFilter(c, audience);
           })
           .map(c => ({
             id: c.id,
@@ -1055,14 +1102,12 @@
     renderSendPanel();
 
     if (!outreachQueue.length) {
-      setStatus(audience === "journalist"
-        ? "No journalists with email — scrape TechCrunch in Jarvis Scraper first"
-        : "No contacts with email (not sent) — check Jarvis Contacts page");
+      setStatus(audienceQueueHint(audience));
     } else {
       const scanned = queueRes.data?.scanned;
       const scanNote = scanned ? ` · scanned ${scanned} contacts` : "";
       const ccNote = sendTemplate.cc ? ` · CC: ${sendTemplate.cc}` : "";
-      setStatus(`${outreachQueue.length} ${audience === "journalist" ? "journalists" : "investors"} ready${ccNote}${scanNote}`);
+      setStatus(`${outreachQueue.length} ${audienceListLabel(audience)} ready${ccNote}${scanNote}`);
     }
   }
 
@@ -1093,16 +1138,22 @@
 
     const selectedCount = outreachQueue.filter(p => p.selected && !p.sent).length;
 
-    const audienceLabel = sendAudience === "journalist" ? "Press / TechCrunch template" : "Investor seed template";
+    const audienceLabelText = audienceLabel(sendAudience);
     const ccLine = sendTemplate.cc ? ` · CC: ${escapeHtml(sendTemplate.cc)}` : "";
 
     panel.innerHTML = `
-      <div style="display:flex;gap:6px;margin-bottom:10px">
-        <button type="button" id="jarvis-audience-investor" class="jarvis-audience-btn${sendAudience === "investor" ? " jarvis-audience-active" : ""}">Investors</button>
-        <button type="button" id="jarvis-audience-journalist" class="jarvis-audience-btn${sendAudience === "journalist" ? " jarvis-audience-active" : ""}">Journalists</button>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+        <div style="display:flex;gap:6px">
+          <button type="button" id="jarvis-audience-investor" class="jarvis-audience-btn${sendAudience === "investor" ? " jarvis-audience-active" : ""}">Investors</button>
+          <button type="button" id="jarvis-audience-journalist" class="jarvis-audience-btn${sendAudience === "journalist" ? " jarvis-audience-active" : ""}">Journalists</button>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button type="button" id="jarvis-audience-sd-b2c" class="jarvis-audience-btn${sendAudience === "swiftdroom-b2c" ? " jarvis-audience-active" : ""}">SD Users</button>
+          <button type="button" id="jarvis-audience-sd-b2b" class="jarvis-audience-btn${sendAudience === "swiftdroom-b2b" ? " jarvis-audience-active" : ""}">SD Partners</button>
+        </div>
       </div>
       <div style="margin-bottom:12px">
-        <p style="font-size:10px;color:#34d399;margin:0 0 8px">✓ ${audienceLabel} loaded${ccLine}</p>
+        <p style="font-size:10px;color:#34d399;margin:0 0 8px">✓ ${audienceLabelText} loaded${ccLine}</p>
         <input id="jarvis-send-subject" class="jarvis-template-input" placeholder="Subject" value="${escapeHtml(sendTemplate.subject)}" style="margin-bottom:6px" />
         <textarea id="jarvis-send-body" class="jarvis-template-input jarvis-template-body" placeholder="Email body...">${escapeHtml(sendTemplate.body)}</textarea>
       </div>
@@ -1121,6 +1172,8 @@
 
     document.getElementById("jarvis-audience-investor").addEventListener("click", () => loadOutreachQueue("investor"));
     document.getElementById("jarvis-audience-journalist").addEventListener("click", () => loadOutreachQueue("journalist"));
+    document.getElementById("jarvis-audience-sd-b2c").addEventListener("click", () => loadOutreachQueue("swiftdroom-b2c"));
+    document.getElementById("jarvis-audience-sd-b2b").addEventListener("click", () => loadOutreachQueue("swiftdroom-b2b"));
 
     document.getElementById("jarvis-send-subject").addEventListener("input", (e) => {
       sendTemplate.subject = e.target.value;
@@ -1153,7 +1206,7 @@
         <div style="min-width:0;flex:1">
           <p style="font-size:12px;font-weight:600;color:#e5e5e5;margin:0">${escapeHtml(person.name)}</p>
           <p style="font-size:10px;color:#525252;margin:2px 0 0">${escapeHtml(person.email)}${person.company ? ` · ${escapeHtml(person.company)}` : ""}</p>
-          <span style="font-size:9px;color:#404040">${person.source || (sendAudience === "journalist" ? "journalist" : "investor")}${person.sent ? " · sent ✓" : ""}</span>
+          <span style="font-size:9px;color:#404040">${person.source || audienceListLabel(sendAudience).replace(/s$/, "")}${person.sent ? " · sent ✓" : ""}</span>
         </div>
         ${person.sent ? "" : `<button type="button" class="jarvis-send-delete" data-remove-idx="${idx}" title="Remove from list">✕</button>`}
       `;

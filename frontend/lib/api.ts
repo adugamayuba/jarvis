@@ -34,6 +34,22 @@ export async function checkHealth(): Promise<boolean> {
   try { await api.get("/api/health"); return true; } catch { return false; }
 }
 
+// ── Swiftdroom ────────────────────────────────────────────────────────────────
+export interface SwiftdroomStats {
+  totalUsers: number;
+  activeSubscribers: number;
+  mrr: number;
+  arr: number;
+  applicationsThisMonth: number;
+  planBreakdown: { starter: number; pro: number; business: number };
+  syncedAt?: string;
+}
+
+export async function getSwiftdroomStats(): Promise<ApiResponse<SwiftdroomStats>> {
+  const res = await api.get("/api/swiftdroom/stats");
+  return res.data;
+}
+
 // ── Scraping ──────────────────────────────────────────────────────────────────
 export type ScrapeSource = "crunchbase" | "linkedin" | "social_google" | "techcrunch";
 

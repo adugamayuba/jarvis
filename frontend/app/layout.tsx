@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Jarvis — AI Outreach Dashboard",
-  description: "Scrape leads, find emails, and send personalized campaigns",
+  title: "Jarvis — Softdroom Holdings",
+  description: "Growth & operations for Softdroom Holdings, Reelin AI, Swiftdroom, and portfolio subsidiaries",
 };
 
 export default function RootLayout({

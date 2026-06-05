@@ -110,6 +110,42 @@ function isJournalistContact(data: Record<string, unknown>): boolean {
   return data.source === "techcrunch" || tags.includes("journalist");
 }
 
+function contactTags(data: Record<string, unknown>): string[] {
+  return (data.tags as string[] | undefined) || [];
+}
+
+function isSwiftdroomB2C(data: Record<string, unknown>): boolean {
+  const tags = contactTags(data);
+  return tags.includes("swiftdroom-b2c") || tags.includes("swiftdroom-user");
+}
+
+function isSwiftdroomB2B(data: Record<string, unknown>): boolean {
+  const tags = contactTags(data);
+  return (
+    tags.includes("swiftdroom-b2b") ||
+    tags.includes("swiftdroom-partner") ||
+    tags.includes("swiftdroom-institution")
+  );
+}
+
+function isSwiftdroomContact(data: Record<string, unknown>): boolean {
+  return data.source === "swiftdroom" || isSwiftdroomB2C(data) || isSwiftdroomB2B(data);
+}
+
+function matchesOutreachAudience(data: Record<string, unknown>, audience: string): boolean {
+  switch (audience) {
+    case "journalist":
+      return isJournalistContact(data);
+    case "swiftdroom-b2c":
+      return isSwiftdroomB2C(data);
+    case "swiftdroom-b2b":
+      return isSwiftdroomB2B(data);
+    case "investor":
+    default:
+      return !isJournalistContact(data) && !isSwiftdroomContact(data);
+  }
+}
+
 async function markContactDocEmailed(
   doc: admin.firestore.DocumentSnapshot,
   sentEmail?: string
@@ -382,9 +418,7 @@ router.get("/outreach-queue", async (req: Request, res: Response) => {
         continue;
       }
 
-      const journalist = isJournalistContact(data);
-      if (audience === "journalist" && !journalist) continue;
-      if (audience === "investor" && journalist) continue;
+      if (!matchesOutreachAudience(data, audience)) continue;
 
       const emails = extractContactEmails(data);
       if (!emails.length) {

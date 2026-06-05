@@ -71,4 +71,82 @@ Looking forward to hearing from you.`;
     plainTextOnly: true,
     buildPlain: buildJournalistPlain,
   };
+
+  // Swiftdroom B2C — job seekers / consumers
+  const SWIFTDROOM_B2C_SUBJECT = "Apply to jobs in half the time — Swiftdroom";
+  const SWIFTDROOM_B2C_BODY = `Hello
+
+Hope you're doing well. I'm Abel, founder of Swiftdroom.
+
+If you're applying to jobs online, you know the pain — retyping your resume on every Workday and Greenhouse form, writing custom essay answers again and again. One application can take 20 to 40 minutes.
+
+Swiftdroom is a Chrome extension and dashboard that:
+
+• Scans application forms (Workday, Greenhouse, Lever, and more)
+• Autofills your profile and persona-specific resume
+• Drafts AI answers to essay questions from your resume and the job post
+• Tracks every application — you always review and hit submit yourself
+
+Co-pilot, not autopilot.
+
+Try it at https://swiftdroom.com — the Chrome extension is on the Web Store (or pending approval).
+
+Would love to hear what you think, or walk you through a quick demo if helpful.
+
+Looking forward to hearing from you.`;
+
+  function buildSwiftdroomB2CPlain(firstName) {
+    const hello = firstName ? `Hello ${firstName},` : "Hello,";
+    return SWIFTDROOM_B2C_BODY.replace(/^Hello\n\n/, `${hello}\n\n`);
+  }
+
+  window.__jarvisSwiftdroomB2CTemplate = {
+    subject: SWIFTDROOM_B2C_SUBJECT,
+    cc: "",
+    bodyPlain: SWIFTDROOM_B2C_BODY,
+    plainTextOnly: true,
+    buildPlain: buildSwiftdroomB2CPlain,
+  };
+
+  // Swiftdroom B2B — bootcamps, universities, career centers, outplacement
+  const SWIFTDROOM_B2B_SUBJECT = "Career placement infrastructure for your students";
+  const SWIFTDROOM_B2B_BODY = `Hello
+
+Hope you're doing well. I'm Abel Adugam, founder of Swiftdroom.
+
+I'm reaching out because career centers, coding bootcamps, and outplacement teams share one operational goal: get people hired faster.
+
+We position Swiftdroom not as a browser extension, but as career placement infrastructure for your institution.
+
+What your students get:
+• Autofill on Workday, Greenhouse, Lever, and other ATS forms
+• AI-drafted essay answers from their resume and the job description
+• Persona resumes for different role types (PM, eng, design, etc.)
+• They always review and submit — co-pilot, not autopilot
+
+What your team gets — a dedicated admin dashboard:
+• Aggregate analytics: total applications sent across your cohort
+• Role types and job descriptions hitting the system
+• Usage across licensed seats
+
+Institutional pricing: flat monthly retainer by volume (e.g. $2,500/month for up to 500 active student seats).
+
+The math: a handful of institutional partners at that tier builds a strong, predictable B2B revenue pillar — and measurably improves placement outcomes for your students.
+
+I'd love a 20-minute call to show the admin dashboard and student experience, and explore a pilot for your program.
+
+Looking forward to hearing from you.`;
+
+  function buildSwiftdroomB2BPlain(firstName) {
+    const hello = firstName ? `Hello ${firstName},` : "Hello,";
+    return SWIFTDROOM_B2B_BODY.replace(/^Hello\n\n/, `${hello}\n\n`);
+  }
+
+  window.__jarvisSwiftdroomB2BTemplate = {
+    subject: SWIFTDROOM_B2B_SUBJECT,
+    cc: "",
+    bodyPlain: SWIFTDROOM_B2B_BODY,
+    plainTextOnly: true,
+    buildPlain: buildSwiftdroomB2BPlain,
+  };
 })();

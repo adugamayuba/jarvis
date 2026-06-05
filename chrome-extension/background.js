@@ -118,8 +118,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         });
         sendResponse({ success: result.success, data: result.data, message: result.message, error: result.error });
       } else if (msg.type === "GET_OUTREACH_QUEUE") {
-        const audience = msg.audience === "journalist" ? "journalist" : "investor";
-        const result = await apiCall(`/api/extension/outreach-queue?audience=${audience}`);
+        const audience = msg.audience === "journalist" ? "journalist"
+          : msg.audience === "swiftdroom-b2c" ? "swiftdroom-b2c"
+          : msg.audience === "swiftdroom-b2b" ? "swiftdroom-b2b"
+          : "investor";
+        const result = await apiCall(`/api/extension/outreach-queue?audience=${encodeURIComponent(audience)}`);
         sendResponse({ success: result.success !== false, data: result.data, error: result.error });
       } else if (msg.type === "DELETE_CONTACT") {
         const result = await apiCall(`/api/contacts/${msg.id}`, { method: "DELETE" });

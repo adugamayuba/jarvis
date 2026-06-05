@@ -16,6 +16,7 @@ import applicationRoutes from "./routes/applications";
 import documentRoutes from "./routes/documents";
 import extensionRoutes from "./routes/extension";
 import ugcRoutes from "./routes/ugc";
+import swiftdroomRoutes from "./routes/swiftdroom";
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/extension", extensionRoutes);
 app.use("/api/ugc", ugcRoutes);
+app.use("/api/swiftdroom", swiftdroomRoutes);
 
 // 404 & error handler
 app.use(notFound);

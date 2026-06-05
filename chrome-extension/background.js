@@ -104,6 +104,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             title: msg.title,
             company: msg.company,
             pageUrl: msg.pageUrl,
+            audience: msg.audience === "journalist" ? "journalist"
+              : msg.audience === "swiftdroom-b2c" ? "swiftdroom-b2c"
+              : msg.audience === "swiftdroom-b2b" ? "swiftdroom-b2b"
+              : "investor",
           }),
         });
         sendResponse({ success: result.success !== false, data: result.data, message: result.message, error: result.error });
@@ -114,6 +118,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             contacts: msg.contacts,
             company: msg.company,
             pageUrl: msg.pageUrl,
+            audience: msg.audience === "journalist" ? "journalist"
+              : msg.audience === "swiftdroom-b2c" ? "swiftdroom-b2c"
+              : msg.audience === "swiftdroom-b2b" ? "swiftdroom-b2b"
+              : "investor",
           }),
         });
         sendResponse({ success: result.success, data: result.data, message: result.message, error: result.error });

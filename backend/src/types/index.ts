@@ -11,6 +11,8 @@ export interface Contact {
   crunchbaseUrl?: string;
   profileImageUrl?: string;
   source: "crunchbase" | "linkedin" | "twitter" | "instagram" | "facebook" | "tiktok" | "techcrunch" | "manual" | "extension";
+  /** Outreach list — contacts never cross audiences (investor / journalist / swiftdroom). */
+  audience?: "investor" | "journalist" | "swiftdroom-b2c" | "swiftdroom-b2b";
   tags?: string[];
   emailSent?: boolean;
   emailSentAt?: string;

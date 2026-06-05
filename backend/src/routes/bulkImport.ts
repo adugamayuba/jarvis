@@ -5,6 +5,11 @@ import { findEmailsForAllContacts } from "../services/emailFinder";
 import { apolloMatchPerson, apolloTestConnection } from "../services/apollo";
 import { hunterTestConnection } from "../services/hunter";
 import { findLinkedInUrls } from "../services/linkedinFinder";
+import {
+  isOutreachAudience,
+  upsertContactWithAudience,
+  OutreachAudience,
+} from "../lib/outreachAudience";
 
 interface IdParams extends Record<string, string> { jobId: string }
 
@@ -44,53 +49,62 @@ function slugFromUrl(url: string): string {
 // POST /api/import/contacts
 router.post("/contacts", async (req: Request, res: Response) => {
   try {
-    const { contacts } = req.body as { contacts: CsvContact[] };
+    const { contacts, audience: rawAudience } = req.body as {
+      contacts: CsvContact[];
+      audience?: OutreachAudience;
+    };
 
     if (!Array.isArray(contacts) || contacts.length === 0) {
       res.status(400).json({ success: false, error: "contacts array required" });
       return;
     }
 
+    const audience: OutreachAudience =
+      rawAudience && isOutreachAudience(rawAudience) ? rawAudience : "investor";
+
     const db = getDb();
     const valid = contacts.filter(c => c.name?.trim() && c.crunchbaseUrl?.trim());
 
-    // Write in Firestore batches of 500 — using slug as doc ID for auto-deduplication
-    const BATCH_SIZE = 400;
     let written = 0;
+    let skipped = 0;
+    let conflicts = 0;
 
-    for (let i = 0; i < valid.length; i += BATCH_SIZE) {
-      const chunk = valid.slice(i, i + BATCH_SIZE);
-      const batch = db.batch();
-
-      for (const c of chunk) {
-        const docId = slugFromUrl(c.crunchbaseUrl);
-        const ref = db.collection(COLLECTIONS.CONTACTS).doc(docId);
-        // merge: true — won't overwrite email if contact already enriched
-        batch.set(ref, {
+    for (const c of valid) {
+      const docId = slugFromUrl(c.crunchbaseUrl);
+      const result = await upsertContactWithAudience(db, {
+        docId,
+        audience,
+        payload: {
           name: c.name.trim(),
-          email: "",            // required for email finder query
+          email: "",
           oneLiner: "",
           crunchbaseUrl: c.crunchbaseUrl,
           location: c.location || "",
           source: "crunchbase",
-          title: "Angel Investor",
+          title: audience === "investor" ? "Angel Investor" : "",
           company: "",
           emailSent: false,
           investorType: c.investorType || "",
           numInvestments: c.numInvestments || 0,
           numExits: c.numExits || 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
-      }
+        },
+      });
 
-      await batch.commit();
-      written += chunk.length;
+      if (result.action === "skipped_conflict") conflicts++;
+      else if (result.action === "updated") skipped++;
+      else written++;
     }
 
     res.json({
       success: true,
-      data: { imported: written, skipped: contacts.length - valid.length, total: contacts.length },
+      data: {
+        imported: written,
+        updated: skipped,
+        conflicts,
+        skipped: contacts.length - valid.length,
+        total: contacts.length,
+        audience,
+      },
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

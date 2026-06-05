@@ -196,6 +196,9 @@ export default function ScraperPage() {
         <p className="text-[13px] text-neutral-500 mt-0.5">
           Scrape investors from lists/social, or TechCrunch journalists for press outreach
         </p>
+        <p className="text-[12px] text-neutral-600 mt-2">
+          Contacts are auto-tagged by audience: Crunchbase / LinkedIn / social → <span className="text-amber-500/80">Investors</span> · TechCrunch → <span className="text-purple-400/80">Journalists</span>. Same email cannot exist in two audiences.
+        </p>
       </div>
 
       <div className="border border-neutral-800 rounded-lg p-5 mb-8 bg-neutral-900/30">

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getContacts, deleteContact, deleteContacts, updateContact, createInvestor } from "@/lib/api";
+import { getContacts, deleteContact, deleteContacts, updateContact, createInvestor, backfillContactAudiences, bulkSetContactAudience, OutreachAudience } from "@/lib/api";
 import { Contact } from "@/types";
+import { AUDIENCE_COLORS, AUDIENCE_LABELS, inferContactAudience, OUTREACH_AUDIENCES } from "@/lib/outreachAudience";
 import { toast } from "sonner";
 import {
   Trash2,
@@ -50,10 +51,20 @@ function SourceBadge({ source }: { source: Contact["source"] }) {
       "text-[11px] font-medium px-1.5 py-0.5 rounded capitalize",
       source === "crunchbase" ? "bg-orange-500/10 text-orange-400" :
       source === "linkedin" ? "bg-blue-500/10 text-blue-400" :
+      source === "techcrunch" ? "bg-purple-500/10 text-purple-400" :
       source === "extension" ? "bg-violet-500/10 text-violet-400" :
       "bg-neutral-800 text-neutral-400"
     )}>
       {source === "extension" ? "web" : source}
+    </span>
+  );
+}
+
+function AudienceBadge({ contact }: { contact: Contact }) {
+  const audience = inferContactAudience(contact);
+  return (
+    <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded", AUDIENCE_COLORS[audience])}>
+      {AUDIENCE_LABELS[audience]}
     </span>
   );
 }
@@ -125,6 +136,9 @@ function ContactRow({
         <p className="text-[12px] text-neutral-500 line-clamp-1">{contact.oneLiner || "—"}</p>
       </td>
       <td className="px-4 py-3">
+        <AudienceBadge contact={contact} />
+      </td>
+      <td className="px-4 py-3">
         <SourceBadge source={contact.source} />
       </td>
       <td className="px-4 py-3">
@@ -191,6 +205,7 @@ function ContactRow({
 export default function ContactsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [audienceFilter, setAudienceFilter] = useState<OutreachAudience | "all">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
@@ -216,8 +231,31 @@ export default function ContactsPage() {
     },
   });
 
+  const bulkAudienceMutation = useMutation({
+    mutationFn: ({ ids, audience }: { ids: string[]; audience: OutreachAudience }) =>
+      bulkSetContactAudience(ids, audience),
+    onSuccess: (res) => {
+      const d = res.data;
+      toast.success(`Audience updated`, {
+        description: d ? `${d.updated} updated${d.conflicts ? ` · ${d.conflicts} locked (has email)` : ""}` : undefined,
+      });
+      setSelected(new Set());
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+    onError: () => toast.error("Failed to update audience"),
+  });
+
+  const backfillMutation = useMutation({
+    mutationFn: backfillContactAudiences,
+    onSuccess: (res) => {
+      toast.success(`Backfilled ${res.data?.updated ?? 0} contacts`);
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+    onError: () => toast.error("Backfill failed"),
+  });
+
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Contact> }) => 
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Contact> }) =>
       updateContact(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
@@ -289,7 +327,9 @@ export default function ContactsPage() {
       (filter === "emailed" && c.emailSent) ||
       (filter === "not-emailed" && !c.emailSent) ||
       c.source === filter;
-    return matchesSearch && matchesFilter;
+    const matchesAudience =
+      audienceFilter === "all" || inferContactAudience(c) === audienceFilter;
+    return matchesSearch && matchesFilter && matchesAudience;
   });
 
   function toggleSelect(id: string) {
@@ -323,10 +363,20 @@ export default function ContactsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Contacts</h1>
           <p className="text-[13px] text-neutral-500 mt-0.5">
-            {contacts.length} total · {contacts.filter((c) => c.email).length} with emails
+            {contacts.length} total · {contacts.filter((c) => c.email).length} with emails · isolated by outreach audience
           </p>
         </div>
-        <Button
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => backfillMutation.mutate()}
+            disabled={backfillMutation.isPending}
+            className="text-neutral-500 hover:text-white hover:bg-neutral-800 text-[12px] h-8"
+          >
+            {backfillMutation.isPending ? "Backfilling…" : "Backfill audiences"}
+          </Button>
+          <Button
           variant="ghost"
           size="sm"
           onClick={exportCsv}
@@ -335,6 +385,39 @@ export default function ContactsPage() {
           <Download className="w-3.5 h-3.5" />
           Export CSV
         </Button>
+        </div>
+      </div>
+
+      {/* Audience tabs */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        <button
+          onClick={() => setAudienceFilter("all")}
+          className={cn(
+            "text-[12px] px-3 py-1.5 rounded-lg border transition-colors",
+            audienceFilter === "all"
+              ? "bg-white text-neutral-900 border-white"
+              : "border-neutral-800 text-neutral-500 hover:text-neutral-300"
+          )}
+        >
+          All audiences
+        </button>
+        {OUTREACH_AUDIENCES.map((a) => (
+          <button
+            key={a}
+            onClick={() => setAudienceFilter(a)}
+            className={cn(
+              "text-[12px] px-3 py-1.5 rounded-lg border transition-colors",
+              audienceFilter === a
+                ? "bg-white text-neutral-900 border-white"
+                : "border-neutral-800 text-neutral-500 hover:text-neutral-300"
+            )}
+          >
+            {AUDIENCE_LABELS[a]}
+            <span className="ml-1.5 text-neutral-600 tabular-nums">
+              {contacts.filter((c) => inferContactAudience(c) === a).length}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -366,8 +449,20 @@ export default function ContactsPage() {
         </Select>
 
         {selected.size > 0 && (
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
             <span className="text-[12px] text-neutral-500">{selected.size} selected</span>
+            <Select onValueChange={(v) => {
+              if (v) bulkAudienceMutation.mutate({ ids: [...selected], audience: v as OutreachAudience });
+            }}>
+              <SelectTrigger className="w-40 bg-neutral-800/50 border-neutral-700 text-neutral-400 text-[12px] h-8">
+                <SelectValue placeholder="Set audience" />
+              </SelectTrigger>
+              <SelectContent className="bg-neutral-900 border-neutral-700">
+                {OUTREACH_AUDIENCES.map((a) => (
+                  <SelectItem key={a} value={a} className="text-neutral-200 text-[13px]">{AUDIENCE_LABELS[a]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="ghost"
               size="sm"
@@ -407,7 +502,7 @@ export default function ContactsPage() {
                   <th className="px-4 py-2.5 w-8">
                     <Checkbox checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
                   </th>
-                  {["Person", "Email", "About", "Source", "Status", ""].map((h) => (
+                  {["Person", "Email", "About", "Audience", "Source", "Status", ""].map((h) => (
                     <th key={h} className="px-4 py-2.5 text-[11px] font-medium text-neutral-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>

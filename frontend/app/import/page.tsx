@@ -7,7 +7,9 @@ import {
   getEmailFinderJobs, patchMissingEmails, startApolloEnrich,
   getApolloJobs, testApolloConnection, testHunterConnection,
   cancelApolloJob, cancelEmailFinderJob, CsvContact, EmailFinderJob,
+  OutreachAudience,
 } from "@/lib/api";
+import { AUDIENCE_LABELS, OUTREACH_AUDIENCES } from "@/lib/outreachAudience";
 import { toast } from "sonner";
 import {
   Upload, Play, RefreshCw, CheckCircle2, Loader2,
@@ -15,6 +17,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function parseCsvContacts(csv: string): CsvContact[] {
   const lines = csv.split("\n").filter(Boolean);
@@ -146,13 +155,14 @@ function JobCard({ job, onRefresh, onCancel }: { job: EmailFinderJob; onRefresh:
 
 export default function ImportPage() {
   const [files, setFiles] = useState<{ name: string; contacts: CsvContact[] }[]>([]);
+  const [importAudience, setImportAudience] = useState<OutreachAudience>("investor");
   const [importing, setImporting] = useState(false);
   const [patching, setPatching] = useState(false);
   const [apolloRunning, setApolloRunning] = useState(false);
   const [apolloTestResult, setApolloTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [apolloTesting, setApolloTesting] = useState(false);
   const [hunterTestResult, setHunterTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; conflicts?: number; audience?: OutreachAudience } | null>(null);
   const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -202,14 +212,16 @@ export default function ImportPage() {
       let totalSkipped = 0;
       for (let i = 0; i < allContacts.length; i += chunkSize) {
         const chunk = allContacts.slice(i, i + chunkSize);
-        const res = await bulkImportContacts(chunk);
+        const res = await bulkImportContacts(chunk, importAudience);
         if (res.success && res.data) {
           totalImported += res.data.imported;
-          totalSkipped += res.data.skipped;
+          totalSkipped += res.data.skipped + (res.data.updated || 0);
         }
       }
-      setImportResult({ imported: totalImported, skipped: totalSkipped });
-      toast.success(`Imported ${totalImported} contacts`, { description: `${totalSkipped} already existed` });
+      setImportResult({ imported: totalImported, skipped: totalSkipped, audience: importAudience });
+      toast.success(`Imported ${totalImported} contacts to ${AUDIENCE_LABELS[importAudience]}`, {
+        description: `${totalSkipped} merged or skipped`,
+      });
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
@@ -346,15 +358,32 @@ export default function ImportPage() {
           <h2 className="text-[13px] font-medium text-neutral-300">Import to pipeline</h2>
         </div>
         <div className="border border-neutral-800 rounded-xl p-4">
+          <p className="text-[13px] text-neutral-400 mb-3">
+            Choose which outreach list these contacts belong to. They will never appear in other audience send queues.
+          </p>
+          <div className="mb-4">
+            <label className="text-[12px] text-neutral-500 block mb-1.5">Outreach audience</label>
+            <Select value={importAudience} onValueChange={(v) => setImportAudience(v as OutreachAudience)}>
+              <SelectTrigger className="w-full max-w-xs bg-neutral-800/50 border-neutral-700 text-neutral-200 text-[13px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-neutral-900 border-neutral-700">
+                {OUTREACH_AUDIENCES.map((a) => (
+                  <SelectItem key={a} value={a} className="text-neutral-200 text-[13px]">{AUDIENCE_LABELS[a]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <p className="text-[13px] text-neutral-400 mb-4">
-            Imports all {totalContacts.toLocaleString()} contacts to your Contacts database. Skips duplicates automatically.
+            Imports all {totalContacts.toLocaleString()} contacts to <span className="text-neutral-300">{AUDIENCE_LABELS[importAudience]}</span>. Crunchbase CSVs default to investors.
           </p>
           {importResult && (
             <div className="flex items-center gap-3 mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <p className="text-[13px] text-emerald-400">
                 <span className="font-semibold">{importResult.imported.toLocaleString()} imported</span>
-                {importResult.skipped > 0 && ` · ${importResult.skipped} already existed`}
+                {importResult.skipped > 0 && ` · ${importResult.skipped} merged/skipped`}
+                {importResult.audience && ` · ${AUDIENCE_LABELS[importResult.audience]}`}
               </p>
             </div>
           )}

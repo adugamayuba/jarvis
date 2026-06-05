@@ -91,7 +91,7 @@ export default function SubsidiaryGrowthPage() {
 
   const isSwiftdroom = sub.id === "swiftdroom";
 
-  const { data: statsRes, isLoading: statsLoading, isError: statsError, error: statsErrorObj, refetch: refetchStats } = useQuery({
+  const { data: statsRes, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["swiftdroomStats"],
     queryFn: getSwiftdroomStats,
     enabled: isSwiftdroom,

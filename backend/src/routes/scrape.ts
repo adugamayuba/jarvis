@@ -14,6 +14,11 @@ import { scrapeTechCrunchJournalists } from "../services/techcrunchScraper";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import * as admin from "firebase-admin";
 import { Contact, ScrapeJob } from "../types";
+import {
+  audienceFromScrapeSource,
+  upsertContactWithAudience,
+  OutreachAudience,
+} from "../lib/outreachAudience";
 
 const router = Router();
 
@@ -67,40 +72,42 @@ async function saveContacts(
     tags?: string[];
   }>
 ): Promise<number> {
-  const BATCH_SIZE = 400;
   let saved = 0;
 
-  for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
-    const chunk = contacts.slice(i, i + BATCH_SIZE);
-    const batch = db.batch();
-    const now = new Date().toISOString();
+  for (const c of contacts) {
+    const audience: OutreachAudience =
+      c.source === "techcrunch"
+        ? "journalist"
+        : audienceFromScrapeSource(c.source);
 
-    for (const c of chunk) {
-      const prefix = c.source === "techcrunch" ? "tc" : "social";
-      const docId = c.profileUrl ? profileDocId(c.profileUrl, prefix) : db.collection(COLLECTIONS.CONTACTS).doc().id;
-      const ref = db.collection(COLLECTIONS.CONTACTS).doc(docId);
-      const payload: Record<string, unknown> = {
-        name: c.name,
-        email: (c.email || "").trim().toLowerCase(),
-        oneLiner: c.oneLiner || "",
-        title: c.title || "",
-        company: c.company || "",
-        source: c.source,
-        emailSent: false,
-        updatedAt: now,
-      };
-      if (c.emails?.length) payload.emails = c.emails.map(e => e.toLowerCase());
-      if (c.linkedinUrl) payload.linkedinUrl = c.linkedinUrl;
-      if (c.crunchbaseUrl) payload.crunchbaseUrl = c.crunchbaseUrl;
-      const tags = [...(c.tags || [])];
-      if (c.profileUrl) tags.push(`profile:${c.profileUrl}`);
-      if (tags.length) payload.tags = [...new Set(tags)];
+    const prefix = c.source === "techcrunch" ? "tc" : "social";
+    const docId = c.profileUrl ? profileDocId(c.profileUrl, prefix) : undefined;
 
-      batch.set(ref, { ...payload, createdAt: now }, { merge: true });
-      saved++;
-    }
+    const tags = [...(c.tags || [])];
+    if (c.profileUrl) tags.push(`profile:${c.profileUrl}`);
 
-    await batch.commit();
+    const payload: Record<string, unknown> = {
+      name: c.name,
+      email: (c.email || "").trim().toLowerCase(),
+      oneLiner: c.oneLiner || "",
+      title: c.title || "",
+      company: c.company || "",
+      source: c.source,
+      emailSent: false,
+    };
+    if (c.emails?.length) payload.emails = c.emails.map(e => e.toLowerCase());
+    if (c.linkedinUrl) payload.linkedinUrl = c.linkedinUrl;
+    if (c.crunchbaseUrl) payload.crunchbaseUrl = c.crunchbaseUrl;
+    if (tags.length) payload.tags = [...new Set(tags)];
+
+    const result = await upsertContactWithAudience(db, {
+      docId,
+      payload,
+      audience,
+      primaryEmail: c.email,
+    });
+
+    if (result.action !== "skipped_conflict") saved++;
   }
 
   return saved;

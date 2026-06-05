@@ -913,6 +913,7 @@
         title: person.title || "",
         company: detectedCompany || "",
         pageUrl: window.location.href,
+        audience: sendAudience,
       });
 
       if (response?.success) {
@@ -1031,6 +1032,7 @@
       title: person.title || "",
       company: person.company || "",
       pageUrl: window.location.href,
+      audience: sendAudience,
     };
 
     let lastError = "Failed to mark contact as sent in Jarvis";

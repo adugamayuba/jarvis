@@ -2,6 +2,15 @@ import { Router, Request, Response } from "express";
 import { findPeopleEmailsOnPage } from "../services/pagePeopleFinder";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import * as admin from "firebase-admin";
+import {
+  findContactDocByEmail,
+  matchesOutreachAudience,
+  upsertContactWithAudience,
+  inferAudience,
+  isOutreachAudience,
+  OutreachAudience,
+  audienceConflictMessage,
+} from "../lib/outreachAudience";
 
 const router = Router();
 
@@ -26,37 +35,6 @@ function normalizeEmails(email?: string, emails?: string[]): string[] {
     .map(e => e.trim().toLowerCase())
     .filter(e => e.includes("@"));
   return [...new Set(all)];
-}
-
-async function findContactDocByEmail(db: admin.firestore.Firestore, email: string) {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized.includes("@")) return null;
-
-  const byPrimary = await db
-    .collection(COLLECTIONS.CONTACTS)
-    .where("email", "==", normalized)
-    .limit(1)
-    .get();
-  if (!byPrimary.empty) return byPrimary.docs[0];
-
-  const byEmailsArray = await db
-    .collection(COLLECTIONS.CONTACTS)
-    .where("emails", "array-contains", normalized)
-    .limit(1)
-    .get();
-  if (!byEmailsArray.empty) return byEmailsArray.docs[0];
-
-  // Legacy docs may store mixed-case email on the primary field
-  if (email.trim() !== normalized) {
-    const byOriginal = await db
-      .collection(COLLECTIONS.CONTACTS)
-      .where("email", "==", email.trim())
-      .limit(1)
-      .get();
-    if (!byOriginal.empty) return byOriginal.docs[0];
-  }
-
-  return null;
 }
 
 function extractContactEmails(data: Record<string, unknown>): string[] {
@@ -105,47 +83,6 @@ async function fetchAllContactsPaginated(
   return docs;
 }
 
-function isJournalistContact(data: Record<string, unknown>): boolean {
-  const tags = (data.tags as string[] | undefined) || [];
-  return data.source === "techcrunch" || tags.includes("journalist");
-}
-
-function contactTags(data: Record<string, unknown>): string[] {
-  return (data.tags as string[] | undefined) || [];
-}
-
-function isSwiftdroomB2C(data: Record<string, unknown>): boolean {
-  const tags = contactTags(data);
-  return tags.includes("swiftdroom-b2c") || tags.includes("swiftdroom-user");
-}
-
-function isSwiftdroomB2B(data: Record<string, unknown>): boolean {
-  const tags = contactTags(data);
-  return (
-    tags.includes("swiftdroom-b2b") ||
-    tags.includes("swiftdroom-partner") ||
-    tags.includes("swiftdroom-institution")
-  );
-}
-
-function isSwiftdroomContact(data: Record<string, unknown>): boolean {
-  return data.source === "swiftdroom" || isSwiftdroomB2C(data) || isSwiftdroomB2B(data);
-}
-
-function matchesOutreachAudience(data: Record<string, unknown>, audience: string): boolean {
-  switch (audience) {
-    case "journalist":
-      return isJournalistContact(data);
-    case "swiftdroom-b2c":
-      return isSwiftdroomB2C(data);
-    case "swiftdroom-b2b":
-      return isSwiftdroomB2B(data);
-    case "investor":
-    default:
-      return !isJournalistContact(data) && !isSwiftdroomContact(data);
-  }
-}
-
 async function markContactDocEmailed(
   doc: admin.firestore.DocumentSnapshot,
   sentEmail?: string
@@ -181,14 +118,20 @@ async function markContactDocEmailed(
 
 async function upsertExtensionContact(
   input: ExtensionContactInput,
-  opts: { pageUrl?: string; company?: string; markEmailed?: boolean }
-): Promise<{ id: string; updated: boolean }> {
+  opts: {
+    pageUrl?: string;
+    company?: string;
+    markEmailed?: boolean;
+    audience?: OutreachAudience;
+  }
+): Promise<{ id: string; updated: boolean; conflict?: boolean }> {
   const name = input.name?.trim();
   const allEmails = normalizeEmails(input.email, input.emails);
   if (!name || allEmails.length === 0) {
     throw new Error("name and at least one email are required");
   }
 
+  const audience: OutreachAudience = opts.audience || "investor";
   const primaryEmail = allEmails[0];
   const company = input.company?.trim() || opts.company?.trim() || "";
   const title = input.title?.trim() || "";
@@ -198,7 +141,12 @@ async function upsertExtensionContact(
   const existingDoc = await findContactDocByEmail(db, primaryEmail);
 
   if (existingDoc) {
-    const data = existingDoc.data();
+    const data = existingDoc.data() as Record<string, unknown>;
+    const existingAudience = inferAudience(data);
+    if (existingAudience !== audience) {
+      throw new Error(audienceConflictMessage(existingAudience, audience, primaryEmail));
+    }
+
     const mergedEmails = [...new Set([
       ...(Array.isArray(data.emails) ? data.emails as string[] : []),
       ...(data.email ? [String(data.email)] : []),
@@ -223,22 +171,30 @@ async function upsertExtensionContact(
   }
 
   const oneLiner = [title, company].filter(Boolean).join(" · ");
-  const ref = await db.collection(COLLECTIONS.CONTACTS).add({
-    name,
-    email: primaryEmail,
-    emails: allEmails,
-    title,
-    company,
-    oneLiner,
-    source: "extension",
-    emailSent: opts.markEmailed === true,
-    ...(opts.markEmailed ? { emailSentAt: now } : {}),
-    tags: opts.pageUrl ? [`page:${opts.pageUrl}`] : [],
-    createdAt: now,
-    updatedAt: now,
+  const tags = opts.pageUrl ? [`page:${opts.pageUrl}`] : [];
+
+  const result = await upsertContactWithAudience(db, {
+    payload: {
+      name,
+      email: primaryEmail,
+      emails: allEmails,
+      title,
+      company,
+      oneLiner,
+      source: "extension",
+      emailSent: opts.markEmailed === true,
+      ...(opts.markEmailed ? { emailSentAt: now } : {}),
+      tags,
+    },
+    audience,
+    primaryEmail,
   });
 
-  return { id: ref.id, updated: false };
+  if (result.action === "skipped_conflict") {
+    return { id: result.existingId || "", updated: false, conflict: true };
+  }
+
+  return { id: result.id, updated: result.action === "updated" };
 }
 
 // POST /api/extension/people-emails — extract people from page + find emails via Google
@@ -281,10 +237,14 @@ router.post("/people-emails", async (req: Request, res: Response) => {
 // POST /api/extension/mark-emailed — mark contact as emailed (by id or email lookup)
 router.post("/mark-emailed", async (req: Request, res: Response) => {
   try {
-    const { id, name, email, emails, title, company, pageUrl } = req.body as ExtensionContactInput & {
+    const { id, name, email, emails, title, company, pageUrl, audience: rawAudience } = req.body as ExtensionContactInput & {
       id?: string;
       pageUrl?: string;
+      audience?: OutreachAudience;
     };
+
+    const audience: OutreachAudience =
+      rawAudience && isOutreachAudience(rawAudience) ? rawAudience : "investor";
 
     const db = getDb();
     const allEmails = normalizeEmails(email, emails);
@@ -296,6 +256,15 @@ router.post("/mark-emailed", async (req: Request, res: Response) => {
       const doc = await ref.get();
       if (!doc.exists) {
         res.status(404).json({ success: false, error: "Contact not found" });
+        return;
+      }
+
+      const data = doc.data() as Record<string, unknown>;
+      if (!matchesOutreachAudience(data, audience)) {
+        res.status(409).json({
+          success: false,
+          error: `Contact belongs to "${inferAudience(data)}" outreach, not "${audience}"`,
+        });
         return;
       }
 
@@ -316,6 +285,15 @@ router.post("/mark-emailed", async (req: Request, res: Response) => {
 
     const existingDoc = await findContactDocByEmail(db, sentEmail);
     if (existingDoc) {
+      const data = existingDoc.data() as Record<string, unknown>;
+      if (!matchesOutreachAudience(data, audience)) {
+        res.status(409).json({
+          success: false,
+          error: audienceConflictMessage(inferAudience(data), audience, sentEmail),
+        });
+        return;
+      }
+
       const result = await markContactDocEmailed(existingDoc, sentEmail);
       res.json({
         success: true,
@@ -327,7 +305,7 @@ router.post("/mark-emailed", async (req: Request, res: Response) => {
 
     const result = await upsertExtensionContact(
       { name, email: sentEmail, emails: allEmails, title, company },
-      { pageUrl, company, markEmailed: true }
+      { pageUrl, company, markEmailed: true, audience }
     );
 
     res.json({
@@ -344,10 +322,11 @@ router.post("/mark-emailed", async (req: Request, res: Response) => {
 // POST /api/extension/add-contacts — bulk add team page people to Contacts (not marked sent)
 router.post("/add-contacts", async (req: Request, res: Response) => {
   try {
-    const { contacts, pageUrl, company } = req.body as {
+    const { contacts, pageUrl, company, audience: rawAudience } = req.body as {
       contacts?: ExtensionContactInput[];
       pageUrl?: string;
       company?: string;
+      audience?: OutreachAudience;
     };
 
     if (!Array.isArray(contacts) || contacts.length === 0) {
@@ -355,9 +334,13 @@ router.post("/add-contacts", async (req: Request, res: Response) => {
       return;
     }
 
+    const audience: OutreachAudience =
+      rawAudience && isOutreachAudience(rawAudience) ? rawAudience : "investor";
+
     let added = 0;
     let updated = 0;
     let skipped = 0;
+    let conflicts = 0;
 
     for (const contact of contacts) {
       const allEmails = normalizeEmails(contact.email, contact.emails);
@@ -369,20 +352,25 @@ router.post("/add-contacts", async (req: Request, res: Response) => {
       try {
         const result = await upsertExtensionContact(
           { ...contact, email: allEmails[0], emails: allEmails },
-          { pageUrl, company: contact.company || company, markEmailed: false }
+          { pageUrl, company: contact.company || company, markEmailed: false, audience }
         );
-        if (result.updated) updated++;
+        if (result.conflict) conflicts++;
+        else if (result.updated) updated++;
         else added++;
       } catch (err) {
-        console.error(`Add contact failed for ${contact.name}:`, err);
-        skipped++;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("already belongs to")) conflicts++;
+        else {
+          console.error(`Add contact failed for ${contact.name}:`, err);
+          skipped++;
+        }
       }
     }
 
     res.json({
       success: true,
-      data: { added, updated, skipped, total: contacts.length },
-      message: `Added ${added} contacts, updated ${updated}${skipped ? `, skipped ${skipped}` : ""}`,
+      data: { added, updated, skipped, conflicts, total: contacts.length, audience },
+      message: `Added ${added}, updated ${updated}${conflicts ? ` · ${conflicts} audience conflicts` : ""}${skipped ? ` · ${skipped} skipped` : ""}`,
     });
   } catch (err) {
     console.error("Extension add-contacts error:", err);
@@ -404,12 +392,14 @@ router.get("/outreach-queue", async (req: Request, res: Response) => {
       email: string;
       emails?: string[];
       source?: string;
+      audience?: string;
       company?: string;
       title?: string;
     }> = [];
 
     let skippedSent = 0;
     let skippedNoEmail = 0;
+    let skippedWrongAudience = 0;
 
     for (const doc of allDocs) {
       const data = doc.data() as Record<string, unknown>;
@@ -418,7 +408,10 @@ router.get("/outreach-queue", async (req: Request, res: Response) => {
         continue;
       }
 
-      if (!matchesOutreachAudience(data, audience)) continue;
+      if (!matchesOutreachAudience(data, audience)) {
+        skippedWrongAudience++;
+        continue;
+      }
 
       const emails = extractContactEmails(data);
       if (!emails.length) {
@@ -433,6 +426,7 @@ router.get("/outreach-queue", async (req: Request, res: Response) => {
         email: emails[0],
         emails,
         source: (data.source as string) || "",
+        audience: inferAudience(data),
         company: (data.company as string) || "",
         title: (data.title as string) || "",
       });
@@ -449,6 +443,7 @@ router.get("/outreach-queue", async (req: Request, res: Response) => {
         scanned: allDocs.length,
         skippedSent,
         skippedNoEmail,
+        skippedWrongAudience,
       },
     });
   } catch (err) {

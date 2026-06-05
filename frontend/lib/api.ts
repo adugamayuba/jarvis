@@ -102,7 +102,14 @@ export async function getScrapeJobs(): Promise<ApiResponse<ScrapeJob[]>> {
 }
 
 // ── Contacts ──────────────────────────────────────────────────────────────────
-export async function getContacts(params?: { source?: string; emailSent?: boolean; limit?: number }): Promise<ApiResponse<Contact[]>> {
+export type OutreachAudience = "investor" | "journalist" | "swiftdroom-b2c" | "swiftdroom-b2b";
+
+export async function getContacts(params?: {
+  source?: string;
+  emailSent?: boolean;
+  audience?: OutreachAudience;
+  limit?: number;
+}): Promise<ApiResponse<Contact[]>> {
   const res = await api.get("/api/contacts", { params });
   return res.data;
 }
@@ -124,6 +131,19 @@ export async function deleteContact(id: string): Promise<ApiResponse<void>> {
 
 export async function deleteContacts(ids: string[]): Promise<ApiResponse<void>> {
   const res = await api.delete("/api/contacts", { data: { ids } });
+  return res.data;
+}
+
+export async function backfillContactAudiences(): Promise<ApiResponse<{ scanned: number; updated: number }>> {
+  const res = await api.post("/api/contacts/backfill-audiences");
+  return res.data;
+}
+
+export async function bulkSetContactAudience(
+  ids: string[],
+  audience: OutreachAudience
+): Promise<ApiResponse<{ updated: number; conflicts: number; total: number }>> {
+  const res = await api.patch("/api/contacts/bulk-audience", { ids, audience });
   return res.data;
 }
 
@@ -269,8 +289,11 @@ export interface EmailFinderJob {
   error?: string;
 }
 
-export async function bulkImportContacts(contacts: CsvContact[]): Promise<ApiResponse<{ imported: number; skipped: number; total: number }>> {
-  const res = await api.post("/api/import/contacts", { contacts });
+export async function bulkImportContacts(
+  contacts: CsvContact[],
+  audience: OutreachAudience = "investor"
+): Promise<ApiResponse<{ imported: number; updated: number; conflicts: number; skipped: number; total: number; audience: OutreachAudience }>> {
+  const res = await api.post("/api/import/contacts", { contacts, audience });
   return res.data;
 }
 

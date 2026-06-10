@@ -1,3 +1,5 @@
+import { isPressSource } from "./pressOutlets";
+
 export type OutreachAudience =
   | "investor"
   | "journalist"
@@ -45,7 +47,7 @@ export function inferContactAudience(contact: {
   if (tags.includes("swiftdroom-b2c") || tags.includes("swiftdroom-user")) {
     return "swiftdroom-b2c";
   }
-  if (contact.source === "techcrunch" || tags.includes("journalist")) {
+  if (isPressSource(contact.source || "") || tags.includes("journalist")) {
     return "journalist";
   }
   return "investor";

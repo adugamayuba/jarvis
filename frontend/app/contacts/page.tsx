@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getContacts, deleteContact, deleteContacts, updateContact, createInvestor, backfillContactAudiences, bulkSetContactAudience, OutreachAudience } from "@/lib/api";
 import { Contact } from "@/types";
 import { AUDIENCE_COLORS, AUDIENCE_LABELS, inferContactAudience, OUTREACH_AUDIENCES } from "@/lib/outreachAudience";
+import { isPressSource, pressOutletLabel } from "@/lib/pressOutlets";
 import { toast } from "sonner";
 import {
   Trash2,
@@ -46,12 +47,18 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
 }
 
 function SourceBadge({ source }: { source: Contact["source"] }) {
+  if (isPressSource(source)) {
+    return (
+      <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">
+        {pressOutletLabel(source)}
+      </span>
+    );
+  }
   return (
     <span className={cn(
       "text-[11px] font-medium px-1.5 py-0.5 rounded capitalize",
       source === "crunchbase" ? "bg-orange-500/10 text-orange-400" :
       source === "linkedin" ? "bg-blue-500/10 text-blue-400" :
-      source === "techcrunch" ? "bg-purple-500/10 text-purple-400" :
       source === "extension" ? "bg-violet-500/10 text-violet-400" :
       "bg-neutral-800 text-neutral-400"
     )}>

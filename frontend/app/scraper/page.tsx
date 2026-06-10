@@ -2,10 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { startScrapeJob, startSocialGoogleScrape, startTechCrunchScrape, getScrapeJob, getScrapeJobs } from "@/lib/api";
+import {
+  startScrapeJob,
+  startSocialGoogleScrape,
+  startPressOutletScrape,
+  startAllPressScrapes,
+  getScrapeJob,
+  getScrapeJobs,
+} from "@/lib/api";
 import { ScrapeJob } from "@/types";
 import { toast } from "sonner";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,8 +23,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  PRESS_OUTLET_IDS,
+  PRESS_OUTLET_LABELS,
+  PressOutletId,
+  isPressOutletId,
+} from "@/lib/pressOutlets";
 
-type ScrapeMode = "url" | "social_google" | "techcrunch";
+type ScrapeMode = "url" | "social_google" | "press";
 
 const urlSourceOptions = [
   { value: "crunchbase", label: "Crunchbase" },
@@ -50,6 +63,13 @@ function StatusBadge({ status }: { status: ScrapeJob["status"] }) {
   );
 }
 
+function jobSourceLabel(source: ScrapeJob["source"]): string {
+  if (source === "social_google") return "Google + Social";
+  if (source === "press_all") return "All press outlets";
+  if (isPressOutletId(source)) return PRESS_OUTLET_LABELS[source];
+  return source;
+}
+
 function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
   useEffect(() => {
     if (job.status !== "running") return;
@@ -60,32 +80,30 @@ function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
     return () => clearInterval(interval);
   }, [job.id, job.status, onRefresh]);
 
-  const label =
-    job.source === "social_google"
-      ? `Google: ${job.platforms?.join(", ") || "social"} · "${job.keyword || "angel investor"}"`
-      : job.source === "techcrunch"
-        ? job.url || "TechCrunch staff page"
-        : job.url;
+  const isPressJob = job.source === "press_all" || isPressOutletId(job.source);
 
   return (
     <tr className="border-b border-neutral-800/50 hover:bg-neutral-800/20 transition-colors group">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] text-neutral-300 font-mono truncate max-w-sm">{label}</span>
-          {job.source !== "social_google" && job.source !== "techcrunch" && (
+          <span className="text-[13px] text-neutral-300 font-mono truncate max-w-sm">{job.url}</span>
+          {!isPressJob && job.source !== "social_google" && (
             <a href={job.url} target="_blank" rel="noreferrer" className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-600 hover:text-neutral-400">
               <ExternalLink className="w-3 h-3" />
             </a>
           )}
         </div>
+        {job.pressResults && (
+          <p className="text-[10px] text-neutral-600 mt-1 truncate max-w-md">
+            {Object.entries(job.pressResults).filter(([, n]) => n > 0).map(([k, n]) => `${PRESS_OUTLET_LABELS[k as PressOutletId] || k}: ${n}`).join(" · ")}
+          </p>
+        )}
         {job.status === "failed" && job.error && (
           <p className="text-[11px] text-red-400 mt-0.5 truncate max-w-sm">{job.error}</p>
         )}
       </td>
       <td className="px-4 py-3">
-        <span className="text-[12px] text-neutral-500 capitalize">
-          {job.source === "social_google" ? "Google + Social" : job.source === "techcrunch" ? "TechCrunch" : job.source}
-        </span>
+        <span className="text-[12px] text-neutral-500">{jobSourceLabel(job.source)}</span>
       </td>
       <td className="px-4 py-3">
         <span className="text-[13px] text-neutral-400 tabular-nums">
@@ -105,17 +123,19 @@ function JobRow({ job, onRefresh }: { job: ScrapeJob; onRefresh: () => void }) {
 }
 
 export default function ScraperPage() {
-  const [mode, setMode] = useState<ScrapeMode>("social_google");
+  const [mode, setMode] = useState<ScrapeMode>("press");
   const [url, setUrl] = useState("");
   const [source, setSource] = useState<"crunchbase" | "linkedin">("crunchbase");
   const [keyword, setKeyword] = useState("angel investor");
   const [selectedPlatforms, setSelectedPlatforms] = useState<SocialPlatformId[]>(["twitter", "instagram"]);
+  const [selectedOutlet, setSelectedOutlet] = useState<PressOutletId>("businessinsider");
+  const [scrapingOutlet, setScrapingOutlet] = useState<PressOutletId | "all" | null>(null);
   const queryClient = useQueryClient();
 
   const { data: jobsData, refetch } = useQuery({
     queryKey: ["scrapeJobs"],
     queryFn: getScrapeJobs,
-    refetchInterval: 10_000,
+    refetchInterval: scrapingOutlet ? 8_000 : 10_000,
   });
 
   const urlScrapeMutation = useMutation({
@@ -150,22 +170,49 @@ export default function ScraperPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Cannot connect to backend"),
   });
 
-  const techcrunchScrapeMutation = useMutation({
-    mutationFn: () => startTechCrunchScrape(),
-    onSuccess: (res) => {
+  const pressScrapeMutation = useMutation({
+    mutationFn: (outlet: PressOutletId) => startPressOutletScrape(outlet),
+    onSuccess: (res, outlet) => {
       if (res.success) {
-        toast.success("TechCrunch journalist scrape started");
+        toast.success(`${PRESS_OUTLET_LABELS[outlet]} scrape started`);
         queryClient.invalidateQueries({ queryKey: ["scrapeJobs"] });
         queryClient.invalidateQueries({ queryKey: ["contacts"] });
       } else {
         toast.error(res.error || "Failed to start scrape");
       }
+      setScrapingOutlet(null);
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Cannot connect to backend"),
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Cannot connect to backend");
+      setScrapingOutlet(null);
+    },
+  });
+
+  const pressAllMutation = useMutation({
+    mutationFn: () => startAllPressScrapes(),
+    onSuccess: (res) => {
+      if (res.success) {
+        toast.success("Scraping all 15 press outlets — this takes several minutes");
+        queryClient.invalidateQueries({ queryKey: ["scrapeJobs"] });
+        queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      } else {
+        toast.error(res.error || "Failed to start scrape");
+      }
+      setScrapingOutlet(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Cannot connect to backend");
+      setScrapingOutlet(null);
+    },
   });
 
   const jobs = jobsData?.data || [];
-  const isPending = urlScrapeMutation.isPending || socialScrapeMutation.isPending || techcrunchScrapeMutation.isPending;
+  const isPending =
+    urlScrapeMutation.isPending ||
+    socialScrapeMutation.isPending ||
+    pressScrapeMutation.isPending ||
+    pressAllMutation.isPending ||
+    scrapingOutlet !== null;
 
   function togglePlatform(id: SocialPlatformId) {
     setSelectedPlatforms(prev =>
@@ -173,10 +220,20 @@ export default function ScraperPage() {
     );
   }
 
+  function scrapeOutlet(outlet: PressOutletId) {
+    setScrapingOutlet(outlet);
+    pressScrapeMutation.mutate(outlet);
+  }
+
+  function scrapeAllPress() {
+    setScrapingOutlet("all");
+    pressAllMutation.mutate();
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "techcrunch") {
-      techcrunchScrapeMutation.mutate();
+    if (mode === "press") {
+      scrapeOutlet(selectedOutlet);
       return;
     }
     if (mode === "url") {
@@ -194,68 +251,80 @@ export default function ScraperPage() {
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-white">Scraper</h1>
         <p className="text-[13px] text-neutral-500 mt-0.5">
-          Scrape investors from lists/social, or TechCrunch journalists for press outreach
+          Scrape investors from lists/social, or journalists from 15+ outlets for Reelin AI press outreach
         </p>
         <p className="text-[12px] text-neutral-600 mt-2">
-          Contacts are auto-tagged by audience: Crunchbase / LinkedIn / social → <span className="text-amber-500/80">Investors</span> · TechCrunch → <span className="text-purple-400/80">Journalists</span>. Same email cannot exist in two audiences.
+          Press contacts → <span className="text-purple-400/80">Journalists</span> audience · Investors stay isolated · Email via Gmail extension → Journalists tab
         </p>
       </div>
 
       <div className="border border-neutral-800 rounded-lg p-5 mb-8 bg-neutral-900/30">
         <div className="flex gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setMode("social_google")}
-            className={cn(
-              "flex-1 text-[12px] font-medium py-2 rounded-md border transition-colors",
-              mode === "social_google"
-                ? "bg-white text-neutral-900 border-white"
-                : "bg-neutral-800/50 text-neutral-400 border-neutral-700 hover:border-neutral-600"
-            )}
-          >
-            Google + Social
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("techcrunch")}
-            className={cn(
-              "flex-1 text-[12px] font-medium py-2 rounded-md border transition-colors",
-              mode === "techcrunch"
-                ? "bg-white text-neutral-900 border-white"
-                : "bg-neutral-800/50 text-neutral-400 border-neutral-700 hover:border-neutral-600"
-            )}
-          >
-            TechCrunch
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("url")}
-            className={cn(
-              "flex-1 text-[12px] font-medium py-2 rounded-md border transition-colors",
-              mode === "url"
-                ? "bg-white text-neutral-900 border-white"
-                : "bg-neutral-800/50 text-neutral-400 border-neutral-700 hover:border-neutral-600"
-            )}
-          >
-            URL scrape
-          </button>
+          {([
+            { id: "press" as const, label: "Press / Journalists" },
+            { id: "social_google" as const, label: "Google + Social" },
+            { id: "url" as const, label: "URL scrape" },
+          ]).map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setMode(tab.id)}
+              className={cn(
+                "flex-1 text-[12px] font-medium py-2 rounded-md border transition-colors",
+                mode === tab.id
+                  ? "bg-white text-neutral-900 border-white"
+                  : "bg-neutral-800/50 text-neutral-400 border-neutral-700 hover:border-neutral-600"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <form onSubmit={handleSubmit}>
-          {mode === "techcrunch" ? (
+          {mode === "press" ? (
             <>
+              <div className="flex items-center gap-2 mb-3">
+                <Newspaper className="w-4 h-4 text-purple-400" />
+                <p className="text-[13px] font-medium text-neutral-300">Reelin AI — press journalist scraper</p>
+              </div>
               <p className="text-[12px] text-neutral-500 mb-4">
-                Scrapes{" "}
-                <a
-                  href="https://techcrunch.com/about-techcrunch/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-neutral-400 underline underline-offset-2 hover:text-white"
-                >
-                  techcrunch.com/about-techcrunch
-                </a>
-                , visits each author profile, and saves journalists with their emails to Contacts (tagged for press outreach).
+                Fetches each outlet&apos;s staff page, visits author profiles, finds emails (mailto + Google search), and saves to Contacts tagged <code className="text-purple-400/80">journalist</code>.
               </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                {PRESS_OUTLET_IDS.map(outletId => (
+                  <button
+                    key={outletId}
+                    type="button"
+                    onClick={() => setSelectedOutlet(outletId)}
+                    className={cn(
+                      "text-[12px] px-3 py-2 rounded-lg border text-left transition-colors",
+                      selectedOutlet === outletId
+                        ? "bg-purple-500/15 border-purple-500/40 text-purple-300"
+                        : "bg-neutral-800/40 border-neutral-800 text-neutral-500 hover:border-neutral-700"
+                    )}
+                  >
+                    {PRESS_OUTLET_LABELS[outletId]}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={scrapeAllPress}
+                  className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10 text-[12px] h-8"
+                >
+                  {scrapingOutlet === "all" ? (
+                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Scraping all outlets…</>
+                  ) : (
+                    "Scrape all 15 outlets"
+                  )}
+                </Button>
+              </div>
             </>
           ) : mode === "social_google" ? (
             <>
@@ -324,8 +393,8 @@ export default function ScraperPage() {
 
           <div className="flex items-center justify-between gap-3">
             <p className="text-[12px] text-neutral-600">
-              {mode === "techcrunch"
-                ? "Journalists saved with emails · use Gmail extension → Journalists to email"
+              {mode === "press"
+                ? `Selected: ${PRESS_OUTLET_LABELS[selectedOutlet]} · then Gmail → Journalists`
                 : mode === "social_google"
                 ? "Contacts saved with all emails found · deduped by profile URL"
                 : "e.g. crunchbase.com/lists/... or linkedin.com/search/..."}
@@ -337,50 +406,38 @@ export default function ScraperPage() {
             >
               {isPending ? (
                 <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Running</>
-              ) : mode === "techcrunch" ? "Scrape TechCrunch" : mode === "social_google" ? "Scrape Social" : "Scrape"}
+              ) : mode === "press" ? (
+                `Scrape ${PRESS_OUTLET_LABELS[selectedOutlet]}`
+              ) : mode === "social_google" ? (
+                "Scrape Social"
+              ) : (
+                "Scrape"
+              )}
             </Button>
           </div>
         </form>
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-8">
-        {mode === "techcrunch" ? (
-          [
-            { step: "01", label: "Fetch staff page", desc: "about-techcrunch author links" },
-            { step: "02", label: "Scrape author profiles", desc: "Names, titles, mailto emails" },
-            { step: "03", label: "Contacts saved", desc: "Tagged journalist · email from Gmail" },
-          ].map(({ step, label, desc }) => (
-            <div key={step} className="border border-neutral-800 rounded-lg px-4 py-3">
-              <p className="text-[11px] text-neutral-600 font-mono mb-1.5">{step}</p>
-              <p className="text-[13px] font-medium text-neutral-300">{label}</p>
-              <p className="text-[12px] text-neutral-500 mt-0.5">{desc}</p>
-            </div>
-          ))
-        ) : mode === "social_google" ? (
-          [
-            { step: "01", label: "Google site: search", desc: "site:twitter.com + keyword" },
-            { step: "02", label: "Parse + scrape profiles", desc: "Names/emails from snippets + profile pages" },
-            { step: "03", label: "Contacts saved", desc: "Multiple emails per person in Firebase" },
-          ].map(({ step, label, desc }) => (
-            <div key={step} className="border border-neutral-800 rounded-lg px-4 py-3">
-              <p className="text-[11px] text-neutral-600 font-mono mb-1.5">{step}</p>
-              <p className="text-[13px] font-medium text-neutral-300">{label}</p>
-              <p className="text-[12px] text-neutral-500 mt-0.5">{desc}</p>
-            </div>
-          ))
-        ) : (
-          [
-            { step: "01", label: "Paste a list URL", desc: "Any Crunchbase /lists/ or /discover/ page" },
-            { step: "02", label: "Apify scrapes it", desc: "Extracts names, titles, emails, bios" },
-            { step: "03", label: "Contacts saved", desc: "Auto-stored in Firebase, ready to email" },
-          ].map(({ step, label, desc }) => (
-            <div key={step} className="border border-neutral-800 rounded-lg px-4 py-3">
-              <p className="text-[11px] text-neutral-600 font-mono mb-1.5">{step}</p>
-              <p className="text-[13px] font-medium text-neutral-300">{label}</p>
-              <p className="text-[12px] text-neutral-500 mt-0.5">{desc}</p>
-            </div>
-          ))
-        )}
+        {(mode === "press" ? [
+          { step: "01", label: "Staff / masthead page", desc: "Author links + known reporters" },
+          { step: "02", label: "Profile + Google", desc: "Mailto emails + Apify search" },
+          { step: "03", label: "Contacts saved", desc: "journalist · outlet tag · Gmail queue" },
+        ] : mode === "social_google" ? [
+          { step: "01", label: "Google site: search", desc: "site:twitter.com + keyword" },
+          { step: "02", label: "Parse + scrape profiles", desc: "Names/emails from snippets" },
+          { step: "03", label: "Contacts saved", desc: "Investor audience" },
+        ] : [
+          { step: "01", label: "Paste a list URL", desc: "Crunchbase /lists/ page" },
+          { step: "02", label: "Apify scrapes it", desc: "Names, titles, bios" },
+          { step: "03", label: "Contacts saved", desc: "Investor audience" },
+        ]).map(({ step, label, desc }) => (
+          <div key={step} className="border border-neutral-800 rounded-lg px-4 py-3">
+            <p className="text-[11px] text-neutral-600 font-mono mb-1.5">{step}</p>
+            <p className="text-[13px] font-medium text-neutral-300">{label}</p>
+            <p className="text-[12px] text-neutral-500 mt-0.5">{desc}</p>
+          </div>
+        ))}
       </div>
 
       <div>

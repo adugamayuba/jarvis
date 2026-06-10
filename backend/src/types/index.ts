@@ -1,16 +1,26 @@
+import {
+  PRESS_OUTLET_IDS,
+  PressOutletId,
+  ContactSource,
+  NON_PRESS_CONTACT_SOURCES,
+} from "../lib/pressOutlets";
+
+export type { PressOutletId, ContactSource };
+export { PRESS_OUTLET_IDS, NON_PRESS_CONTACT_SOURCES };
+
 export interface Contact {
   id?: string;
   name: string;
-  email?: string;            // primary email
-  emails?: string[];         // all known emails
-  apolloEmails?: string[];   // emails from Apollo specifically
+  email?: string;
+  emails?: string[];
+  apolloEmails?: string[];
   oneLiner?: string;
   title?: string;
   company?: string;
   linkedinUrl?: string;
   crunchbaseUrl?: string;
   profileImageUrl?: string;
-  source: "crunchbase" | "linkedin" | "twitter" | "instagram" | "facebook" | "tiktok" | "techcrunch" | "manual" | "extension";
+  source: ContactSource;
   /** Outreach list — contacts never cross audiences (investor / journalist / swiftdroom). */
   audience?: "investor" | "journalist" | "swiftdroom-b2c" | "swiftdroom-b2b";
   tags?: string[];
@@ -37,10 +47,18 @@ export interface Campaign {
   updatedAt?: string;
 }
 
+export type ScrapeJobSource =
+  | "crunchbase"
+  | "linkedin"
+  | "twitter"
+  | "social_google"
+  | "press_all"
+  | PressOutletId;
+
 export interface ScrapeJob {
   id?: string;
   url: string;
-  source: "crunchbase" | "linkedin" | "twitter" | "social_google" | "techcrunch";
+  source: ScrapeJobSource;
   status: "pending" | "running" | "completed" | "failed";
   contactsFound?: number;
   apifyRunId?: string;
@@ -48,6 +66,8 @@ export interface ScrapeJob {
   keyword?: string;
   emailDomain?: string;
   platforms?: string[];
+  /** Per-outlet counts when source is press_all */
+  pressResults?: Record<string, number>;
   createdAt?: string;
   completedAt?: string;
 }

@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { getDb, COLLECTIONS } from "../services/firebase";
+import { isPressSource } from "./pressOutlets";
 
 export type OutreachAudience =
   | "investor"
@@ -41,7 +42,7 @@ export function inferAudience(data: Record<string, unknown>): OutreachAudience {
   if (tags.includes("swiftdroom-b2c") || tags.includes("swiftdroom-user")) {
     return "swiftdroom-b2c";
   }
-  if (data.source === "techcrunch" || tags.includes("journalist")) {
+  if (isPressSource(data.source) || tags.includes("journalist")) {
     return "journalist";
   }
 
@@ -49,7 +50,7 @@ export function inferAudience(data: Record<string, unknown>): OutreachAudience {
 }
 
 export function audienceFromScrapeSource(source: string): OutreachAudience {
-  if (source === "techcrunch") return "journalist";
+  if (isPressSource(source)) return "journalist";
   return "investor";
 }
 
@@ -69,6 +70,7 @@ export function mergeAudienceTags(
   const stripped = existingTags.filter(
     t =>
       !t.startsWith("audience:") &&
+      !t.startsWith("outlet:") &&
       t !== "swiftdroom-b2c" &&
       t !== "swiftdroom-b2b" &&
       t !== "swiftdroom-user" &&

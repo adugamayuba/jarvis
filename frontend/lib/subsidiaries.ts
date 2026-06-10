@@ -144,14 +144,14 @@ export const SUBSIDIARIES: Subsidiary[] = [
       {
         id: "press",
         label: "Press Outreach",
-        description: "TechCrunch journalists — scrape & email from Gmail extension.",
+        description: "15+ press outlets — scrape journalists & email from Gmail extension.",
         href: "/scraper",
         status: "live",
         icon: Mail,
       },
     ],
     pipelineTools: [
-      { id: "scraper", label: "Scraper", description: "Crunchbase, social, TechCrunch", href: "/scraper", status: "live", icon: Search },
+      { id: "scraper", label: "Scraper", description: "Investors, social, 15+ press outlets", href: "/scraper", status: "live", icon: Search },
       { id: "import", label: "Import & Emails", description: "CSV import, Apollo, email finder", href: "/import", status: "live", icon: Upload },
       { id: "contacts", label: "Contacts", description: "Full outreach pipeline", href: "/contacts", status: "live", icon: Users },
       { id: "bulk", label: "Bulk Send", description: "Gmail outreach at scale", href: "/bulk", status: "live", icon: Send },

@@ -10,7 +10,10 @@ import {
   socialPlatformToContactSource,
   SocialPlatform,
 } from "../services/socialGoogleScraper";
-import { scrapeTechCrunchJournalists } from "../services/techcrunchScraper";
+import {
+  scrapePressOutletJournalists,
+  scrapeAllPressOutlets,
+} from "../services/pressScraper";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import * as admin from "firebase-admin";
 import { Contact, ScrapeJob } from "../types";
@@ -19,20 +22,38 @@ import {
   upsertContactWithAudience,
   OutreachAudience,
 } from "../lib/outreachAudience";
+import {
+  PRESS_OUTLET_IDS,
+  PressOutletId,
+  isPressOutletId,
+  getPressOutlet,
+  listPressOutlets,
+} from "../lib/pressOutlets";
 
 const router = Router();
 
 const SocialPlatformSchema = z.enum(["twitter", "instagram", "facebook", "tiktok"]);
 
+const ScrapeSourceSchema = z.enum([
+  "crunchbase",
+  "linkedin",
+  "twitter",
+  "social_google",
+  "press_all",
+  ...PRESS_OUTLET_IDS,
+] as [string, ...string[]]);
+
 const ScrapeRequestSchema = z.object({
-  source: z.enum(["crunchbase", "linkedin", "twitter", "social_google", "techcrunch"]).default("crunchbase"),
+  source: ScrapeSourceSchema.default("crunchbase"),
   url: z.string().optional(),
   keyword: z.string().optional(),
   platforms: z.array(SocialPlatformSchema).optional(),
   maxPagesPerQuery: z.number().int().min(1).max(5).optional(),
   maxProfiles: z.number().int().min(10).max(500).optional(),
 }).superRefine((data, ctx) => {
-  if (data.source === "social_google" || data.source === "techcrunch") return;
+  if (data.source === "social_google" || isPressOutletId(data.source) || data.source === "press_all") {
+    return;
+  }
   if (!data.url?.trim()) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "url is required for this source", path: ["url"] });
     return;
@@ -50,10 +71,56 @@ function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   ) as Partial<T>;
 }
 
-
-function profileDocId(profileUrl: string, prefix = "social"): string {
+function profileDocId(profileUrl: string, prefix: string): string {
   const slug = profileUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(-55);
   return `${prefix}_${slug}`;
+}
+
+async function savePressContacts(
+  db: admin.firestore.Firestore,
+  outletId: PressOutletId,
+  contacts: Array<{
+    name: string;
+    email?: string;
+    emails?: string[];
+    oneLiner?: string;
+    title?: string;
+    company?: string;
+    profileUrl?: string;
+  }>
+): Promise<number> {
+  const config = getPressOutlet(outletId);
+  let saved = 0;
+
+  for (const c of contacts) {
+    const docId = c.profileUrl ? profileDocId(c.profileUrl, config.docPrefix) : undefined;
+    const tags = ["journalist", `outlet:${outletId}`];
+    if (c.profileUrl) tags.push(`profile:${c.profileUrl}`);
+
+    const payload: Record<string, unknown> = {
+      name: c.name,
+      email: (c.email || "").trim().toLowerCase(),
+      oneLiner: c.oneLiner || "",
+      title: c.title || "",
+      company: c.company || config.company,
+      source: outletId,
+      emailSent: false,
+    };
+    if (c.emails?.length) payload.emails = c.emails.map(e => e.toLowerCase());
+    if (c.profileUrl) payload.crunchbaseUrl = c.profileUrl;
+    payload.tags = [...new Set(tags)];
+
+    const result = await upsertContactWithAudience(db, {
+      docId,
+      payload,
+      audience: "journalist",
+      primaryEmail: c.email,
+    });
+
+    if (result.action !== "skipped_conflict") saved++;
+  }
+
+  return saved;
 }
 
 async function saveContacts(
@@ -75,12 +142,10 @@ async function saveContacts(
   let saved = 0;
 
   for (const c of contacts) {
-    const audience: OutreachAudience =
-      c.source === "techcrunch"
-        ? "journalist"
-        : audienceFromScrapeSource(c.source);
-
-    const prefix = c.source === "techcrunch" ? "tc" : "social";
+    const audience: OutreachAudience = audienceFromScrapeSource(c.source);
+    const prefix = isPressOutletId(c.source)
+      ? getPressOutlet(c.source).docPrefix
+      : "social";
     const docId = c.profileUrl ? profileDocId(c.profileUrl, prefix) : undefined;
 
     const tags = [...(c.tags || [])];
@@ -113,6 +178,22 @@ async function saveContacts(
   return saved;
 }
 
+async function runPressScrapeJob(
+  db: admin.firestore.Firestore,
+  jobRef: admin.firestore.DocumentReference,
+  outletId: PressOutletId,
+  url?: string
+): Promise<number> {
+  const config = getPressOutlet(outletId);
+  const scraped = await scrapePressOutletJournalists(outletId, url || config.staffPageUrl);
+  return savePressContacts(db, outletId, scraped);
+}
+
+// GET /api/scrape/press-outlets — list Reelin press targets
+router.get("/press-outlets", (_req: Request, res: Response) => {
+  res.json({ success: true, data: listPressOutlets() });
+});
+
 // POST /api/scrape — kick off a scrape job
 router.post("/", async (req: Request, res: Response) => {
   try {
@@ -131,9 +212,11 @@ router.post("/", async (req: Request, res: Response) => {
     const jobLabel =
       source === "social_google"
         ? buildSocialScrapeLabel({ keyword, platforms: platforms as SocialPlatform[] | undefined })
-        : source === "techcrunch"
-          ? url || "https://techcrunch.com/about-techcrunch/"
-          : url!;
+        : source === "press_all"
+          ? "All press outlets (Reelin AI)"
+          : isPressOutletId(source)
+            ? `${getPressOutlet(source).label} journalists`
+            : url!;
 
     const jobRef = await db.collection(COLLECTIONS.SCRAPE_JOBS).add(
       omitUndefined({
@@ -149,6 +232,7 @@ router.post("/", async (req: Request, res: Response) => {
     (async () => {
       try {
         let savedCount = 0;
+        let pressResults: Record<string, number> | undefined;
 
         if (source === "social_google") {
           const scraped = await scrapeSocialViaGoogle({
@@ -173,25 +257,20 @@ router.post("/", async (req: Request, res: Response) => {
               source: socialPlatformToContactSource(c.platform),
             }))
           );
-        } else if (source === "techcrunch") {
-          const scraped = await scrapeTechCrunchJournalists(
-            url || "https://techcrunch.com/about-techcrunch/"
-          );
-          savedCount = await saveContacts(
-            db,
-            scraped.map(c => ({
-              name: c.name,
-              email: c.email,
-              emails: c.emails,
-              oneLiner: c.oneLiner,
-              title: c.title,
-              company: c.company || "TechCrunch",
-              crunchbaseUrl: c.profileUrl,
-              profileUrl: c.profileUrl,
-              source: "techcrunch" as const,
-              tags: ["journalist"],
-            }))
-          );
+        } else if (source === "press_all") {
+          pressResults = {};
+          for (const outletId of PRESS_OUTLET_IDS) {
+            try {
+              const count = await runPressScrapeJob(db, jobRef, outletId);
+              pressResults[outletId] = count;
+              savedCount += count;
+            } catch (err) {
+              console.error(`Press scrape failed for ${outletId}:`, err);
+              pressResults[outletId] = 0;
+            }
+          }
+        } else if (isPressOutletId(source)) {
+          savedCount = await runPressScrapeJob(db, jobRef, source, url);
         } else if (source === "crunchbase") {
           const contacts = await scrapeCrunchbaseDirect(url!);
           savedCount = await saveContacts(
@@ -210,11 +289,14 @@ router.post("/", async (req: Request, res: Response) => {
           throw new Error(`Source '${source}' not yet supported`);
         }
 
-        await jobRef.update({
-          status: "completed",
-          contactsFound: savedCount,
-          completedAt: new Date().toISOString(),
-        });
+        await jobRef.update(
+          omitUndefined({
+            status: "completed",
+            contactsFound: savedCount,
+            pressResults,
+            completedAt: new Date().toISOString(),
+          })
+        );
 
         console.log(`✅ Scrape job ${jobRef.id} completed — ${savedCount} contacts saved`);
       } catch (err) {
@@ -253,6 +335,7 @@ router.get("/debug", (_req: Request, res: Response) => {
     user_key_set: !!process.env.CRUNCHBASE_USER_KEY,
     user_key_preview: process.env.CRUNCHBASE_USER_KEY?.slice(0, 8) + "...",
     apify_token_set: !!process.env.APIFY_API_TOKEN,
+    press_outlets: PRESS_OUTLET_IDS.length,
   });
 });
 

@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { ApiResponse, Contact, Campaign, ScrapeJob } from "@/types";
+import type { PressOutletId } from "@/types";
 import { getToken } from "./auth";
 
 const api = axios.create({
@@ -51,7 +52,18 @@ export async function getSwiftdroomStats(): Promise<ApiResponse<SwiftdroomStats>
 }
 
 // ── Scraping ──────────────────────────────────────────────────────────────────
-export type ScrapeSource = "crunchbase" | "linkedin" | "social_google" | "techcrunch";
+export type ScrapeSource =
+  | "crunchbase"
+  | "linkedin"
+  | "social_google"
+  | "press_all"
+  | PressOutletId;
+
+export interface PressOutletInfo {
+  id: PressOutletId;
+  label: string;
+  company: string;
+}
 
 export interface SocialScrapeParams {
   keyword?: string;
@@ -60,9 +72,27 @@ export interface SocialScrapeParams {
   maxProfiles?: number;
 }
 
+export async function getPressOutlets(): Promise<ApiResponse<PressOutletInfo[]>> {
+  const res = await api.get("/api/scrape/press-outlets");
+  return res.data;
+}
+
+export async function startPressOutletScrape(
+  outlet: PressOutletId,
+  url?: string
+): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/scrape", { source: outlet, url });
+  return res.data;
+}
+
+export async function startAllPressScrapes(): Promise<ApiResponse<{ jobId: string }>> {
+  const res = await api.post("/api/scrape", { source: "press_all" });
+  return res.data;
+}
+
 export async function startScrapeJob(
   url: string,
-  source: ScrapeSource = "crunchbase"
+  source: "crunchbase" | "linkedin" = "crunchbase"
 ): Promise<ApiResponse<{ jobId: string }>> {
   const res = await api.post("/api/scrape", { url, source });
   return res.data;
@@ -84,11 +114,7 @@ export async function startSocialGoogleScrape(
 export async function startTechCrunchScrape(
   url?: string
 ): Promise<ApiResponse<{ jobId: string }>> {
-  const res = await api.post("/api/scrape", {
-    source: "techcrunch",
-    url: url || "https://techcrunch.com/about-techcrunch/",
-  });
-  return res.data;
+  return startPressOutletScrape("techcrunch", url || "https://techcrunch.com/about-techcrunch/");
 }
 
 export async function getScrapeJob(jobId: string): Promise<ApiResponse<ScrapeJob>> {

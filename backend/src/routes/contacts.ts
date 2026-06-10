@@ -12,6 +12,7 @@ import {
   backfillContactAudiences,
   matchesOutreachAudience,
 } from "../lib/outreachAudience";
+import { ALL_CONTACT_SOURCES, isPressSource } from "../lib/pressOutlets";
 
 interface IdParams extends Record<string, string> { id: string }
 
@@ -33,9 +34,7 @@ const ContactSchema = z.object({
   linkedinUrl: z.string().optional(),
   crunchbaseUrl: z.string().optional(),
   profileImageUrl: z.string().optional(),
-  source: z
-    .enum(["crunchbase", "linkedin", "twitter", "instagram", "facebook", "tiktok", "techcrunch", "manual", "extension"])
-    .default("manual"),
+  source: z.enum([...ALL_CONTACT_SOURCES] as [string, ...string[]]).default("manual"),
   audience: AudienceSchema.optional(),
   tags: z.array(z.string()).optional(),
 });
@@ -182,7 +181,7 @@ router.post("/", async (req: Request, res: Response) => {
     const db = getDb();
     const audience: OutreachAudience =
       parsed.data.audience ||
-      (parsed.data.source === "techcrunch" ? "journalist" : "investor");
+      (isPressSource(parsed.data.source) ? "journalist" : "investor");
 
     const payload: Record<string, unknown> = {
       ...parsed.data,

@@ -308,7 +308,7 @@
 
   function audienceLabel(audience) {
     switch (audience) {
-      case "journalist": return "Press / TechCrunch template";
+      case "journalist": return "Press / Reelin AI template";
       case "swiftdroom-b2c": return "Swiftdroom · job seeker template";
       case "swiftdroom-b2b": return "Swiftdroom · institution / B2B template";
       default: return "Reelin AI · investor template";
@@ -317,7 +317,7 @@
 
   function audienceQueueHint(audience) {
     switch (audience) {
-      case "journalist": return "No journalists with email — scrape TechCrunch in Jarvis Scraper first";
+      case "journalist": return "No journalists with email — scrape press outlets in Jarvis Scraper first";
       case "swiftdroom-b2c": return "No B2C contacts — tag contacts swiftdroom-b2c in Jarvis";
       case "swiftdroom-b2b": return "No B2B contacts — tag contacts swiftdroom-b2b in Jarvis";
       default: return "No contacts with email (not sent) — check Jarvis Contacts page";
@@ -334,7 +334,15 @@
   }
 
   function matchesAudienceFilter(c, audience) {
-    const isJournalist = c.source === "techcrunch" || c.tags?.includes("journalist");
+    const pressSources = [
+      "techcrunch", "businessinsider", "theverge", "wired", "arstechnica",
+      "venturebeat", "fastcompany", "fortune", "cnbc", "axios", "semafor",
+      "mashable", "engadget", "gizmodo", "vox",
+    ];
+    const isJournalist =
+      pressSources.includes(c.source) ||
+      c.tags?.includes("journalist") ||
+      c.audience === "journalist";
     const isB2C = c.tags?.includes("swiftdroom-b2c") || c.tags?.includes("swiftdroom-user");
     const isB2B = c.tags?.includes("swiftdroom-b2b") || c.tags?.includes("swiftdroom-partner") || c.tags?.includes("swiftdroom-institution");
     const isSwiftdroom = c.source === "swiftdroom" || isB2C || isB2B;

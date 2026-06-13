@@ -71,6 +71,7 @@
           display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid #1f1f1f; flex-shrink: 0;
         ">
           <button id="jarvis-mode-form" class="jarvis-mode-btn" data-mode="form">Fill Form</button>
+          <button id="jarvis-mode-qa" class="jarvis-mode-btn" data-mode="qa">Q&amp;A</button>
           <button id="jarvis-mode-emails" class="jarvis-mode-btn jarvis-mode-active" data-mode="emails">Find Emails</button>
           <button id="jarvis-mode-send" class="jarvis-mode-btn" data-mode="send" style="display:none">Send Emails</button>
         </div>
@@ -84,6 +85,17 @@
           <div id="jarvis-fields-list" style="display: none;"></div>
           <div id="jarvis-people-list" style="display: none;"></div>
           <div id="jarvis-send-panel" style="display: none;"></div>
+          <div id="jarvis-qa-panel" style="display: none;">
+            <p style="font-size: 11px; color: #737373; margin: 0 0 8px;">Paste a form question — Jarvis returns the approved Reelin AI answer.</p>
+            <label style="font-size: 10px; color: #525252; font-weight: 600; display: block; margin-bottom: 4px;">QUESTION</label>
+            <textarea id="jarvis-qa-question" class="jarvis-template-input jarvis-qa-input" placeholder="e.g. What problem are you working to solve?" rows="4"></textarea>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 4px;">
+              <label style="font-size: 10px; color: #525252; font-weight: 600;">ANSWER</label>
+              <button type="button" id="jarvis-qa-copy-btn" class="jarvis-copy-btn">Copy answer</button>
+            </div>
+            <textarea id="jarvis-qa-answer" class="jarvis-template-input jarvis-qa-input" placeholder="Answer appears here…" rows="8"></textarea>
+            <div id="jarvis-qa-history" style="margin-top: 12px;"></div>
+          </div>
           <div id="jarvis-empty" style="display: none; text-align: center; padding: 40px 0;">
             <p id="jarvis-empty-text" style="font-size: 12px; color: #525252;">No form fields detected on this page.</p>
             <p style="font-size: 11px; color: #404040; margin-top: 4px;">Navigate to an application form or team page to get started.</p>
@@ -232,6 +244,23 @@
       }
       .jarvis-test-btn:hover { border-color: #737373; color: #fff; }
       .jarvis-test-btn:disabled { opacity: 0.5; cursor: wait; }
+      .jarvis-qa-input {
+        width: 100%; min-height: 80px; resize: vertical; line-height: 1.45;
+        margin-bottom: 4px;
+      }
+      #jarvis-qa-history .jarvis-qa-history-item {
+        border: 1px solid #1f1f1f; border-radius: 6px; padding: 8px 10px;
+        margin-bottom: 6px; background: #111; cursor: pointer;
+      }
+      #jarvis-qa-history .jarvis-qa-history-item:hover { border-color: #333; }
+      .jarvis-qa-history-q {
+        font-size: 10px; color: #737373; margin-bottom: 4px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .jarvis-qa-history-a {
+        font-size: 10px; color: #a3a3a3; line-height: 1.35;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      }
     `;
     document.head.appendChild(style);
     document.body.appendChild(container);
@@ -247,6 +276,7 @@
       setMode("form");
       if (mappedFields.length === 0) scanAndMap();
     });
+    document.getElementById("jarvis-mode-qa").addEventListener("click", () => setMode("qa"));
     document.getElementById("jarvis-mode-emails").addEventListener("click", () => {
       setMode("emails");
       if (peopleResults.length === 0) scanPeopleEmails();
@@ -260,9 +290,12 @@
     if (window.__jarvisGmail?.isGmail()) {
       document.getElementById("jarvis-mode-send").style.display = "block";
     }
+
+    document.getElementById("jarvis-qa-copy-btn")?.addEventListener("click", () => copyQaAnswer());
   }
 
   let sidebarMode = "emails";
+  let qaHistory = [];
   let peopleResults = [];
   let detectedCompany = "";
   let hasScanned = false;
@@ -377,6 +410,7 @@
     document.getElementById("jarvis-fields-list").style.display = "none";
     document.getElementById("jarvis-people-list").style.display = "none";
     document.getElementById("jarvis-send-panel").style.display = "none";
+    document.getElementById("jarvis-qa-panel").style.display = "none";
   }
 
   function updateAddAllButton() {
@@ -403,6 +437,7 @@
     document.getElementById("jarvis-fields-list").style.display = "none";
     document.getElementById("jarvis-people-list").style.display = "none";
     document.getElementById("jarvis-send-panel").style.display = "none";
+    document.getElementById("jarvis-qa-panel").style.display = "none";
 
     if (mode === "form") {
       actionBtn.textContent = "Fill Form";
@@ -420,6 +455,15 @@
       document.getElementById("jarvis-send-panel").style.display = "block";
       if (!outreachQueue.length) showIdleState();
       setStatus("Gmail outreach — select investors and send");
+    } else if (mode === "qa") {
+      actionBtn.textContent = "Get Answer";
+      actionBtn.classList.remove("jarvis-stop-btn");
+      scanBtn.textContent = "Clear";
+      if (addAllBtn) addAllBtn.style.display = "none";
+      document.getElementById("jarvis-qa-panel").style.display = "block";
+      showEmpty(false);
+      showLoading(false);
+      setStatus("Paste a question and click Get Answer");
     } else {
       actionBtn.textContent = "Copy All Emails";
       actionBtn.classList.remove("jarvis-stop-btn");
@@ -434,6 +478,7 @@
   function runScan() {
     if (sidebarMode === "form") scanAndMap();
     else if (sidebarMode === "send") loadOutreachQueue();
+    else if (sidebarMode === "qa") clearQaForm();
     else scanPeopleEmails();
   }
 
@@ -443,8 +488,95 @@
       if (sendQueueRunning) stopSendQueue();
       else startSendQueue();
     }
+    else if (sidebarMode === "qa") getQaAnswer();
     else copyAllEmails();
   }
+
+  function clearQaForm() {
+    const q = document.getElementById("jarvis-qa-question");
+    const a = document.getElementById("jarvis-qa-answer");
+    if (q) q.value = "";
+    if (a) a.value = "";
+    setStatus("Cleared — paste a new question");
+  }
+
+  async function getQaAnswer() {
+    const question = document.getElementById("jarvis-qa-question")?.value?.trim();
+    if (!question) {
+      setStatus("Paste a question first");
+      return;
+    }
+
+    setStatus("Getting answer…");
+    showLoading(true);
+
+    let response;
+    try {
+      response = await sendMessage({ type: "ANSWER_QUESTION", question });
+    } catch {
+      response = { success: false, error: "Request failed" };
+    }
+
+    showLoading(false);
+
+    if (!response.success || !response.data) {
+      setStatus(response.error || "Failed to get answer — check connection");
+      return;
+    }
+
+    const answer = response.data.answer || "";
+    const answerEl = document.getElementById("jarvis-qa-answer");
+    if (answerEl) answerEl.value = answer;
+
+    if (answer) {
+      qaHistory.unshift({ question, answer });
+      if (qaHistory.length > 8) qaHistory.pop();
+      renderQaHistory();
+      const src = response.data.source === "matched" ? "approved copy" : "AI";
+      setStatus(`Answer ready (${src}) — copy and paste into the form`);
+    } else {
+      setStatus("No matching answer — edit manually or try rephrasing the question");
+    }
+  }
+
+  function renderQaHistory() {
+    const list = document.getElementById("jarvis-qa-history");
+    if (!list) return;
+    if (!qaHistory.length) {
+      list.innerHTML = "";
+      return;
+    }
+    list.innerHTML = `<p style="font-size:10px;color:#525252;margin:0 0 6px;">Recent</p>`;
+    qaHistory.forEach((item) => {
+      const el = document.createElement("div");
+      el.className = "jarvis-qa-history-item";
+      el.innerHTML = `
+        <div class="jarvis-qa-history-q">${escapeHtml(item.question)}</div>
+        <div class="jarvis-qa-history-a">${escapeHtml(item.answer)}</div>
+      `;
+      el.addEventListener("click", () => {
+        document.getElementById("jarvis-qa-question").value = item.question;
+        document.getElementById("jarvis-qa-answer").value = item.answer;
+        setStatus("Loaded from history");
+      });
+      list.appendChild(el);
+    });
+  }
+
+  async function copyQaAnswer() {
+    const answer = document.getElementById("jarvis-qa-answer")?.value?.trim();
+    if (!answer) {
+      setStatus("No answer to copy");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(answer);
+      setStatus("Answer copied to clipboard");
+    } catch {
+      setStatus("Copy failed — select and copy manually");
+    }
+  }
+
 
   function openSidebar(options = {}) {
     createSidebar();

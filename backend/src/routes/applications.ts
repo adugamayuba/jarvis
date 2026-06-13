@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import OpenAI from "openai";
 import { getDb } from "../services/firebase";
 import { analyzeApplicationForm, submitApplicationForm, FormField, REELIN_PROFILE } from "../services/browser";
-import { matchFormField, APPLICATION_KNOWLEDGE, FORM_FIELD_MAP } from "../data/applicationFields";
+import { matchFormField, APPLICATION_KNOWLEDGE, FORM_FIELD_MAP, validateMapping } from "../data/applicationFields";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -112,10 +112,20 @@ router.get("/profile", (_req: Request, res: Response) => {
 // POST /api/applications/map-fields — used by Chrome extension to AI-map fields
 router.post("/map-fields", async (req: Request, res: Response) => {
   try {
-    const { fields, pageTitle, pageText } = req.body as {
-      fields: Array<{ label: string; type: string; selector: string; required: boolean; options?: string[]; name?: string }>;
+    const { fields, pageTitle, pageText, singleField } = req.body as {
+      fields: Array<{
+        label: string;
+        type: string;
+        selector: string;
+        required: boolean;
+        options?: string[];
+        name?: string;
+        fieldContext?: string;
+        isRetry?: boolean;
+      }>;
       pageTitle: string;
       pageText: string;
+      singleField?: boolean;
     };
 
     if (!fields || fields.length === 0) {
@@ -124,7 +134,6 @@ router.post("/map-fields", async (req: Request, res: Response) => {
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      // Return fields without AI mapping if no API key
       const mappedFields = fields.map(f => ({ ...f, suggestedValue: "" }));
       res.json({ success: true, data: { fields: mappedFields } });
       return;
@@ -133,32 +142,16 @@ router.post("/map-fields", async (req: Request, res: Response) => {
     const profile = JSON.stringify(REELIN_PROFILE, null, 2);
     const fieldMapKeys = Object.keys(FORM_FIELD_MAP).slice(0, 40).join(", ");
 
-    // Deterministic match first — approved copy beats AI guesses
-    const preMapped = fields.map((f, i) => {
-      return matchFormField(f.label, f.name, undefined, { fieldIndex: i, allFields: fields });
-    });
+    // Single-field / pick-field retry — focused prompt with surrounding context
+    if (singleField || (fields.length === 1 && fields[0].isRetry)) {
+      const f = fields[0];
+      const preMapped = matchFormField(f.label, f.name, undefined, { fieldIndex: 0, allFields: fields, fieldContext: f.fieldContext });
 
-    const unmatchedIndices = preMapped
-      .map((v, i) => (v ? -1 : i))
-      .filter(i => i >= 0);
+      const contextBlock = f.fieldContext
+        ? `\nSURROUNDING FIELD CONTEXT (question text, hints, instructions near this input):\n${f.fieldContext}\n`
+        : "";
 
-    // If everything matched, return immediately
-    if (unmatchedIndices.length === 0) {
-      const mappedFields = fields.map((f, i) => ({
-        ...f,
-        suggestedValue: preMapped[i] || "",
-      }));
-      res.json({ success: true, data: { fields: mappedFields } });
-      return;
-    }
-
-    // Batch map unmatched fields in one OpenAI call
-    const fieldDescriptions = unmatchedIndices.map(i => {
-      const f = fields[i];
-      return `${i}. Label: "${f.label}" | Name: "${f.name || ""}" | Type: ${f.type}${f.options?.length ? ` | Options: [${f.options.join(", ")}]` : ""}`;
-    }).join("\n");
-
-    const prompt = `You are filling out an accelerator application for Reelin AI.
+      const prompt = `You are filling ONE missed field on an accelerator application for Reelin AI.
 
 REELIN AI PROFILE:
 ${profile}
@@ -170,41 +163,136 @@ ${fieldMapKeys}
 
 CRITICAL RULES:
 - First Name = Abel, Last Name = Adugam (NEVER swap these)
-- Founder 1: Abel Adugam, Founder & CEO, abel@reelin.ai, LinkedIn https://adugam.com
-- Founder 2: Ligia Tica, Co-founder & Operations, ligia@reelin.ai, LinkedIn https://www.linkedin.com/in/ligia-t-8b4630225/
+- Company name / organization name = Reelin AI (NEVER a person's name)
+- Company website = https://reelin.ai (NOT LinkedIn URLs)
+- Founder LinkedIn = Abel https://adugam.com | Ligia https://www.linkedin.com/in/ligia-t-8b4630225/
+- Pitch deck link = https://docsend.com/view/raru36axy8gftwb4 (ONLY for deck fields)
+- Founder 1: Abel Adugam, Founder & CEO, abel@reelin.ai
+- Founder 2: Ligia Tica, Co-founder & Operations, ligia@reelin.ai
 - For long textarea questions, use the FULL approved Q&A answers — never shorten or invent
 - Video pitch URL fields = leave empty string (no video URL yet)
 - Do NOT claim patents exist — we have NO formal patents filed yet
-- Do NOT put problem statement in program select, or team experience in video pitch field
 - Deck link = https://docsend.com/view/raru36axy8gftwb4
 
 PAGE: "${pageTitle}"
-CONTEXT: ${pageText.substring(0, 500)}
+PAGE CONTEXT: ${(pageText || "").substring(0, 500)}
 
-UNMATCHED FORM FIELDS (index in original array):
-${fieldDescriptions}
+FIELD TO FILL:
+Label: "${f.label}"
+Name: "${f.name || ""}"
+Type: ${f.type}${f.required ? " (required)" : ""}${f.options?.length ? `\nOptions: [${f.options.join(", ")}]` : ""}
+${contextBlock}
+Read the label AND surrounding context carefully — accelerator forms often hide the real question in nearby text, not the input label alone.
+If label is generic (e.g. "textbox"), use the Context above as the real question.
 
-For each field index listed above, provide the best value.
+Respond with JSON: { "value": "your answer here" }
 - For radio/select: choose the exact option text from the options list
 - For text/textarea: use approved copy verbatim when available
 - For checkboxes: return "true" or "false"
-- For optional video pitch: return empty string ""
+- For optional video pitch: return empty string ""`;
 
-Respond with JSON: { "values": { "0": "value", "3": "value" } } using field indices as keys`;
+      const result = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 2000,
+      });
 
-    const result = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      max_tokens: 4000,
+      const json = JSON.parse(result.choices[0].message.content || "{}");
+      const aiValue = (json.value ?? json.values?.["0"] ?? "") as string;
+      const finalValue = preMapped || aiValue || "";
+      const validated = validateMapping(
+        `${f.label} ${f.fieldContext || ""}`.toLowerCase(),
+        finalValue
+      ) ? finalValue : (preMapped || "");
+
+      res.json({
+        success: true,
+        data: {
+          fields: [{
+            ...f,
+            suggestedValue: validated,
+          }],
+        },
+      });
+      return;
+    }
+
+    // Deterministic match first — approved copy beats AI guesses
+    const preMapped = fields.map((f, i) => {
+      return matchFormField(f.label, f.name, undefined, { fieldIndex: i, allFields: fields, fieldContext: f.fieldContext });
     });
 
-    const json = JSON.parse(result.choices[0].message.content || "{}");
-    const aiValues: Record<string, string> = json.values || {};
+    const unmatchedIndices = preMapped
+      .map((v, i) => (v ? -1 : i))
+      .filter(i => i >= 0);
+
+    if (unmatchedIndices.length === 0) {
+      const mappedFields = fields.map((f, i) => ({
+        ...f,
+        suggestedValue: preMapped[i] || "",
+      }));
+      res.json({ success: true, data: { fields: mappedFields } });
+      return;
+    }
+
+    // Map each unmatched field individually — avoids AI mixing answers across fields
+    const aiMapped = [...preMapped];
+    await Promise.all(unmatchedIndices.map(async (i) => {
+      const f = fields[i];
+      const contextBlock = f.fieldContext
+        ? `\nSURROUNDING FIELD CONTEXT (question text near this input):\n${f.fieldContext}\n`
+        : "";
+
+      const prompt = `You are filling ONE field on an accelerator application for Reelin AI.
+
+REELIN AI PROFILE:
+${profile}
+
+${APPLICATION_KNOWLEDGE}
+
+CRITICAL RULES:
+- Company name → Reelin AI (NEVER a person name)
+- Company website → https://reelin.ai (NOT LinkedIn)
+- First name → Abel | Last name → Adugam
+- Founder 1: Abel Adugam, abel@reelin.ai, LinkedIn https://adugam.com
+- Founder 2: Ligia Tica, ligia@reelin.ai, LinkedIn https://www.linkedin.com/in/ligia-t-8b4630225/
+- Pitch deck → https://docsend.com/view/raru36axy8gftwb4 ONLY for deck fields
+- Video pitch → empty string
+- Use FULL approved Q&A verbatim for long textarea questions
+- Do NOT claim patents exist
+
+PAGE: "${pageTitle}"
+
+THIS FIELD ONLY:
+Label: "${f.label}"
+Name: "${f.name || ""}"
+Type: ${f.type}${f.options?.length ? `\nOptions: [${f.options.join(", ")}]` : ""}
+${contextBlock}
+If label is generic ("textbox"), the Context above IS the question. Answer ONLY this field.
+
+Respond with JSON: { "value": "answer" }`;
+
+      try {
+        const result = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          max_tokens: 2000,
+        });
+        const json = JSON.parse(result.choices[0].message.content || "{}");
+        const aiValue = (json.value ?? "") as string;
+        const haystack = `${f.label} ${f.fieldContext || ""} ${f.name || ""}`.toLowerCase();
+        const finalValue = preMapped[i] || aiValue || "";
+        aiMapped[i] = validateMapping(haystack, finalValue) ? finalValue : (preMapped[i] || "");
+      } catch {
+        aiMapped[i] = preMapped[i] || "";
+      }
+    }));
 
     const mappedFields = fields.map((f, i) => ({
       ...f,
-      suggestedValue: preMapped[i] || aiValues[String(i)] || aiValues[i] || "",
+      suggestedValue: aiMapped[i] || "",
     }));
 
     res.json({ success: true, data: { fields: mappedFields } });

@@ -43,12 +43,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         // Send extracted fields to Jarvis AI for value mapping
         const result = await apiCall("/api/applications/map-fields", {
           method: "POST",
-          body: JSON.stringify({
-            fields: msg.fields,
-            pageTitle: msg.pageTitle,
-            pageText: msg.pageText,
-            singleField: !!msg.singleField,
-          }),
+          body: JSON.stringify({ fields: msg.fields, pageTitle: msg.pageTitle, pageText: msg.pageText }),
         });
         sendResponse({ success: true, data: result.data });
       } else if (msg.type === "SAVE_APPLICATION") {

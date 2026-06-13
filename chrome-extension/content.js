@@ -100,11 +100,6 @@
             border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 500;
             cursor: pointer; transition: all 0.15s;
           ">Scan Page</button>
-          <button id="jarvis-pick-field-btn" style="
-            flex: 1; background: #1a1a1a; color: #93c5fd; border: 1px solid #1e3a5f;
-            border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 500;
-            cursor: pointer; transition: all 0.15s; display: none;
-          ">Pick Field</button>
           <button id="jarvis-add-all-btn" style="
             flex: 1; background: #1a1a1a; color: #93c5fd; border: 1px solid #1e3a5f;
             border-radius: 7px; padding: 8px; font-size: 12px; font-weight: 500;
@@ -166,18 +161,6 @@
       .jarvis-field-type {
         font-size: 9px; background: #1a1a1a; color: #525252;
         padding: 1px 5px; border-radius: 3px; border: 1px solid #262626;
-      }
-      .jarvis-field-item.jarvis-field-highlight {
-        border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59,130,246,0.3);
-      }
-      .jarvis-pick-active {
-        background: #1e3a5f !important; color: #93c5fd !important; border-color: #3b82f6 !important;
-      }
-      .jarvis-pick-hover {
-        outline: 2px dashed #3b82f6 !important;
-        outline-offset: 2px;
-        box-shadow: 0 0 0 4px rgba(59,130,246,0.15) !important;
-        cursor: crosshair !important;
       }
       .jarvis-mode-btn {
         flex: 1; background: #1a1a1a; color: #737373; border: 1px solid #262626;
@@ -260,7 +243,6 @@
     document.getElementById("jarvis-scan-btn").addEventListener("click", () => runScan());
     document.getElementById("jarvis-add-all-btn").addEventListener("click", () => addAllToContacts());
     document.getElementById("jarvis-action-btn").addEventListener("click", () => runAction());
-    document.getElementById("jarvis-pick-field-btn").addEventListener("click", () => togglePickFieldMode());
     document.getElementById("jarvis-mode-form").addEventListener("click", () => {
       setMode("form");
       if (mappedFields.length === 0) scanAndMap();
@@ -417,7 +399,6 @@
     });
     const actionBtn = document.getElementById("jarvis-action-btn");
     const scanBtn = document.getElementById("jarvis-scan-btn");
-    const pickBtn = document.getElementById("jarvis-pick-field-btn");
     const addAllBtn = document.getElementById("jarvis-add-all-btn");
     document.getElementById("jarvis-fields-list").style.display = "none";
     document.getElementById("jarvis-people-list").style.display = "none";
@@ -427,7 +408,6 @@
       actionBtn.textContent = "Fill Form";
       actionBtn.classList.remove("jarvis-stop-btn");
       scanBtn.textContent = "Scan Form";
-      if (pickBtn) pickBtn.style.display = "block";
       if (addAllBtn) addAllBtn.style.display = "none";
       document.getElementById("jarvis-fields-list").style.display = mappedFields.length ? "block" : "none";
       if (!mappedFields.length) showIdleState();
@@ -436,8 +416,6 @@
       actionBtn.textContent = sendQueueRunning ? "Stop Sending" : "Send Emails";
       actionBtn.classList.toggle("jarvis-stop-btn", sendQueueRunning);
       scanBtn.textContent = "Refresh List";
-      if (pickBtn) pickBtn.style.display = "none";
-      stopPickFieldMode();
       if (addAllBtn) addAllBtn.style.display = "none";
       document.getElementById("jarvis-send-panel").style.display = "block";
       if (!outreachQueue.length) showIdleState();
@@ -446,8 +424,6 @@
       actionBtn.textContent = "Copy All Emails";
       actionBtn.classList.remove("jarvis-stop-btn");
       scanBtn.textContent = "Scan Page";
-      if (pickBtn) pickBtn.style.display = "none";
-      stopPickFieldMode();
       document.getElementById("jarvis-people-list").style.display = peopleResults.length ? "block" : "none";
       updateAddAllButton();
       if (!peopleResults.length) showIdleState();
@@ -488,7 +464,6 @@
 
   function closeSidebar() {
     if (!sidebarEl) return;
-    stopPickFieldMode();
     sidebarOpen = false;
     document.getElementById("jarvis-sidebar").style.right = "-420px";
     document.getElementById("jarvis-toggle-tab").style.right = "0";
@@ -502,616 +477,120 @@
   // ── Form scanning ──────────────────────────────────────────────────────────
 
   let mappedFields = [];
-  let pickFieldMode = false;
-  let pickFieldHoverEl = null;
-  const fieldElementRegistry = new Map();
 
-  const SKIPPED_INPUT_TYPES = new Set(["hidden", "submit", "button", "reset", "image", "file"]);
-  const FORM_INPUT_SELECTOR = [
-    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="file"])',
-    "textarea",
-    "select",
-    '[contenteditable="true"]',
-    '[contenteditable=""]',
-    '[role="textbox"]',
-    '[role="combobox"]',
-  ].join(", ");
-
-  function getFieldKind(el) {
-    if (!el) return "";
-    if (el.tagName === "SELECT") return "select";
-    if (el.tagName === "TEXTAREA") return "textarea";
-    if (el.isContentEditable) return "contenteditable";
-    const role = (el.getAttribute("role") || "").toLowerCase();
-    if (role === "textbox" && el.tagName !== "INPUT" && el.tagName !== "TEXTAREA") return "contenteditable";
-    if (role === "combobox") return "combobox";
-    if (el.tagName === "INPUT") return (el.type || "text").toLowerCase();
-    return el.tagName.toLowerCase();
-  }
-
-  function isFormField(el) {
-    if (!el || sidebarEl?.contains(el)) return false;
-    const kind = getFieldKind(el);
-    return kind && !SKIPPED_INPUT_TYPES.has(kind);
-  }
-
-  function findFormFieldFromNode(start) {
-    let node = start;
-    while (node && node !== document.body) {
-      if (sidebarEl?.contains(node)) return null;
-      if (isFormField(node)) return node;
-      node = node.parentElement;
-    }
-    return null;
-  }
-
-  function findNearbyFormField(start) {
-    let node = start;
-    for (let i = 0; i < 6 && node && node !== document.body; i++) {
-      if (sidebarEl?.contains(node)) return null;
-      const matches = [...(node.querySelectorAll?.(FORM_INPUT_SELECTOR) || [])].filter(isFormField);
-      if (matches.length === 1) return matches[0];
-      const rich = node.querySelector?.('[contenteditable], textarea, [role="textbox"]');
-      if (rich && isFormField(rich)) return rich;
-      node = node.parentElement;
-    }
-    return null;
-  }
-
-  function resolveFormElement(target, clientX, clientY, opts = {}) {
-    if (clientX != null && clientY != null && document.elementsFromPoint) {
-      for (const el of document.elementsFromPoint(clientX, clientY)) {
-        const found = findFormFieldFromNode(el);
-        if (found) return found;
-      }
-    }
-    const fromTarget = findFormFieldFromNode(target);
-    if (fromTarget) return fromTarget;
-    const inner = target?.querySelector?.(FORM_INPUT_SELECTOR);
-    if (inner && isFormField(inner)) return inner;
-    if (opts.allowNearby) return findNearbyFormField(target);
-    return null;
-  }
-
-  function deepQuerySelector(selector, root = document) {
-    try {
-      const direct = root.querySelector?.(selector);
-      if (direct) return direct;
-    } catch { /* invalid selector in some roots */ }
-    const nodes = root.querySelectorAll?.("*") || [];
-    for (const node of nodes) {
-      if (node.shadowRoot) {
-        const found = deepQuerySelector(selector, node.shadowRoot);
-        if (found) return found;
-      }
-    }
-    return null;
-  }
-
-  function tagFieldElement(el) {
-    if (!el) return "";
-    if (!el.dataset.jarvisFieldId) {
-      el.dataset.jarvisFieldId = `jf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-    }
-    fieldElementRegistry.set(el.dataset.jarvisFieldId, el);
-    return el.dataset.jarvisFieldId;
-  }
-
-  function getFieldRect(el) {
-    const r = el.getBoundingClientRect();
-    return {
-      top: Math.round(r.top),
-      left: Math.round(r.left),
-      width: Math.round(r.width),
-      height: Math.round(r.height),
-    };
-  }
-
-  function rectsRoughlyMatch(a, b) {
-    if (!a || !b) return false;
-    return Math.abs(a.top - b.top) < 40 && Math.abs(a.left - b.left) < 60;
-  }
-
-  function refindFieldElement(field) {
-    const candidates = collectFormElements();
-    let best = null;
-    let bestScore = 0;
-
-    for (const el of candidates) {
-      let score = 0;
-      const kind = getFieldKind(el);
-      if (field.fieldKind && kind === field.fieldKind) score += 3;
-      if (field.jarvisFieldId && el.dataset.jarvisFieldId === field.jarvisFieldId) return el;
-
-      const label = resolveFieldLabel(el);
-      if (field.label && label && field.label === label) score += 4;
-      else if (field.label && label && field.label.length > 10 && label.includes(field.label.slice(0, 20))) score += 2;
-
-      if (field.fieldContext) {
-        const ctx = getFieldContext(el);
-        const a = field.fieldContext.slice(0, 120);
-        const b = ctx.slice(0, 120);
-        if (a && b && a === b) score += 5;
-        else if (a && b && (ctx.includes(field.fieldContext.slice(0, 60)) || field.fieldContext.includes(ctx.slice(0, 60)))) score += 3;
-      }
-
-      if (field.fieldRect && rectsRoughlyMatch(field.fieldRect, getFieldRect(el))) score += 4;
-
-      if (score > bestScore) {
-        bestScore = score;
-        best = el;
-      }
-    }
-
-    return bestScore >= 4 ? best : null;
-  }
-
-  function ensureFieldSelector(el) {
-    const kind = getFieldKind(el);
-    if (el.id) return `#${CSS.escape(el.id)}`;
-    if (el.name && el.tagName !== "DIV") {
-      const tag = el.tagName.toLowerCase();
-      const typeAttr = kind !== "textarea" && kind !== "select" && kind !== "contenteditable" && el.tagName === "INPUT"
-        ? `[type="${kind}"]` : "";
-      return `${tag}${typeAttr}[name="${el.name}"]`;
-    }
-    const id = tagFieldElement(el);
-    return `[data-jarvis-field-id="${id}"]`;
-  }
-
-  function collectFormElements() {
-    const seen = new Set();
-    const results = [];
-
-    function add(el) {
-      if (!el || seen.has(el) || !isFormField(el)) return;
-      seen.add(el);
-      results.push(el);
-    }
-
-    function scanRoot(root) {
-      if (!root?.querySelectorAll) return;
-      root.querySelectorAll(FORM_INPUT_SELECTOR).forEach(add);
-      root.querySelectorAll("*").forEach(el => {
-        if (el.shadowRoot) scanRoot(el.shadowRoot);
-      });
-    }
-
-    scanRoot(document);
-    return results;
-  }
-
-  function resolveFieldElement(field) {
-    if (!field) return null;
-
-    if (field.jarvisFieldId) {
-      const cached = fieldElementRegistry.get(field.jarvisFieldId);
-      if (cached && document.body.contains(cached)) return cached;
-      const byId = deepQuerySelector(`[data-jarvis-field-id="${field.jarvisFieldId}"]`);
-      if (byId) {
-        fieldElementRegistry.set(field.jarvisFieldId, byId);
-        return byId;
-      }
-    }
-
-    if (field.selector) {
-      let el = null;
-      try { el = document.querySelector(field.selector); } catch { /* ignore */ }
-      if (!el) el = deepQuerySelector(field.selector);
-      if (el) {
-        if (field.jarvisFieldId) fieldElementRegistry.set(field.jarvisFieldId, el);
-        return el;
-      }
-    }
-
-    if (field.name) {
-      const el = deepQuerySelector(
-        `input[name="${field.name}"], textarea[name="${field.name}"], select[name="${field.name}"]`
-      );
-      if (el) return el;
-    }
-
-    const refound = refindFieldElement(field);
-    if (refound) {
-      if (field.jarvisFieldId) {
-        refound.dataset.jarvisFieldId = field.jarvisFieldId;
-        fieldElementRegistry.set(field.jarvisFieldId, refound);
-      } else {
-        tagFieldElement(refound);
-      }
-    }
-    return refound;
-  }
-
-  function getFieldContext(el) {
-    const parts = [];
-    const describedBy = el.getAttribute("aria-describedby");
-    if (describedBy) {
-      describedBy.split(/\s+/).forEach(id => {
-        const node = document.getElementById(id);
-        if (node?.textContent?.trim()) parts.push(node.textContent.trim());
-      });
-    }
-    const labelledBy = el.getAttribute("aria-labelledby");
-    if (labelledBy) {
-      labelledBy.split(/\s+/).forEach(id => {
-        const node = document.getElementById(id);
-        if (node?.textContent?.trim()) parts.push(node.textContent.trim());
-      });
-    }
-    let prev = el.previousElementSibling;
-    for (let i = 0; i < 4 && prev; i++) {
-      const t = prev.textContent?.trim();
-      if (t && t.length > 4) parts.unshift(t.slice(0, 300));
-      prev = prev.previousElementSibling;
-    }
-    let container = el.parentElement;
-    for (let i = 0; i < 6 && container; i++) {
-      const clone = container.cloneNode(true);
-      clone.querySelectorAll("input, textarea, select, button, script, style").forEach(n => n.remove());
-      const text = clone.textContent?.replace(/\s+/g, " ").trim();
-      if (text && text.length > 12) parts.push(text.slice(0, 400));
-      container = container.parentElement;
-    }
-    return [...new Set(parts.filter(Boolean))].join("\n").slice(0, 900);
-  }
-
-  function pickBestQuestionLine(lines) {
-    let best = "";
-    let bestScore = 0;
-    const generic = /^(textbox|text box|text field|field \d+|input|editable|rich text)$/i;
-    for (const line of lines) {
-      const t = line.trim();
-      if (t.length < 10 || generic.test(t)) continue;
-      let score = t.length;
-      if (t.includes("?")) score += 60;
-      if (/\b(describe|explain|what|how|why|please|tell us)\b/i.test(t)) score += 25;
-      if (/\b(name|email|website|linkedin|title|company)\b/i.test(t) && t.length < 50) score += 30;
-      if (score > bestScore) { bestScore = score; best = t; }
-    }
-    return best;
-  }
-
-  function resolveFieldLabel(el, idx = 0) {
-    let label = "";
-    if (el.id) {
-      const labelEl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (labelEl) label = labelEl.textContent?.trim() || "";
-    }
-    if (!label) {
-      const parent = el.parentElement;
-      if (parent) {
-        const labelEl = parent.querySelector("label");
-        if (labelEl) label = labelEl.textContent?.trim() || "";
-      }
-    }
-    if (!label) {
-      let p = el.parentElement;
-      for (let i = 0; i < 5 && p; i++) {
-        const legend = p.querySelector("legend");
-        const heading = p.querySelector("h1, h2, h3, h4, h5, h6");
-        if (legend?.textContent?.trim()) { label = legend.textContent.trim(); break; }
-        if (heading?.textContent?.trim()) { label = heading.textContent.trim(); break; }
-        const span = p.querySelector("span, p");
-        if (span?.textContent?.trim()) {
-          label = span.textContent.trim().split("\n")[0].trim();
-          break;
-        }
-        p = p.parentElement;
-      }
-    }
-    if (!label) {
-      label = el.placeholder || el.name || el.getAttribute("aria-label") || `Field ${idx}`;
-    }
-
-    const generic = /^(textbox|text box|text field|rich text|editable|input|field\s*\d*)$/i;
-    if (generic.test(label.trim())) {
-      const ctx = getFieldContext(el);
-      const best = pickBestQuestionLine(ctx.split("\n"));
-      if (best) label = best.slice(0, 200);
-    }
-    if (generic.test(label.trim())) {
-      label = el.getAttribute("data-placeholder") || el.getAttribute("placeholder") || label;
-    }
-
-    return label.substring(0, 200);
-  }
-
-  function buildSelectorForElement(el) {
-    return ensureFieldSelector(el);
-  }
-
-  function buildFieldFromElement(el, idx = 0, radioGroups = null, opts = {}) {
-    const relaxed = !!opts.relaxed;
-    const kind = getFieldKind(el);
-    if (SKIPPED_INPUT_TYPES.has(kind)) return null;
-    if (!isVisible(el, relaxed)) return null;
-
-    if (kind === "radio") {
-      const groupName = el.name || el.id;
-      if (!groupName) return null;
-      if (radioGroups && radioGroups[groupName]) return null;
-      if (radioGroups) radioGroups[groupName] = true;
-
-      let groupLabel = "";
-      let p = el.parentElement;
-      for (let i = 0; i < 6 && p; i++) {
-        const legend = p.querySelector("legend");
-        if (legend) { groupLabel = legend.textContent?.trim() || ""; break; }
-        p = p.parentElement;
-      }
-
-      const radios = document.querySelectorAll(`input[type="radio"][name="${CSS.escape(groupName)}"]`);
-      const options = [];
-      radios.forEach(r => {
-        let optLabel = r.value;
-        if (r.id) {
-          const l = document.querySelector(`label[for="${CSS.escape(r.id)}"]`);
-          if (l) optLabel = l.textContent?.trim() || r.value;
-        }
-        const parentLabel = r.closest("label");
-        if (parentLabel) optLabel = parentLabel.textContent?.trim() || r.value;
-        options.push(optLabel);
-      });
-
-      return {
-        label: (groupLabel || resolveFieldLabel(el, idx) || groupName).substring(0, 200),
-        type: "radio",
-        fieldKind: "radio",
-        selector: `input[type="radio"][name="${groupName}"]`,
-        required: el.required || false,
-        options,
-        name: groupName,
-        suggestedValue: "",
-        fieldContext: getFieldContext(el),
-      };
-    }
-
-    const options = [];
-    if (el.tagName === "SELECT") {
-      el.querySelectorAll("option").forEach(opt => { if (opt.value) options.push(opt.text); });
-    }
-
-    const fieldContext = getFieldContext(el);
-    let label = resolveFieldLabel(el, idx);
-    const generic = /^(textbox|text box|text field|field \d+|input|editable|rich text)$/i;
-    if (generic.test(label.trim())) {
-      const best = pickBestQuestionLine(fieldContext.split("\n"));
-      if (best) label = best.slice(0, 200);
-    }
-
-    const selector = ensureFieldSelector(el);
-    const jarvisFieldId = el.dataset.jarvisFieldId || tagFieldElement(el);
-    const aiType = kind === "contenteditable" ? "textarea" : kind;
-
-    return {
-      label,
-      type: aiType,
-      fieldKind: kind,
-      selector,
-      jarvisFieldId,
-      fieldRect: getFieldRect(el),
-      required: el.required || el.getAttribute("aria-required") === "true" || false,
-      options,
-      name: el.name || "",
-      suggestedValue: "",
-      fieldContext,
-    };
-  }
-
-  function extractFieldFromElement(el, opts = {}) {
-    if (!el) return null;
-    const resolved = isFormField(el) ? el : resolveFormElement(el);
-    if (!resolved) {
-      const nested = el.closest?.(FORM_INPUT_SELECTOR) || el.querySelector?.(FORM_INPUT_SELECTOR);
-      if (!nested || !isFormField(nested)) return null;
-      return buildFieldFromElement(nested, 0, null, { relaxed: true, ...opts });
-    }
-    return buildFieldFromElement(resolved, 0, null, { relaxed: true, ...opts });
+  function isVisible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 || rect.height > 0 || el.tagName === "TEXTAREA";
   }
 
   function extractFormFields() {
     const fields = [];
     const radioGroups = {};
+    const inputs = document.querySelectorAll("input, textarea, select");
 
-    collectFormElements().forEach((el, idx) => {
-      const field = buildFieldFromElement(el, idx, radioGroups, { relaxed: true });
-      if (field) fields.push(field);
+    inputs.forEach((el, idx) => {
+      const type = (el.type || el.tagName.toLowerCase()).toLowerCase();
+      if (["hidden", "submit", "button", "reset", "image", "file"].includes(type)) return;
+      if (!isVisible(el)) return; // skip invisible fields
+
+      let label = "";
+      if (el.id) {
+        const labelEl = document.querySelector(`label[for="${el.id}"]`);
+        if (labelEl) label = labelEl.textContent?.trim() || "";
+      }
+      if (!label) {
+        const parent = el.parentElement;
+        if (parent) {
+          const labelEl = parent.querySelector("label");
+          if (labelEl) label = labelEl.textContent?.trim() || "";
+        }
+      }
+      // Walk up to find a nearby label/legend/heading
+      if (!label) {
+        let p = el.parentElement;
+        for (let i = 0; i < 4 && p; i++) {
+          const legend = p.querySelector("legend");
+          const span = p.querySelector("span, p, div > label");
+          if (legend && legend.textContent?.trim()) { label = legend.textContent.trim(); break; }
+          if (span && span.textContent?.trim()) { label = span.textContent.trim().split("\n")[0].trim(); break; }
+          p = p.parentElement;
+        }
+      }
+      if (!label) label = el.placeholder || el.name || el.getAttribute("aria-label") || `Field ${idx}`;
+
+      if (type === "radio") {
+        const groupName = el.name || el.id;
+        if (!groupName || radioGroups[groupName]) return;
+        radioGroups[groupName] = true;
+
+        let groupLabel = "";
+        let p = el.parentElement;
+        for (let i = 0; i < 6 && p; i++) {
+          const legend = p.querySelector("legend");
+          if (legend) { groupLabel = legend.textContent?.trim() || ""; break; }
+          p = p.parentElement;
+        }
+
+        const radios = document.querySelectorAll(`input[type="radio"][name="${groupName}"]`);
+        const options = [];
+        radios.forEach(r => {
+          let optLabel = r.value;
+          if (r.id) {
+            const l = document.querySelector(`label[for="${r.id}"]`);
+            if (l) optLabel = l.textContent?.trim() || r.value;
+          }
+          const parentLabel = r.closest("label");
+          if (parentLabel) optLabel = parentLabel.textContent?.trim() || r.value;
+          options.push(optLabel);
+        });
+
+        fields.push({
+          label: (groupLabel || label || groupName).substring(0, 200),
+          type: "radio",
+          selector: `input[type="radio"][name="${groupName}"]`,
+          required: el.required || false,
+          options,
+          name: groupName,
+          suggestedValue: "",
+        });
+        return;
+      }
+
+      const options = [];
+      if (el.tagName === "SELECT") {
+        el.querySelectorAll("option").forEach(opt => { if (opt.value) options.push(opt.text); });
+      }
+
+      // Build a precise selector using id first, then tag+name, then tag+type+index
+      let selector;
+      if (el.id) {
+        selector = `#${CSS.escape(el.id)}`;
+      } else if (el.name) {
+        const tag = el.tagName.toLowerCase();
+        const typeAttr = type !== "textarea" && type !== "select-one" ? `[type="${type}"]` : "";
+        selector = `${tag}${typeAttr}[name="${el.name}"]`;
+      } else {
+        const tag = el.tagName.toLowerCase();
+        const sameType = Array.from(document.querySelectorAll(`${tag}[placeholder="${el.placeholder}"]`));
+        const nthIdx = sameType.indexOf(el);
+        selector = nthIdx >= 0 ? `${tag}:nth-of-type(${idx + 1})` : `${tag}:nth-of-type(${idx + 1})`;
+      }
+
+      fields.push({
+        label: label.substring(0, 200),
+        type,
+        selector,
+        required: el.required || false,
+        options,
+        name: el.name || "",
+        suggestedValue: "",
+      });
     });
 
     return fields;
-  }
-
-  function clearPickFieldHighlight() {
-    if (pickFieldHoverEl) {
-      pickFieldHoverEl.classList.remove("jarvis-pick-hover");
-      pickFieldHoverEl = null;
-    }
-  }
-
-  function onPickFieldHover(e) {
-    if (!pickFieldMode) return;
-    const el = resolveFormElement(e.target, e.clientX, e.clientY, { allowNearby: true });
-    if (el === pickFieldHoverEl) return;
-    clearPickFieldHighlight();
-    if (el) {
-      pickFieldHoverEl = el;
-      el.classList.add("jarvis-pick-hover");
-    }
-  }
-
-  function onPickFieldClick(e) {
-    if (!pickFieldMode) return;
-    const el = resolveFormElement(e.target, e.clientX, e.clientY, { allowNearby: true });
-    if (!el) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    stopPickFieldMode();
-    analyzePickedField(el);
-  }
-
-  function onPickFieldKeydown(e) {
-    if (!pickFieldMode) return;
-    if (e.key === "Escape") {
-      stopPickFieldMode();
-      setStatus("Pick field cancelled");
-    }
-  }
-
-  function togglePickFieldMode() {
-    if (pickFieldMode) {
-      stopPickFieldMode();
-      setStatus("Pick field cancelled");
-      return;
-    }
-    setMode("form");
-    pickFieldMode = true;
-    const btn = document.getElementById("jarvis-pick-field-btn");
-    if (btn) {
-      btn.classList.add("jarvis-pick-active");
-      btn.textContent = "Cancel Pick";
-    }
-    setStatus("Click any form field on the page — text boxes, descriptions, rich editors… (Esc to cancel)");
-    document.addEventListener("pointermove", onPickFieldHover, true);
-    document.addEventListener("pointerdown", onPickFieldClick, true);
-    document.addEventListener("keydown", onPickFieldKeydown, true);
-  }
-
-  function stopPickFieldMode() {
-    if (!pickFieldMode) return;
-    pickFieldMode = false;
-    clearPickFieldHighlight();
-    document.removeEventListener("pointermove", onPickFieldHover, true);
-    document.removeEventListener("pointerdown", onPickFieldClick, true);
-    document.removeEventListener("keydown", onPickFieldKeydown, true);
-    const btn = document.getElementById("jarvis-pick-field-btn");
-    if (btn) {
-      btn.classList.remove("jarvis-pick-active");
-      btn.textContent = "Pick Field";
-    }
-  }
-
-  function mergeAnalyzedField(analyzed) {
-    const idx = mappedFields.findIndex(f =>
-      (f.jarvisFieldId && f.jarvisFieldId === analyzed.jarvisFieldId) ||
-      f.selector === analyzed.selector ||
-      (f.name && analyzed.name && f.name === analyzed.name)
-    );
-    if (idx >= 0) {
-      const prev = mappedFields[idx];
-      mappedFields[idx] = {
-        ...prev,
-        ...analyzed,
-        label: analyzed.label && !/^(textbox|text box)$/i.test(analyzed.label) ? analyzed.label : prev.label,
-        jarvisFieldId: prev.jarvisFieldId || analyzed.jarvisFieldId,
-        fieldKind: prev.fieldKind || analyzed.fieldKind,
-        selector: prev.selector || analyzed.selector,
-        fieldRect: prev.fieldRect || analyzed.fieldRect,
-        fieldContext: prev.fieldContext || analyzed.fieldContext,
-      };
-      return idx;
-    }
-    mappedFields.push(analyzed);
-    return mappedFields.length - 1;
-  }
-
-  async function requestFieldAnalysis(fields, opts = {}) {
-    const pageText = document.body.innerText.substring(0, 2000);
-    const pageTitle = document.title;
-    const timeoutMs = opts.timeoutMs || (fields.length === 1 ? 35000 : 25000);
-    try {
-      const timeoutPromise = new Promise(resolve =>
-        setTimeout(() => resolve({ success: false, error: "Timed out" }), timeoutMs)
-      );
-      const apiPromise = sendMessage({
-        type: "ANALYZE_FIELDS",
-        fields,
-        pageTitle,
-        pageText,
-        singleField: fields.length === 1,
-      });
-      return await Promise.race([apiPromise, timeoutPromise]);
-    } catch {
-      return { success: false, error: "Request failed" };
-    }
-  }
-
-  async function analyzePickedField(el) {
-    const field = extractFieldFromElement(el);
-    if (!field) {
-      setStatus("Could not read that field — try another");
-      return;
-    }
-
-    setMode("form");
-    setStatus(`Analyzing: ${field.label}…`);
-    showLoading(true);
-    document.getElementById("jarvis-fields-list").style.display = "none";
-
-    const response = await requestFieldAnalysis([{ ...field, isRetry: true }]);
-    showLoading(false);
-
-    const analyzed = response.success && response.data?.fields?.[0]
-      ? response.data.fields[0]
-      : { ...field, suggestedValue: "" };
-
-    const idx = mergeAnalyzedField(analyzed);
-    renderFields(mappedFields, idx);
-    document.getElementById("jarvis-fields-list").style.display = "block";
-    showEmpty(false);
-
-    if (analyzed.suggestedValue) {
-      try {
-        const ok = await fillSingleField(mappedFields[idx]);
-        setStatus(ok
-          ? `Filled "${mappedFields[idx].label}" — review on page`
-          : `Answer ready for "${mappedFields[idx].label}" — use Fill Form or edit in sidebar`);
-      } catch {
-        setStatus(`Answer ready for "${field.label}" — click Fill on this field`);
-      }
-    } else {
-      setStatus(`No auto-answer for "${field.label}" — edit in sidebar or retry`);
-    }
-  }
-
-  async function fillSingleField(field) {
-    if (!field?.suggestedValue) return false;
-    let ok = false;
-    if (field.type === "radio") ok = await fillRadio(field);
-    else if (field.type === "select" || field.type === "select-one") ok = await fillSelect(field);
-    else if (field.type === "checkbox") ok = await fillCheckbox(field);
-    else ok = await fillText(field);
-
-    const el = resolveFieldElement(field);
-    if (el && ok) {
-      const origOutline = el.style.outline;
-      el.style.outline = "2px solid #3b82f6";
-      el.style.borderRadius = "3px";
-      setTimeout(() => { el.style.outline = origOutline; }, 2500);
-    }
-    return ok;
-  }
-
-  function isVisible(el, relaxed = false) {
-    if (!el) return false;
-    const style = window.getComputedStyle(el);
-    if (style.display === "none" || style.visibility === "hidden") return false;
-    if (!relaxed && parseFloat(style.opacity) === 0) return false;
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) return true;
-    if (relaxed) {
-      if (el.isContentEditable || el.getAttribute("role") === "textbox") {
-        const parentRect = el.parentElement?.getBoundingClientRect();
-        if (parentRect && parentRect.width > 0 && parentRect.height > 0) return true;
-      }
-      // Styled custom controls often hide the real input with opacity:0
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") {
-        const parentRect = el.parentElement?.getBoundingClientRect();
-        if (parentRect && parentRect.width > 20 && parentRect.height > 8) return true;
-      }
-    }
-    return el.tagName === "TEXTAREA";
   }
 
   async function scanAndMap() {
@@ -1134,7 +613,20 @@
 
     setStatus(`Found ${fields.length} fields — asking Jarvis AI to fill them...`);
 
-    const response = await requestFieldAnalysis(fields);
+    // Ask background to call Jarvis API with 25s timeout
+    const pageText = document.body.innerText.substring(0, 2000);
+    const pageTitle = document.title;
+
+    let response;
+    try {
+      const timeoutPromise = new Promise(resolve =>
+        setTimeout(() => resolve({ success: false, error: "Timed out — showing fields without AI values" }), 25000)
+      );
+      const apiPromise = sendMessage({ type: "ANALYZE_FIELDS", fields, pageTitle, pageText });
+      response = await Promise.race([apiPromise, timeoutPromise]);
+    } catch {
+      response = { success: false, error: "Request failed" };
+    }
 
     if (response.success && response.data?.fields) {
       mappedFields = response.data.fields;
@@ -1149,7 +641,7 @@
     renderFields(mappedFields);
   }
 
-  function renderFields(fields, highlightIdx = -1) {
+  function renderFields(fields) {
     const list = document.getElementById("jarvis-fields-list");
     list.innerHTML = "";
     showEmpty(false);
@@ -1157,15 +649,13 @@
 
     fields.forEach((field, idx) => {
       const item = document.createElement("div");
-      item.className = "jarvis-field-item" + (idx === highlightIdx ? " jarvis-field-highlight" : "");
+      item.className = "jarvis-field-item";
 
-      const hasValue = !!(field.suggestedValue || "").trim();
       const labelRow = `
         <div class="jarvis-field-label">
           <span>${field.label}</span>
           ${field.required ? '<span class="jarvis-field-required">*</span>' : ""}
           <span class="jarvis-field-type">${field.type}</span>
-          ${!hasValue ? '<span class="jarvis-field-type" style="color:#f87171">empty</span>' : ""}
         </div>
       `;
 
@@ -1176,7 +666,11 @@
         const opts = field.options.map(o =>
           `<option value="${o}" ${o === field.suggestedValue ? "selected" : ""}>${o}</option>`
         ).join("");
-        input = `<select data-idx="${idx}"><option value="">-- select --</option>${opts}</select>`;
+        if (field.type === "radio") {
+          input = `<select data-idx="${idx}"><option value="">-- select --</option>${opts}</select>`;
+        } else {
+          input = `<select data-idx="${idx}"><option value="">-- select --</option>${opts}</select>`;
+        }
       } else {
         input = `<input type="text" value="${(field.suggestedValue || "").replace(/"/g, "&quot;")}" data-idx="${idx}" />`;
       }
@@ -1184,6 +678,7 @@
       item.innerHTML = labelRow + input;
       list.appendChild(item);
 
+      // Listen for changes
       const inputEl = item.querySelector("[data-idx]");
       if (inputEl) {
         inputEl.addEventListener("change", e => {
@@ -1194,10 +689,6 @@
         });
       }
     });
-
-    if (highlightIdx >= 0) {
-      list.children[highlightIdx]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
   }
 
   // ── People & email finder ───────────────────────────────────────────────────
@@ -1885,50 +1376,39 @@
     setStatus("Filling form...");
     let filled = 0;
     let failed = 0;
-    const missed = [];
 
     for (const field of mappedFields) {
-      if (!field.suggestedValue) continue;
-
-      const el = resolveFieldElement(field);
-      if (el) {
-        if (field.jarvisFieldId) {
-          el.dataset.jarvisFieldId = field.jarvisFieldId;
-          fieldElementRegistry.set(field.jarvisFieldId, el);
-        }
-        field.fieldRect = getFieldRect(el);
-      }
-
+      if (!field.suggestedValue || !field.selector) continue;
       try {
-        const ok = await fillSingleField(field);
-        if (ok) filled++;
-        else {
-          failed++;
-          missed.push(field.label || "unknown field");
+        if (field.type === "radio") {
+          await fillRadio(field);
+        } else if (field.type === "select" || field.type === "select-one") {
+          await fillSelect(field);
+        } else if (field.type === "checkbox") {
+          await fillCheckbox(field);
+        } else {
+          await fillText(field);
         }
+        filled++;
       } catch {
         failed++;
-        missed.push(field.label || "unknown field");
       }
-
-      const isRich = field.fieldKind === "contenteditable" || field.type === "textarea" || field.type === "textbox";
-      await sleep(isRich ? 450 : 120);
     }
 
-    if (missed.length) {
-      setStatus(`Filled ${filled} fields — ${failed} could not be placed (${missed.slice(0, 2).join(", ")}${missed.length > 2 ? "…" : ""}). Try Pick Field on those.`);
-    } else {
-      setStatus(`Filled ${filled} fields — review and submit!`);
-    }
+    setStatus(`Filled ${filled} fields${failed > 0 ? ` (${failed} skipped)` : ""} — review and submit!`);
+
+    // Highlight filled fields briefly
+    document.querySelectorAll("input:not([type=hidden]):not([type=submit]):not([type=button]), textarea, select").forEach(el => {
+      const origOutline = el.style.outline;
+      el.style.outline = "2px solid rgba(255,255,255,0.4)";
+      el.style.borderRadius = "3px";
+      setTimeout(() => { el.style.outline = origOutline; }, 2000);
+    });
   }
 
   async function fillRadio(field) {
     const val = field.suggestedValue.toLowerCase().trim();
-    let radios = document.querySelectorAll(`input[type="radio"][name="${field.name}"]`);
-    if (!radios.length) {
-      const one = deepQuerySelector(`input[type="radio"][name="${field.name}"]`);
-      radios = one ? [one] : [];
-    }
+    const radios = document.querySelectorAll(`input[type="radio"][name="${field.name}"]`);
 
     for (const radio of radios) {
       let labelText = (radio.value || "").toLowerCase();
@@ -1942,160 +1422,52 @@
       if (labelText.includes(val) || val.includes(labelText) || radio.value.toLowerCase() === val) {
         radio.click();
         radio.dispatchEvent(new Event("change", { bubbles: true }));
-        return true;
+        return;
       }
     }
-    return false;
   }
 
   async function fillSelect(field) {
-    const el = resolveFieldElement(field);
-    if (!el || !isVisible(el, true)) return false;
+    let el = document.querySelector(field.selector);
+    if (!el && field.name) el = document.querySelector(`select[name="${field.name}"]`);
+    if (!el || !isVisible(el)) return;
     const val = field.suggestedValue;
+    // Try by text, then by value
     for (const opt of el.options) {
       if (opt.text === val || opt.value === val || opt.text.toLowerCase().includes(val.toLowerCase())) {
         el.value = opt.value;
         el.dispatchEvent(new Event("change", { bubbles: true }));
-        return true;
+        return;
       }
     }
-    return false;
   }
 
   async function fillCheckbox(field) {
-    const el = resolveFieldElement(field);
-    if (!el || !isVisible(el, true)) return false;
+    let el = document.querySelector(field.selector);
+    if (!el && field.name) el = document.querySelector(`input[type="checkbox"][name="${field.name}"]`);
+    if (!el || !isVisible(el)) return;
     const checked = ["true", "yes", "1"].includes(field.suggestedValue.toLowerCase());
     el.checked = checked;
     el.dispatchEvent(new Event("change", { bubbles: true }));
-    return true;
-  }
-
-  function getEditableTarget(el) {
-    if (!el) return null;
-    if (el.isContentEditable) return el;
-    const inner = el.querySelector('[contenteditable="true"], [contenteditable=""]');
-    return inner || el;
-  }
-
-  function readFieldText(el) {
-    if (!el) return "";
-    const target = getEditableTarget(el);
-    return (target?.innerText || target?.textContent || el.value || "").replace(/\s+/g, " ").trim();
-  }
-
-  function fieldHasText(el, value) {
-    const current = readFieldText(el);
-    const sample = value.trim().replace(/\s+/g, " ").slice(0, Math.min(40, value.length));
-    return sample.length > 0 && current.includes(sample);
-  }
-
-  function setNativeValue(el, value) {
-    if (!el) return false;
-    const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-    if (setter) setter.call(el, value);
-    else el.value = value;
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-    return fieldHasText(el, value);
-  }
-
-  function findAssociatedNativeInput(editableEl) {
-    if (!editableEl) return null;
-    let node = editableEl;
-    for (let i = 0; i < 10 && node; i++) {
-      const textareas = node.querySelectorAll?.("textarea") || [];
-      for (const ta of textareas) {
-        if (ta !== editableEl) return ta;
-      }
-      const inputs = node.querySelectorAll?.('input[type="text"], input:not([type])') || [];
-      for (const inp of inputs) {
-        if (inp !== editableEl && inp.type !== "hidden" && inp.type !== "checkbox" && inp.type !== "radio") {
-          return inp;
-        }
-      }
-      node = node.parentElement;
-    }
-    return null;
-  }
-
-  async function tryPasteInto(el, text) {
-    el.focus();
-    try { document.execCommand("selectAll", false, null); } catch { /* ignore */ }
-
-    try {
-      const dt = new DataTransfer();
-      dt.setData("text/plain", text);
-      el.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: dt }));
-      if (fieldHasText(el, text)) return true;
-    } catch { /* ignore */ }
-
-    try {
-      document.execCommand("insertText", false, text);
-      return fieldHasText(el, text);
-    } catch { /* ignore */ }
-
-    return false;
-  }
-
-  async function fillContentEditable(el, value) {
-    const target = getEditableTarget(el);
-    if (!target) return false;
-
-    const checkSuccess = () => fieldHasText(target, value) || fieldHasText(el, value);
-    if (checkSuccess()) return true;
-
-    target.focus();
-    await sleep(60);
-
-    // Many React forms keep a hidden/native textarea as source of truth — fill that first
-    const native = findAssociatedNativeInput(target);
-    if (native) {
-      setNativeValue(native, value);
-      await sleep(100);
-      if (checkSuccess()) return true;
-    }
-
-    if (await tryPasteInto(target, value)) return true;
-    await sleep(150);
-    if (checkSuccess()) return true;
-
-    try {
-      const existing = readFieldText(target);
-      if (existing) {
-        document.execCommand("selectAll", false, null);
-        document.execCommand("delete", false, null);
-        await sleep(30);
-      }
-      document.execCommand("insertText", false, value);
-    } catch { /* ignore */ }
-
-    await sleep(150);
-    if (checkSuccess()) return true;
-
-    if (native) {
-      setNativeValue(native, value);
-      await sleep(100);
-    }
-
-    // Do not blur — blur often triggers React/Lexical to revert unsynced DOM changes
-    return checkSuccess();
   }
 
   async function fillText(field) {
-    const el = resolveFieldElement(field);
-    if (!el) return false;
-    const kind = field.fieldKind || getFieldKind(el);
-    if (kind === "contenteditable" || el.isContentEditable || el.getAttribute("role") === "textbox") {
-      return fillContentEditable(el, field.suggestedValue);
+    let el = document.querySelector(field.selector);
+    if (!el && field.name) {
+      el = document.querySelector(`input[name="${field.name}"], textarea[name="${field.name}"]`);
     }
-    if (!isVisible(el, true)) return false;
+    if (!el || !isVisible(el)) return;
     el.focus();
-    await sleep(30);
-    const ok = setNativeValue(el, field.suggestedValue);
-    await sleep(50);
-    return ok || fieldHasText(el, field.suggestedValue);
+    el.value = "";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    // Type character by character for React-controlled inputs
+    for (const char of field.suggestedValue) {
+      el.value += char;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      await sleep(8);
+    }
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    el.blur();
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

@@ -55,6 +55,7 @@ export interface CapTableEntry {
   portalUserId?: string;
   ownershipPct?: number;
   shares?: number;
+  sharesLabel?: string;
   investmentAmount?: number;
   instrument: CapTableInstrument;
   status: CapTableStatus;

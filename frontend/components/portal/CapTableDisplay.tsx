@@ -17,9 +17,10 @@ function HolderAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
   );
 }
 
-function fmtShares(n: number) {
-  if (!n) return "—";
-  return n.toLocaleString();
+function fmtShares(shares?: number, label?: string) {
+  if (label?.trim()) return label;
+  if (!shares) return "—";
+  return shares.toLocaleString();
 }
 
 function fmtMoney(n: number) {

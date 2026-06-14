@@ -106,7 +106,7 @@ export default function PortalOverviewPage() {
                           </div>
                         </td>
                         <td className="px-4 py-2.5 text-right text-neutral-300">{fmt(row.investmentAmount || 0)}</td>
-                        <td className="px-4 py-2.5 text-right text-neutral-300 tabular-nums">{fmtShares(row.shares || 0)}</td>
+                        <td className="px-4 py-2.5 text-right text-neutral-300 tabular-nums">{fmtShares(row.shares, row.sharesLabel)}</td>
                         <td className="px-4 py-2.5 text-right text-neutral-300">
                           {row.ownershipPct ? `${row.ownershipPct.toFixed(2)}%` : "—"}
                         </td>

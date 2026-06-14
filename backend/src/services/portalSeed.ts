@@ -4,6 +4,8 @@ import { getDb, COLLECTIONS } from "./firebase";
 const SEED_IDS = {
   markCuban: "cap-mark-cuban",
   chrisMullaly: "cap-chris-mullaly",
+  lvlupVentures: "cap-lvlup-ventures",
+  tenSquared: "cap-tensquared-venture",
 } as const;
 
 /** 10M authorized shares — used to derive share counts from ownership % */
@@ -54,6 +56,40 @@ export async function seedPortalCapTable(): Promise<void> {
         notes: "Early investor in Figure AI · Quantum Angel Network",
         sortOrder: 2,
       },
+      {
+        id: SEED_IDS.lvlupVentures,
+        holderName: "Lvlup Ventures",
+        holderType: "investor",
+        company: "Lvlup Ventures",
+        profileImageUrl:
+          "https://ui-avatars.com/api/?name=Lvlup+Ventures&size=256&background=312e81&color=ffffff&bold=true",
+        investmentAmount: 2_000_000,
+        ownershipPct: 0,
+        shares: 0,
+        sharesLabel: "Negotiations in progress",
+        instrument: "safe",
+        status: "discussing",
+        visible: true,
+        notes: "Term sheet negotiation in progress",
+        sortOrder: 3,
+      },
+      {
+        id: SEED_IDS.tenSquared,
+        holderName: "TenSquared Venture",
+        holderType: "investor",
+        company: "TenSquared Venture",
+        profileImageUrl:
+          "https://ui-avatars.com/api/?name=TenSquared&size=256&background=0f766e&color=ffffff&bold=true",
+        investmentAmount: 500_000,
+        ownershipPct: 0,
+        shares: 0,
+        sharesLabel: "Term negotiation in progress",
+        instrument: "safe",
+        status: "discussing",
+        visible: true,
+        notes: "Term negotiation in progress",
+        sortOrder: 4,
+      },
     ];
 
     for (const entry of entries) {
@@ -70,7 +106,7 @@ export async function seedPortalCapTable(): Promise<void> {
       );
     }
 
-    console.log("✅ Portal cap table seeded (Mark Cuban, Chris Mullaly)");
+    console.log("✅ Portal cap table seeded");
   } catch (err) {
     console.warn("⚠️  Could not seed portal cap table:", (err as Error).message);
   }

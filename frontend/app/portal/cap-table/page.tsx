@@ -67,7 +67,7 @@ export default function PortalCapTablePage() {
                     <td className="px-4 py-3 text-right text-neutral-400">
                       {row.valuationAtInvestment ? fmtCapMoney(row.valuationAtInvestment) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-right text-neutral-300 tabular-nums">{fmtShares(row.shares || 0)}</td>
+                    <td className="px-4 py-3 text-right text-neutral-300 tabular-nums">{fmtShares(row.shares, row.sharesLabel)}</td>
                     <td className="px-4 py-3 text-right text-neutral-300">
                       {row.ownershipPct ? `${row.ownershipPct.toFixed(2)}%` : "—"}
                     </td>

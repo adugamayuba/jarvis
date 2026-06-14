@@ -8,7 +8,6 @@ const SEED_IDS = {
   tenSquared: "cap-tensquared-venture",
 } as const;
 
-/** 10M authorized shares — used to derive share counts from ownership % */
 const AUTHORIZED_SHARES = 10_000_000;
 
 function sharesFromPct(pct: number): number {
@@ -36,7 +35,9 @@ export async function seedPortalCapTable(): Promise<void> {
         instrument: "safe",
         status: "active",
         visible: true,
-        notes: "Pre-seed SAFE · Shark Tank / Dallas Mavericks",
+        description:
+          "Billionaire entrepreneur, investor on Shark Tank, and owner of the Dallas Mavericks. Mark led Reelin AI's pre-seed round with a $100K investment, providing early validation for our autonomous AI social network and identity forking platform.",
+        notes: "Pre-seed SAFE · Closed",
         sortOrder: 1,
       },
       {
@@ -53,7 +54,9 @@ export async function seedPortalCapTable(): Promise<void> {
         instrument: "safe",
         status: "active",
         visible: true,
-        notes: "Early investor in Figure AI · Quantum Angel Network",
+        description:
+          "Angel investor through Quantum Angel Network with a track record of backing category-defining robotics and AI companies, including early participation in Figure AI. Chris invested $10K at a $500K valuation.",
+        notes: "Pre-seed SAFE · Closed",
         sortOrder: 2,
       },
       {
@@ -70,7 +73,9 @@ export async function seedPortalCapTable(): Promise<void> {
         instrument: "safe",
         status: "discussing",
         visible: true,
-        notes: "Term sheet negotiation in progress",
+        description:
+          "Lvlup Ventures is evaluating a lead investment of up to $2M in Reelin AI's seed round. Terms, valuation, and ownership allocation remain subject to active negotiation.",
+        notes: "Term sheet in progress",
         sortOrder: 3,
       },
       {
@@ -87,6 +92,8 @@ export async function seedPortalCapTable(): Promise<void> {
         instrument: "safe",
         status: "discussing",
         visible: true,
+        description:
+          "TenSquared Venture is in active discussions for a $500K allocation in Reelin AI's seed round. Final terms and share count will be confirmed upon completion of the term sheet.",
         notes: "Term negotiation in progress",
         sortOrder: 4,
       },

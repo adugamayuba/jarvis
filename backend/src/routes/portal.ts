@@ -42,6 +42,7 @@ const CapTableSchema = z.object({
   status: z.enum(["active", "pending", "discussing"]).default("pending"),
   visible: z.boolean().optional().default(true),
   notes: z.string().optional().default(""),
+  description: z.string().optional().default(""),
   sortOrder: z.number().optional().default(0),
   profileImageUrl: z.string().optional().default(""),
   valuationAtInvestment: z.number().optional().default(0),
@@ -94,7 +95,17 @@ function publicCapEntry(entry: CapTableEntry & { id: string }) {
     instrument: entry.instrument,
     status: entry.status,
     notes: entry.notes || "",
+    description: entry.description || "",
   };
+}
+
+function mapCapTableEntries(
+  docs: Array<{ id: string; data: () => FirebaseFirestore.DocumentData }>
+): ReturnType<typeof publicCapEntry>[] {
+  return docs
+    .map(d => ({ id: d.id, ...(d.data() as CapTableEntry) }))
+    .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99))
+    .map(publicCapEntry);
 }
 
 // ── Investor routes ───────────────────────────────────────────────────────────
@@ -125,9 +136,7 @@ router.get("/dashboard", requireRole("investor"), async (req: Request, res: Resp
       .get();
 
     const safe = safeSnap.empty ? null : { id: safeSnap.docs[0].id, ...(safeSnap.docs[0].data() as InvestorSafe) };
-    const capTable = capSnap.docs
-      .map(d => publicCapEntry({ id: d.id, ...(d.data() as CapTableEntry) }))
-      .sort((a, b) => (a.holderName > b.holderName ? 1 : -1));
+    const capTable = mapCapTableEntries(capSnap.docs);
 
     const dataRoom = dataRoomSnap.docs
       .map(d => ({ id: d.id, ...(d.data() as DataRoomDocument) }))
@@ -170,9 +179,7 @@ router.get("/cap-table", requireRole("investor"), async (_req: Request, res: Res
   try {
     const db = getDb();
     const snap = await db.collection(COLLECTIONS.CAP_TABLE).where("visible", "==", true).get();
-    const entries = snap.docs
-      .map(d => publicCapEntry({ id: d.id, ...(d.data() as CapTableEntry) }))
-      .sort((a, b) => b.investmentAmount - a.investmentAmount);
+    const entries = mapCapTableEntries(snap.docs);
     res.json({ success: true, data: entries });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });

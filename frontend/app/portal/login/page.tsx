@@ -6,6 +6,7 @@ import { portalLogin } from "@/lib/portal";
 import { setToken, setRole, setPortalSession } from "@/lib/auth";
 import { portalHomeHref } from "@/lib/investorPortalHost";
 import { PortalLogo } from "@/components/portal/PortalLogo";
+import { PortalConfidentiality } from "@/components/portal/PortalConfidentiality";
 import { p } from "@/components/portal/portalTheme";
 import { Loader2 } from "lucide-react";
 
@@ -101,13 +102,7 @@ export default function PortalLoginPage() {
             </form>
           </div>
 
-          <p className="text-center text-sm text-slate-400 mt-8">
-            Authorized investors only. Contact{" "}
-            <a href="mailto:abel@reelin.ai" className="text-slate-600 hover:text-slate-900 underline underline-offset-2">
-              abel@reelin.ai
-            </a>{" "}
-            for access.
-          </p>
+          <PortalConfidentiality variant="compact" />
         </div>
       </div>
     </div>

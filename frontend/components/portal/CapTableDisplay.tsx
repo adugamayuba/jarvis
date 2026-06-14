@@ -1,17 +1,29 @@
-function HolderAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
+function HolderAvatar({
+  name,
+  imageUrl,
+  large,
+}: {
+  name: string;
+  imageUrl?: string;
+  large?: boolean;
+}) {
+  const size = large ? "w-16 h-16 text-sm" : "w-10 h-10 text-xs";
+
   if (imageUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imageUrl}
         alt={name}
-        className="w-10 h-10 rounded-full object-cover bg-slate-100 ring-1 ring-slate-200 shrink-0"
+        className={`${size} rounded-full object-cover bg-slate-100 ring-2 ring-white shadow-sm shrink-0`}
       />
     );
   }
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <div className="w-10 h-10 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600 shrink-0">
+    <div
+      className={`${size} rounded-full bg-slate-100 ring-2 ring-white shadow-sm flex items-center justify-center font-semibold text-slate-600 shrink-0`}
+    >
       {initials}
     </div>
   );

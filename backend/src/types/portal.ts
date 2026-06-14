@@ -61,6 +61,7 @@ export interface CapTableEntry {
   status: CapTableStatus;
   visible: boolean;
   notes?: string;
+  description?: string;
   sortOrder?: number;
   profileImageUrl?: string;
   valuationAtInvestment?: number;

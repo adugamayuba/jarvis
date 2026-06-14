@@ -13,7 +13,7 @@ export const p = {
   th: "text-left px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-slate-50/80 border-b border-slate-200",
   td: "px-5 py-4 text-[15px] text-slate-700 border-b border-slate-100",
   btnPrimary:
-    "inline-flex items-center justify-center h-11 px-5 rounded-lg bg-slate-900 text-white text-[15px] font-medium hover:bg-slate-800 transition-colors disabled:opacity-50",
+    "inline-flex items-center justify-center h-11 px-5 rounded-lg bg-slate-900 text-white text-[15px] font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm",
   btnSecondary:
     "inline-flex items-center justify-center h-11 px-5 rounded-lg border border-slate-300 bg-white text-slate-800 text-[15px] font-medium hover:bg-slate-50 transition-colors",
   input:

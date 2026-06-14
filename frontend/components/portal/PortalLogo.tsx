@@ -1,18 +1,29 @@
+import Image from "next/image";
+
+const SIZES = {
+  sm: { icon: 36, title: "text-base", sub: "text-sm" },
+  md: { icon: 40, title: "text-lg", sub: "text-sm" },
+  lg: { icon: 52, title: "text-2xl", sub: "text-base" },
+} as const;
+
 export function PortalLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const title =
-    size === "lg" ? "text-2xl" : size === "sm" ? "text-base" : "text-lg";
-  const sub = size === "lg" ? "text-base" : "text-sm";
+  const s = SIZES[size];
 
   return (
     <div className="flex items-center gap-3">
-      <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
-        <span className="text-white font-semibold text-sm tracking-tight">R</span>
-      </div>
+      <Image
+        src="/reelin-logo.png"
+        alt="Reelin AI"
+        width={s.icon}
+        height={s.icon}
+        className="rounded-lg shrink-0"
+        priority
+      />
       <div>
-        <p className={`${title} font-semibold text-slate-900 tracking-tight leading-none`}>
+        <p className={`${s.title} font-semibold text-slate-900 tracking-tight leading-none`}>
           Reelin AI
         </p>
-        <p className={`${sub} text-slate-500 mt-1 font-medium`}>Investor Portal</p>
+        <p className={`${s.sub} text-slate-500 mt-1 font-medium`}>Investor Portal</p>
       </div>
     </div>
   );

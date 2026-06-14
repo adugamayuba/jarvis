@@ -4,7 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { getPortalDashboard } from "@/lib/portal";
 import { cn } from "@/lib/utils";
-import { HolderAvatar, fmtShares, fmtCapMoney, StatusBadge } from "@/components/portal/CapTableDisplay";
+import { HolderProfileCard } from "@/components/portal/HolderProfileCard";
+import { fmtCapMoney } from "@/components/portal/CapTableDisplay";
+import { portalHref } from "@/lib/investorPortalHost";
 import { p } from "@/components/portal/portalTheme";
 
 const STAGE_LABELS: Record<string, { label: string; className: string }> = {
@@ -78,45 +80,25 @@ export default function PortalOverviewPage() {
           )}
 
           {dash.capTable.length > 0 && (
-            <div className={p.tableWrap}>
-              <div className="px-5 py-4 border-b border-slate-200 bg-white">
-                <h2 className="text-lg font-semibold text-slate-900">Cap table</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Current ownership across all holders</p>
+            <section className="space-y-5">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Investors</h2>
+                  <p className="text-[15px] text-slate-500 mt-1">Key participants in the Reelin AI cap table</p>
+                </div>
+                <a
+                  href={portalHref("/portal/cap-table")}
+                  className="text-[15px] font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2 shrink-0"
+                >
+                  View full cap table
+                </a>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr>
-                      <th className={p.th}>Holder</th>
-                      <th className={`${p.th} text-right`}>Investment</th>
-                      <th className={`${p.th} text-right`}>Shares</th>
-                      <th className={`${p.th} text-right`}>Ownership</th>
-                      <th className={p.th}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dash.capTable.slice(0, 12).map(row => (
-                      <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className={p.td}>
-                          <div className="flex items-center gap-3">
-                            <HolderAvatar name={row.holderName} imageUrl={row.profileImageUrl} />
-                            <span className="font-medium text-slate-900">{row.holderName}</span>
-                          </div>
-                        </td>
-                        <td className={`${p.td} text-right tabular-nums`}>{fmtCapMoney(row.investmentAmount || 0)}</td>
-                        <td className={`${p.td} text-right text-slate-600`}>{fmtShares(row.shares, row.sharesLabel)}</td>
-                        <td className={`${p.td} text-right tabular-nums font-medium text-slate-900`}>
-                          {row.ownershipPct ? `${row.ownershipPct.toFixed(2)}%` : "—"}
-                        </td>
-                        <td className={p.td}>
-                          <StatusBadge status={row.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid gap-5">
+                {dash.capTable.slice(0, 4).map(holder => (
+                  <HolderProfileCard key={holder.id} holder={holder} />
+                ))}
               </div>
-            </div>
+            </section>
           )}
         </div>
       ) : (

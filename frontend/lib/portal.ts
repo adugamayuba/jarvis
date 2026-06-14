@@ -16,7 +16,7 @@ portalApi.interceptors.request.use((config) => {
 
 export type PortalStage = "prospect" | "discussing" | "safe_sent" | "safe_signed" | "closed";
 export type SafeStatus = "draft" | "sent" | "signed" | "funded";
-export type CapTableHolderType = "founder" | "investor" | "advisor" | "option_pool" | "other";
+export type CapTableHolderType = "founder" | "investor" | "advisor" | "option_pool" | "parent" | "other";
 export type CapTableInstrument = "common" | "preferred" | "safe" | "convertible_note" | "options";
 export type CapTableStatus = "active" | "pending" | "discussing";
 export type DataRoomCategory = "financials" | "legal" | "product" | "pitch" | "other";
@@ -48,13 +48,14 @@ export interface CapTableEntry {
   sharesLabel?: string;
   investmentAmount?: number;
   valuationAtInvestment?: number;
-  profileImageUrl?: string;
+  websiteUrl?: string;
   instrument: CapTableInstrument;
   status: CapTableStatus;
   visible: boolean;
   notes?: string;
   description?: string;
   sortOrder?: number;
+  profileImageUrl?: string;
 }
 
 export interface InvestorSafe {

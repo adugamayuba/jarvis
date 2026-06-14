@@ -4,6 +4,15 @@ import { z } from "zod";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { hashPassword, generatePassword } from "../lib/password";
+import {
+  notifyFireAndForget,
+  emailNewPortalUser,
+  emailStageChange,
+  emailCapTableChange,
+  emailSafeUpdate,
+  emailDataRoomUpdate,
+  resolveInvestorEmail,
+} from "../services/portalEmail";
 import type {
   CapTableEntry,
   DataRoomDocument,
@@ -30,7 +39,7 @@ const PortalUserSchema = z.object({
 
 const CapTableSchema = z.object({
   holderName: z.string().min(1),
-  holderType: z.enum(["founder", "investor", "advisor", "option_pool", "other"]).default("investor"),
+  holderType: z.enum(["founder", "investor", "advisor", "option_pool", "parent", "other"]).default("investor"),
   company: z.string().optional().default(""),
   email: z.string().optional().default(""),
   portalUserId: z.string().optional().default(""),
@@ -46,6 +55,7 @@ const CapTableSchema = z.object({
   sortOrder: z.number().optional().default(0),
   profileImageUrl: z.string().optional().default(""),
   valuationAtInvestment: z.number().optional().default(0),
+  websiteUrl: z.string().optional().default(""),
 });
 
 const SafeSchema = z.object({
@@ -96,6 +106,7 @@ function publicCapEntry(entry: CapTableEntry & { id: string }) {
     status: entry.status,
     notes: entry.notes || "",
     description: entry.description || "",
+    websiteUrl: entry.websiteUrl || "",
   };
 }
 
@@ -367,6 +378,8 @@ router.post("/admin/users", requireRole("admin"), async (req: Request, res: Resp
         credentials: { email: normalizedEmail, password: plainPassword },
       },
     });
+
+    notifyFireAndForget(emailNewPortalUser(rest.name, normalizedEmail, rest.stage));
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -389,8 +402,15 @@ router.patch("/admin/users/:id", requireRole("admin"), async (req: Request<IdPar
       updates.email = updates.email.trim().toLowerCase();
     }
 
+    const prev = doc.data()!;
     await ref.update(updates);
-    res.json({ success: true, data: { id: req.params.id, ...doc.data(), ...updates } });
+    res.json({ success: true, data: { id: req.params.id, ...prev, ...updates } });
+
+    if (updates.stage && updates.stage !== prev.stage) {
+      notifyFireAndForget(
+        emailStageChange(prev.name as string, prev.email as string, updates.stage as string)
+      );
+    }
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -460,6 +480,7 @@ router.post("/admin/cap-table", requireRole("admin"), async (req: Request, res: 
       updatedAt: now,
     });
     res.status(201).json({ success: true, data: { id: ref.id, ...parsed.data } });
+    notifyFireAndForget(emailCapTableChange("entry added", parsed.data.holderName));
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -474,9 +495,11 @@ router.patch("/admin/cap-table/:id", requireRole("admin"), async (req: Request<I
       res.status(404).json({ success: false, error: "Not found" });
       return;
     }
+    const prev = doc.data()!;
     const updates = { ...req.body, updatedAt: new Date().toISOString() };
     await ref.update(updates);
-    res.json({ success: true, data: { id: req.params.id, ...doc.data(), ...updates } });
+    res.json({ success: true, data: { id: req.params.id, ...prev, ...updates } });
+    notifyFireAndForget(emailCapTableChange("entry updated", (prev.holderName as string) || req.params.id));
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -485,8 +508,12 @@ router.patch("/admin/cap-table/:id", requireRole("admin"), async (req: Request<I
 router.delete("/admin/cap-table/:id", requireRole("admin"), async (req: Request<IdParams>, res: Response) => {
   try {
     const db = getDb();
-    await db.collection(COLLECTIONS.CAP_TABLE).doc(req.params.id).delete();
+    const ref = db.collection(COLLECTIONS.CAP_TABLE).doc(req.params.id);
+    const doc = await ref.get();
+    const name = doc.exists ? (doc.data()?.holderName as string) : req.params.id;
+    await ref.delete();
     res.json({ success: true });
+    if (name) notifyFireAndForget(emailCapTableChange("entry removed", name));
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -522,6 +549,17 @@ router.post("/admin/safes", requireRole("admin"), async (req: Request, res: Resp
       updatedAt: now,
     });
     res.status(201).json({ success: true, data: { id: ref.id, ...parsed.data } });
+    notifyFireAndForget(
+      (async () => {
+        const email = await resolveInvestorEmail(parsed.data.portalUserId);
+        await emailSafeUpdate(
+          parsed.data.investorName,
+          email,
+          "created",
+          `Amount: $${parsed.data.amount.toLocaleString()} · Status: ${parsed.data.status}`
+        );
+      })()
+    );
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -536,9 +574,17 @@ router.patch("/admin/safes/:id", requireRole("admin"), async (req: Request<IdPar
       res.status(404).json({ success: false, error: "Not found" });
       return;
     }
+    const prev = doc.data() as InvestorSafe;
     const updates = { ...req.body, updatedAt: new Date().toISOString() };
     await ref.update(updates);
-    res.json({ success: true, data: { id: req.params.id, ...doc.data(), ...updates } });
+    res.json({ success: true, data: { id: req.params.id, ...prev, ...updates } });
+    notifyFireAndForget(
+      (async () => {
+        const email = await resolveInvestorEmail(prev.portalUserId);
+        const statusNote = updates.status ? `New status: ${updates.status}` : "Details updated";
+        await emailSafeUpdate(prev.investorName, email, "updated", statusNote);
+      })()
+    );
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -557,6 +603,7 @@ router.post("/admin/safes/:id/upload", requireRole("admin"), upload.single("file
       res.status(404).json({ success: false, error: "Not found" });
       return;
     }
+    const safe = doc.data() as InvestorSafe;
     await ref.update({
       documentBase64: req.file.buffer.toString("base64"),
       documentMimeType: req.file.mimetype,
@@ -564,6 +611,17 @@ router.post("/admin/safes/:id/upload", requireRole("admin"), upload.single("file
       updatedAt: new Date().toISOString(),
     });
     res.json({ success: true, data: { id: req.params.id, documentTitle: req.file.originalname } });
+    notifyFireAndForget(
+      (async () => {
+        const email = await resolveInvestorEmail(safe.portalUserId);
+        await emailSafeUpdate(
+          safe.investorName,
+          email,
+          "document uploaded",
+          `Document: ${req.file!.originalname}`
+        );
+      })()
+    );
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -609,6 +667,7 @@ router.post("/admin/data-room", requireRole("admin"), async (req: Request, res: 
       updatedAt: now,
     });
     res.status(201).json({ success: true, data: { id: ref.id, ...parsed.data } });
+    notifyFireAndForget(emailDataRoomUpdate(parsed.data.title, "document added"));
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }
@@ -627,6 +686,7 @@ router.post("/admin/data-room/:id/upload", requireRole("admin"), upload.single("
       res.status(404).json({ success: false, error: "Not found" });
       return;
     }
+    const roomDoc = doc.data() as DataRoomDocument;
     await ref.update({
       documentBase64: req.file.buffer.toString("base64"),
       documentMimeType: req.file.mimetype,
@@ -634,6 +694,9 @@ router.post("/admin/data-room/:id/upload", requireRole("admin"), upload.single("
       updatedAt: new Date().toISOString(),
     });
     res.json({ success: true, data: { id: req.params.id, sizeBytes: req.file.size } });
+    notifyFireAndForget(
+      emailDataRoomUpdate(roomDoc.title, `file uploaded (${req.file.originalname})`)
+    );
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
   }

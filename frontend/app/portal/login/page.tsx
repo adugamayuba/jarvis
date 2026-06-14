@@ -44,7 +44,7 @@ export default function PortalLoginPage() {
 
   return (
     <div className={`${p.shell} flex flex-col min-h-screen`}>
-      <div className="flex-1 flex items-center justify-center px-6 py-16">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
         <div className="w-full max-w-[420px]">
           <div className="mb-10 flex justify-center">
             <PortalLogo size="lg" />

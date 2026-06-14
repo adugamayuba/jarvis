@@ -10,6 +10,7 @@ export type CapTableHolderType =
   | "investor"
   | "advisor"
   | "option_pool"
+  | "parent"
   | "other";
 
 export type CapTableInstrument =
@@ -65,6 +66,7 @@ export interface CapTableEntry {
   sortOrder?: number;
   profileImageUrl?: string;
   valuationAtInvestment?: number;
+  websiteUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

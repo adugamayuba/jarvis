@@ -2,7 +2,7 @@
 export const p = {
   shell: "min-h-screen bg-[#f7f8fa] text-slate-900 font-[family-name:var(--font-geist-sans)]",
   header: "bg-white border-b border-slate-200/80 shadow-[0_1px_0_rgba(15,23,42,0.04)] sticky top-0 z-20",
-  main: "max-w-6xl mx-auto px-6 sm:px-8 py-8 sm:py-10",
+  main: "max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10",
   h1: "text-[1.75rem] sm:text-[2rem] font-semibold tracking-tight text-slate-900",
   subtitle: "text-base text-slate-500 mt-1.5",
   card: "bg-white border border-slate-200/90 rounded-xl shadow-sm",

@@ -56,7 +56,7 @@ export default function PortalCapTablePage() {
               </div>
             </section>
 
-            <section className="space-y-4">
+            <section className="hidden lg:block space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">Summary table</h2>
               <div className={p.tableWrap}>
                 <table className="w-full">

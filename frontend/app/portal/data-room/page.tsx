@@ -57,7 +57,7 @@ export default function PortalDataRoomPage() {
             {docs.map(doc => (
               <div
                 key={doc.id}
-                className={`${p.card} px-5 py-5 flex items-center justify-between gap-4 hover:border-slate-300 transition-colors`}
+                className={`${p.card} px-4 sm:px-5 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-300 transition-colors`}
               >
                 <div className="flex items-start gap-4 min-w-0">
                   <div className="w-11 h-11 rounded-lg bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center shrink-0">
@@ -78,7 +78,7 @@ export default function PortalDataRoomPage() {
                   <button
                     type="button"
                     onClick={() => openDoc(doc.id)}
-                    className={`${p.btnSecondary} shrink-0`}
+                    className={`${p.btnSecondary} w-full sm:w-auto shrink-0`}
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Open

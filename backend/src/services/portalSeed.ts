@@ -2,6 +2,7 @@
 import { getDb, COLLECTIONS } from "./firebase";
 
 const SEED_IDS = {
+  softdroom: "cap-softdroom-holdings",
   markCuban: "cap-mark-cuban",
   chrisMullaly: "cap-chris-mullaly",
   lvlupVentures: "cap-lvlup-ventures",
@@ -21,6 +22,25 @@ export async function seedPortalCapTable(): Promise<void> {
     const col = db.collection(COLLECTIONS.CAP_TABLE);
 
     const entries = [
+      {
+        id: SEED_IDS.softdroom,
+        holderName: "Softdroom Holdings",
+        holderType: "parent",
+        company: "Softdroom Holdings",
+        websiteUrl: "https://softdroom.com",
+        profileImageUrl:
+          "https://ui-avatars.com/api/?name=Softdroom&size=256&background=0f172a&color=ffffff&bold=true",
+        investmentAmount: 0,
+        ownershipPct: 84,
+        shares: sharesFromPct(84),
+        instrument: "common",
+        status: "active",
+        visible: true,
+        description:
+          "Softdroom Holdings is the parent company of Reelin AI and portfolio subsidiaries including Swiftdroom. As the majority shareholder, Softdroom Holdings holds 84% ownership and provides strategic oversight, capital allocation, and shared infrastructure across the group.",
+        notes: "Parent company · softdroom.com",
+        sortOrder: 0,
+      },
       {
         id: SEED_IDS.markCuban,
         holderName: "Mark Cuban",

@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { getDb, COLLECTIONS } from "../services/firebase";
 import { verifyPassword } from "../lib/password";
 import { JWT_SECRET } from "../middleware/auth";
+import { notifyFireAndForget, emailInvestorLogin } from "../services/portalEmail";
 
 const router = Router();
 
@@ -94,6 +95,8 @@ router.post("/portal-login", async (req: Request, res: Response) => {
         stage: user.stage,
       },
     });
+
+    notifyFireAndForget(emailInvestorLogin(user.name, user.email));
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Login failed" });
   }

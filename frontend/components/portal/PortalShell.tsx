@@ -7,6 +7,7 @@ import { portalHref } from "@/lib/investorPortalHost";
 import { cn } from "@/lib/utils";
 import { PortalLogo } from "./PortalLogo";
 import { PortalConfidentiality } from "./PortalConfidentiality";
+import { PortalBottomNav } from "./PortalBottomNav";
 import { p } from "./portalTheme";
 import { LogOut } from "lucide-react";
 
@@ -28,27 +29,30 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`${p.shell} flex flex-col`}>
+    <div className={`${p.shell} flex flex-col min-h-screen`}>
       <header className={p.header}>
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 h-[4.25rem] flex items-center justify-between">
-          <Link href={portalHref("/portal")} className="hover:opacity-90 transition-opacity">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 h-14 sm:h-[4.25rem] flex items-center justify-between gap-3">
+          <Link href={portalHref("/portal")} className="hover:opacity-90 transition-opacity min-w-0">
             <PortalLogo size="sm" />
           </Link>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
             {name && (
-              <span className="text-[15px] text-slate-600 hidden sm:block font-medium">{name}</span>
+              <span className="text-sm sm:text-[15px] text-slate-600 hidden xs:block sm:block font-medium truncate max-w-[120px] sm:max-w-none">
+                {name}
+              </span>
             )}
             <button
               type="button"
               onClick={logout}
-              className="flex items-center gap-2 text-[15px] text-slate-500 hover:text-slate-900 transition-colors font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-[15px] text-slate-500 hover:text-slate-900 transition-colors font-medium p-2 -mr-2"
+              aria-label="Sign out"
             >
               <LogOut className="w-4 h-4" />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>
-        <nav className="max-w-6xl mx-auto px-6 sm:px-8 flex gap-8 overflow-x-auto border-t border-slate-100">
+        <nav className="hidden md:flex max-w-6xl mx-auto px-4 sm:px-8 gap-8 overflow-x-auto border-t border-slate-100">
           {NAV.map(({ href, label }) => {
             const publicHref = portalHref(href);
             const active =
@@ -70,8 +74,14 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       </header>
-      <main className={`${p.main} flex-1`}>{children}</main>
-      <PortalConfidentiality />
+      <main className={`${p.main} flex-1 pb-24 md:pb-10`}>{children}</main>
+      <div className="hidden md:block">
+        <PortalConfidentiality />
+      </div>
+      <div className="md:hidden pb-20">
+        <PortalConfidentiality />
+      </div>
+      <PortalBottomNav />
     </div>
   );
 }

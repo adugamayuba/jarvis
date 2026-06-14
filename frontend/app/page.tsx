@@ -165,7 +165,7 @@ export default function DashboardPage() {
             rel="noreferrer"
             className="flex items-center gap-1 text-[12px] text-neutral-500 hover:text-white transition-colors"
           >
-            investors.adugam.com <ExternalLink className="w-3 h-3" />
+            investors.reelin.ai <ExternalLink className="w-3 h-3" />
           </a>
         </div>
         <div className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/20">

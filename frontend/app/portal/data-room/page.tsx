@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { downloadPortalFile, getPortalDataRoom, openPortalFile } from "@/lib/portal";
-import { FolderOpen, Download } from "lucide-react";
+import { p } from "@/components/portal/portalTheme";
+import { FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -37,36 +38,37 @@ export default function PortalDataRoomPage() {
 
   return (
     <PortalShell>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
-          <h1 className="text-xl font-semibold text-white">Data Room</h1>
-          <p className="text-[13px] text-neutral-500 mt-1">Company documents shared with investors</p>
+          <h1 className={p.h1}>Data room</h1>
+          <p className={p.subtitle}>Company documents shared with authorized investors</p>
         </div>
 
         {isLoading ? (
-          <p className="text-[13px] text-neutral-500">Loading...</p>
+          <p className={p.muted}>Loading documents...</p>
         ) : docs.length === 0 ? (
-          <div className="border border-neutral-800 rounded-xl p-8 text-center">
-            <FolderOpen className="w-8 h-8 text-neutral-600 mx-auto mb-3" />
-            <p className="text-[13px] text-neutral-400">No documents available yet</p>
+          <div className={`${p.card} px-8 py-14 text-center`}>
+            <FileText className="w-10 h-10 text-slate-300 mx-auto mb-4" />
+            <p className="text-lg font-medium text-slate-800">No documents available</p>
+            <p className="text-[15px] text-slate-500 mt-2">Materials will be added here as they become available.</p>
           </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="space-y-3">
             {docs.map(doc => (
               <div
                 key={doc.id}
-                className="border border-neutral-800 rounded-xl p-4 flex items-start justify-between gap-4 hover:bg-neutral-900/30 transition-colors"
+                className={`${p.card} px-5 py-5 flex items-center justify-between gap-4 hover:border-slate-300 transition-colors`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-neutral-800 flex items-center justify-center shrink-0">
-                    <FolderOpen className="w-4 h-4 text-neutral-400" />
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="w-11 h-11 rounded-lg bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5 text-slate-600" />
                   </div>
-                  <div>
-                    <p className="text-[13px] font-medium text-white">{doc.title}</p>
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-semibold text-slate-900 truncate">{doc.title}</p>
                     {doc.description && (
-                      <p className="text-[12px] text-neutral-500 mt-0.5">{doc.description}</p>
+                      <p className="text-[15px] text-slate-500 mt-0.5 line-clamp-2">{doc.description}</p>
                     )}
-                    <p className="text-[11px] text-neutral-600 mt-1">
+                    <p className="text-sm text-slate-400 mt-1.5">
                       {CATEGORY_LABELS[doc.category] || doc.category}
                       {doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleDateString()}` : ""}
                     </p>
@@ -74,10 +76,11 @@ export default function PortalDataRoomPage() {
                 </div>
                 {(doc.hasFile || doc.documentUrl) && (
                   <button
+                    type="button"
                     onClick={() => openDoc(doc.id)}
-                    className="flex items-center gap-1.5 text-[12px] text-neutral-400 hover:text-white shrink-0"
+                    className={`${p.btnSecondary} shrink-0`}
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <Download className="w-4 h-4 mr-2" />
                     Open
                   </button>
                 )}

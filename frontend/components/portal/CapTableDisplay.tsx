@@ -5,13 +5,13 @@ function HolderAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
       <img
         src={imageUrl}
         alt={name}
-        className="w-9 h-9 rounded-full object-cover bg-neutral-800 shrink-0"
+        className="w-10 h-10 rounded-full object-cover bg-slate-100 ring-1 ring-slate-200 shrink-0"
       />
     );
   }
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <div className="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center text-[11px] font-medium text-neutral-300 shrink-0">
+    <div className="w-10 h-10 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600 shrink-0">
       {initials}
     </div>
   );
@@ -30,4 +30,18 @@ function fmtMoney(n: number) {
   return `$${n.toLocaleString()}`;
 }
 
-export { HolderAvatar, fmtShares, fmtMoney as fmtCapMoney };
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    active: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+    pending: "bg-amber-50 text-amber-800 ring-amber-200",
+    discussing: "bg-sky-50 text-sky-800 ring-sky-200",
+  };
+  const cls = styles[status] || "bg-slate-100 text-slate-700 ring-slate-200";
+  return (
+    <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold capitalize ring-1 ring-inset ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
+export { HolderAvatar, fmtShares, fmtMoney as fmtCapMoney, StatusBadge };

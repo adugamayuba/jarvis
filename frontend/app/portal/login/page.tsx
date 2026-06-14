@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { portalLogin } from "@/lib/portal";
 import { setToken, setRole, setPortalSession } from "@/lib/auth";
 import { portalHomeHref } from "@/lib/investorPortalHost";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { PortalLogo } from "@/components/portal/PortalLogo";
+import { p } from "@/components/portal/portalTheme";
 import { Loader2 } from "lucide-react";
 
 export default function PortalLoginPage() {
@@ -42,47 +42,72 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2.5 justify-center mb-10">
-          <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center">
-            <span className="text-sm font-bold text-neutral-900">R</span>
+    <div className={`${p.shell} flex flex-col min-h-screen`}>
+      <div className="flex-1 flex items-center justify-center px-6 py-16">
+        <div className="w-full max-w-[420px]">
+          <div className="mb-10 flex justify-center">
+            <PortalLogo size="lg" />
           </div>
-          <div>
-            <p className="text-base font-semibold text-white tracking-tight leading-none">Reelin AI</p>
-            <p className="text-[12px] text-neutral-500 mt-0.5">Investor Portal</p>
+
+          <div className={`${p.card} ${p.cardPad}`}>
+            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Sign in</h1>
+            <p className={`${p.subtitle} mb-8`}>
+              Access your cap table position, SAFE documents, and data room.
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@fund.com"
+                  autoFocus
+                  className={p.input}
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className={p.input}
+                />
+              </div>
+              {error && <p className={p.error}>{error}</p>}
+              <button
+                type="submit"
+                disabled={loading || !email || !password}
+                className={`${p.btnPrimary} w-full`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Signing in
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </button>
+            </form>
           </div>
-        </div>
 
-        <div className="border border-neutral-800 rounded-xl p-7">
-          <h1 className="text-[15px] font-semibold text-white mb-1">Investor sign in</h1>
-          <p className="text-[13px] text-neutral-500 mb-6">Use the email and password provided by Reelin AI</p>
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              autoFocus
-              className="bg-neutral-800/50 border-neutral-700 text-white placeholder:text-neutral-600 h-9 text-[13px]"
-            />
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="bg-neutral-800/50 border-neutral-700 text-white placeholder:text-neutral-600 h-9 text-[13px]"
-            />
-            {error && <p className="text-[12px] text-red-400">{error}</p>}
-            <Button
-              type="submit"
-              disabled={loading || !email || !password}
-              className="w-full bg-white text-neutral-900 hover:bg-neutral-200 text-[13px] font-medium h-9"
-            >
-              {loading ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Signing in...</> : "Sign in"}
-            </Button>
-          </form>
+          <p className="text-center text-sm text-slate-400 mt-8">
+            Authorized investors only. Contact{" "}
+            <a href="mailto:abel@reelin.ai" className="text-slate-600 hover:text-slate-900 underline underline-offset-2">
+              abel@reelin.ai
+            </a>{" "}
+            for access.
+          </p>
         </div>
       </div>
     </div>

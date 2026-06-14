@@ -28,9 +28,9 @@ export async function seedPortalCapTable(): Promise<void> {
         profileImageUrl:
           "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mark_Cuban_by_Gage_Skidmore.jpg/440px-Mark_Cuban_by_Gage_Skidmore.jpg",
         investmentAmount: 100_000,
-        valuationAtInvestment: 5_000_000,
-        ownershipPct: 2,
-        shares: sharesFromPct(2),
+        valuationAtInvestment: 1_000_000,
+        ownershipPct: 10,
+        shares: sharesFromPct(10),
         instrument: "safe",
         status: "active",
         visible: true,

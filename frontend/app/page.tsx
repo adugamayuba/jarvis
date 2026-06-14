@@ -4,11 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { getContacts, getCampaigns, getScrapeJobs, checkHealth, getSwiftdroomStats } from "@/lib/api";
 import {
   Users, Mail, Search, AlertCircle,
-  Wifi, ArrowRight, Zap, Briefcase, Sparkles,
+  Wifi, ArrowRight, Zap, Briefcase, Sparkles, ExternalLink, Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ScrapeJob, Campaign } from "@/types";
+import { InvestorPortalAdmin } from "@/components/investor-portal/InvestorPortalAdmin";
+import { investorLoginUrl } from "@/lib/investorPortalHost";
 import {
   SUBSIDIARIES,
   getGrowthHubSubsidiaries,
@@ -148,6 +150,30 @@ export default function DashboardPage() {
             <ProgressBar value={reelin.raised ?? 0} max={reelin.raiseGoal ?? 1} />
           </Link>
         )}
+      </div>
+
+      {/* Investor portal admin */}
+      <div id="investor-portal" className="mb-8">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-violet-400" />
+            <h2 className="text-[11px] font-medium text-neutral-600 uppercase tracking-widest">Investor Portal</h2>
+          </div>
+          <a
+            href={investorLoginUrl()}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 text-[12px] text-neutral-500 hover:text-white transition-colors"
+          >
+            investors.adugam.com <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+        <div className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/20">
+          <p className="text-[12px] text-neutral-500 mb-4">
+            Create investor logins, manage cap table, SAFEs, and data room. Share {investorLoginUrl()} with investors.
+          </p>
+          <InvestorPortalAdmin embedded />
+        </div>
       </div>
 
       {/* Ops stats */}

@@ -23,7 +23,7 @@ export default function LoginPage() {
       if (res.success && res.data?.token) {
         setToken(res.data.token);
         const role = res.data.role || "admin";
-        setRole(role as "admin" | "cofounder");
+        setRole(role as "admin" | "cofounder" | "investor");
         // Co-founders go straight to influencer finder
         router.replace(role === "cofounder" ? "/influencers-finder" : "/");
       } else {

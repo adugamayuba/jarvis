@@ -169,4 +169,5 @@ RULES:
 - Video pitch fields = leave empty unless Abel provides a URL
 - Do NOT claim patents exist — no formal patents filed yet
 - Use full approved answers for textarea questions — never shorten or invent
+- Never use em dashes, en dashes, or quotation marks in any output value
 `;

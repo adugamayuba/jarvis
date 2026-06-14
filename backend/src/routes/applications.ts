@@ -3,12 +3,23 @@ import OpenAI from "openai";
 import { getDb } from "../services/firebase";
 import { analyzeApplicationForm, submitApplicationForm, FormField, REELIN_PROFILE } from "../services/browser";
 import { matchFormField, APPLICATION_KNOWLEDGE, FORM_FIELD_MAP } from "../data/applicationFields";
+import { sanitizeAiText, AI_WRITING_STYLE_RULES } from "../lib/sanitizeAiText";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface AppIdParams extends Record<string, string> { id: string }
 
 const router = Router();
+
+function attachSuggestedValues<T extends Record<string, unknown>>(
+  fields: T[],
+  values: string[]
+): Array<T & { suggestedValue: string }> {
+  return fields.map((f, i) => ({
+    ...f,
+    suggestedValue: sanitizeAiText(values[i] || ""),
+  }));
+}
 
 // Comprehensive accelerator database
 const ACCELERATOR_DB: Record<string, { name: string; applyUrl: string; website: string }> = {
@@ -125,7 +136,7 @@ router.post("/map-fields", async (req: Request, res: Response) => {
 
     if (!process.env.OPENAI_API_KEY) {
       // Return fields without AI mapping if no API key
-      const mappedFields = fields.map(f => ({ ...f, suggestedValue: "" }));
+      const mappedFields = attachSuggestedValues(fields, fields.map(() => ""));
       res.json({ success: true, data: { fields: mappedFields } });
       return;
     }
@@ -144,10 +155,7 @@ router.post("/map-fields", async (req: Request, res: Response) => {
 
     // If everything matched, return immediately
     if (unmatchedIndices.length === 0) {
-      const mappedFields = fields.map((f, i) => ({
-        ...f,
-        suggestedValue: preMapped[i] || "",
-      }));
+      const mappedFields = attachSuggestedValues(fields, preMapped.map(v => v || ""));
       res.json({ success: true, data: { fields: mappedFields } });
       return;
     }
@@ -178,6 +186,8 @@ CRITICAL RULES:
 - Do NOT put problem statement in program select, or team experience in video pitch field
 - Deck link = https://docsend.com/view/raru36axy8gftwb4
 
+${AI_WRITING_STYLE_RULES}
+
 PAGE: "${pageTitle}"
 CONTEXT: ${pageText.substring(0, 500)}
 
@@ -202,73 +212,12 @@ Respond with JSON: { "values": { "0": "value", "3": "value" } } using field indi
     const json = JSON.parse(result.choices[0].message.content || "{}");
     const aiValues: Record<string, string> = json.values || {};
 
-    const mappedFields = fields.map((f, i) => ({
-      ...f,
-      suggestedValue: preMapped[i] || aiValues[String(i)] || aiValues[i] || "",
-    }));
+    const mappedFields = attachSuggestedValues(
+      fields,
+      fields.map((_, i) => preMapped[i] || aiValues[String(i)] || aiValues[i] || "")
+    );
 
     res.json({ success: true, data: { fields: mappedFields } });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
-  }
-});
-
-// POST /api/applications/answer-question — manual Q&A from extension sidebar
-router.post("/answer-question", async (req: Request, res: Response) => {
-  try {
-    const { question } = req.body as { question: string };
-    if (!question?.trim()) {
-      res.status(400).json({ success: false, error: "question required" });
-      return;
-    }
-
-    const q = question.trim();
-    const matched = matchFormField(q);
-    if (matched) {
-      res.json({ success: true, data: { answer: matched, source: "matched" } });
-      return;
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      res.json({ success: true, data: { answer: "", source: "none" } });
-      return;
-    }
-
-    const profile = JSON.stringify(REELIN_PROFILE, null, 2);
-    const prompt = `You are answering ONE accelerator application question for Reelin AI.
-
-REELIN AI PROFILE:
-${profile}
-
-${APPLICATION_KNOWLEDGE}
-
-QUESTION:
-${q}
-
-CRITICAL RULES:
-- Company name → Reelin AI | Company website → https://reelin.ai
-- First name → Abel | Last name → Adugam
-- Founder 1: Abel Adugam, abel@reelin.ai, LinkedIn https://adugam.com
-- Founder 2: Ligia Tica, ligia@reelin.ai, LinkedIn https://www.linkedin.com/in/ligia-t-8b4630225/
-- Pitch deck link → https://docsend.com/view/raru36axy8gftwb4 (deck fields only)
-- Video pitch → empty string
-- Use FULL approved Q&A answers verbatim when the question matches
-- Do NOT claim patents exist — no formal patents filed yet
-
-Respond with JSON: { "answer": "your answer here" }`;
-
-    const result = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      max_tokens: 2000,
-    });
-
-    const json = JSON.parse(result.choices[0].message.content || "{}");
-    res.json({
-      success: true,
-      data: { answer: (json.answer as string) || "", source: "ai" },
-    });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }

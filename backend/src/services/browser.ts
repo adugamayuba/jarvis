@@ -1,6 +1,7 @@
 import { chromium, Browser, BrowserContext, Page } from "playwright";
 import OpenAI from "openai";
 import { matchFormField, APPLICATION_KNOWLEDGE } from "../data/applicationFields";
+import { sanitizeAiText, AI_WRITING_STYLE_RULES } from "../lib/sanitizeAiText";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -178,7 +179,9 @@ async function aiMapField(
   name?: string
 ): Promise<{ value: string; reasoning: string }> {
   const matched = matchFormField(label, name);
-  if (matched) return { value: matched, reasoning: "Matched approved application copy" };
+  if (matched) {
+    return { value: sanitizeAiText(matched), reasoning: "Matched approved application copy" };
+  }
 
   const profile = JSON.stringify(REELIN_PROFILE, null, 2);
 
@@ -198,6 +201,8 @@ Page context: ${context}
 
 RULES: First Name=Abel, Last Name=Adugam. Use full approved answers for textareas. No fake patents. Deck=https://docsend.com/view/raru36axy8gftwb4
 
+${AI_WRITING_STYLE_RULES}
+
 Based on the Reelin AI profile above, what is the BEST value to fill in for this field?
 For select/radio fields, choose the most appropriate option from the list.
 For text fields, use approved copy verbatim when available.
@@ -212,7 +217,10 @@ Respond with JSON: { "value": "...", "reasoning": "..." }`;
       max_tokens: 800,
     });
     const json = JSON.parse(res.choices[0].message.content || "{}");
-    return { value: json.value || "", reasoning: json.reasoning || "" };
+    return {
+      value: sanitizeAiText(json.value || ""),
+      reasoning: json.reasoning || "",
+    };
   } catch {
     return { value: "", reasoning: "Could not map field" };
   }

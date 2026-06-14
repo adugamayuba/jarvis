@@ -51,12 +51,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           }),
         });
         sendResponse({ success: true, data: result.data });
-      } else if (msg.type === "ANSWER_QUESTION") {
-        const result = await apiCall("/api/applications/answer-question", {
-          method: "POST",
-          body: JSON.stringify({ question: msg.question }),
-        }, 45000);
-        sendResponse({ success: true, data: result.data });
       } else if (msg.type === "SAVE_APPLICATION") {
         const result = await apiCall("/api/applications", {
           method: "POST",

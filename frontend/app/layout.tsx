@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "./providers";
-import { Sidebar } from "@/components/dashboard/Sidebar";
 import { AuthGuard } from "@/components/AuthGuard";
+import { DashboardShell } from "@/components/DashboardShell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,10 +33,7 @@ export default function RootLayout({
       >
         <Providers>
           <AuthGuard>
-            <div className="flex h-screen overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 overflow-hidden pt-12 md:pt-0">{children}</main>
-            </div>
+            <DashboardShell>{children}</DashboardShell>
           </AuthGuard>
           <Toaster position="top-right" richColors />
         </Providers>

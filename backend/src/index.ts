@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { initFirebase } from "./services/firebase";
 import { seedTrainingKnowledge } from "./services/knowledge";
+import { seedPortalCapTable } from "./services/portalSeed";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 import scrapeRoutes from "./routes/scrape";
 import contactsRoutes from "./routes/contacts";
@@ -17,6 +18,7 @@ import documentRoutes from "./routes/documents";
 import extensionRoutes from "./routes/extension";
 import ugcRoutes from "./routes/ugc";
 import swiftdroomRoutes from "./routes/swiftdroom";
+import portalRoutes from "./routes/portal";
 
 dotenv.config();
 
@@ -56,6 +58,7 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/extension", extensionRoutes);
 app.use("/api/ugc", ugcRoutes);
 app.use("/api/swiftdroom", swiftdroomRoutes);
+app.use("/api/portal", portalRoutes);
 
 // 404 & error handler
 app.use(notFound);
@@ -67,6 +70,7 @@ async function bootstrap() {
     initFirebase();
     console.log("✅ Firebase initialized");
     await seedTrainingKnowledge();
+    await seedPortalCapTable();
   } catch (err) {
     console.error("⚠️  Firebase init failed (check env vars):", (err as Error).message);
   }

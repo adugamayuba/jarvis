@@ -39,4 +39,8 @@ export const COLLECTIONS = {
   CONVERSATIONS: "conversations",
   PROFILE: "profile",
   INVESTORS: "investors",
+  PORTAL_USERS: "portalUsers",
+  CAP_TABLE: "capTable",
+  INVESTOR_SAFES: "investorSafes",
+  DATA_ROOM: "dataRoomDocuments",
 } as const;

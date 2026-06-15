@@ -5,13 +5,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getPortalUsers, createPortalUser, deletePortalUser, resetPortalPassword,
   getAdminCapTable, createCapTableEntry, deleteCapTableEntry,
-  getAdminSafes, createSafe, deleteSafe, uploadSafeFile,
+  getAdminSafes, createSafe, updateSafe, deleteSafe, uploadSafeFile,
   getAdminDataRoom, createDataRoomDoc, deleteDataRoomDoc, uploadDataRoomFile,
   PortalUser, CapTableEntry, InvestorSafe, DataRoomDoc, PortalStage,
 } from "@/lib/portal";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Key, Copy, Upload } from "lucide-react";
+import { Plus, Trash2, Key, Copy, Upload, ExternalLink, Link2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -70,6 +70,7 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
   const [showCapModal, setShowCapModal] = useState(false);
   const [safeForm, setSafeForm] = useState<Partial<InvestorSafe>>({ status: "sent" });
   const [showSafeModal, setShowSafeModal] = useState(false);
+  const [safeUrlDrafts, setSafeUrlDrafts] = useState<Record<string, string>>({});
   const [docForm, setDocForm] = useState<Partial<DataRoomDoc>>({ category: "other", visibility: "all" });
   const [showDocModal, setShowDocModal] = useState(false);
   const qc = useQueryClient();
@@ -113,7 +114,20 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
 
   const createSafeM = useMutation({
     mutationFn: createSafe,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-safes"] }); setShowSafeModal(false); toast.success("SAFE created"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-safes"] });
+      setShowSafeModal(false);
+      setSafeForm({ status: "sent" });
+      toast.success("SAFE created");
+    },
+  });
+
+  const updateSafeM = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<InvestorSafe> }) => updateSafe(id, updates),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-safes"] });
+      toast.success("SAFE updated");
+    },
   });
 
   const deleteSafeM = useMutation({
@@ -262,30 +276,73 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
               </Button>
             </div>
             <div className="space-y-2">
-              {safes.map(s => (
-                <div key={s.id} className="border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-[13px] text-white font-medium">{s.investorName}</p>
-                    <p className="text-[12px] text-neutral-500">{fmt(s.amount)} · {s.status}</p>
+              {safes.map(s => {
+                const urlDraft = safeUrlDrafts[s.id] ?? s.documentUrl ?? "";
+                return (
+                <div key={s.id} className="border border-neutral-800 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] text-white font-medium">{s.investorName}</p>
+                      <p className="text-[12px] text-neutral-500">
+                        {fmt(s.amount)} · {s.status}
+                        {s.hasDocument && (
+                          <span className="text-emerald-500 ml-2">
+                            · {s.documentUrl ? "Link attached" : "File attached"}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {s.documentUrl && (
+                        <a
+                          href={s.documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-neutral-400 hover:text-white"
+                          title="Open document"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                      <label className="cursor-pointer flex items-center gap-1 text-[11px] text-neutral-400 hover:text-white">
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload file
+                        <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          await uploadSafeFile(s.id, file);
+                          qc.invalidateQueries({ queryKey: ["admin-safes"] });
+                          toast.success("File uploaded");
+                        }} />
+                      </label>
+                      <button onClick={() => deleteSafeM.mutate(s.id)} className="p-1.5 text-neutral-500 hover:text-red-400">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="cursor-pointer flex items-center gap-1 text-[11px] text-neutral-400 hover:text-white">
-                      <Upload className="w-3.5 h-3.5" />
-                      Upload PDF
-                      <input type="file" accept=".pdf" className="hidden" onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        await uploadSafeFile(s.id, file);
-                        qc.invalidateQueries({ queryKey: ["admin-safes"] });
-                        toast.success("Uploaded");
-                      }} />
-                    </label>
-                    <button onClick={() => deleteSafeM.mutate(s.id)} className="p-1.5 text-neutral-500 hover:text-red-400">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Document link (Google Docs, Dropbox, etc.)"
+                      value={urlDraft}
+                      onChange={e => setSafeUrlDrafts(p => ({ ...p, [s.id]: e.target.value }))}
+                      className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[12px] flex-1"
+                    />
+                    <Button
+                      onClick={() => updateSafeM.mutate({
+                        id: s.id,
+                        updates: {
+                          documentUrl: urlDraft.trim(),
+                          documentTitle: s.documentTitle || `${s.investorName} SAFE`,
+                        },
+                      })}
+                      className="bg-neutral-800 text-white hover:bg-neutral-700 h-8 text-[11px] shrink-0"
+                    >
+                      <Link2 className="w-3.5 h-3.5 mr-1" />
+                      Save link
+                    </Button>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         )}
@@ -411,6 +468,10 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
             className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[13px]" />
           <Input placeholder="Valuation cap" type="number" value={safeForm.valuationCap || ""} onChange={e => setSafeForm(p => ({ ...p, valuationCap: Number(e.target.value) }))}
             className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[13px]" />
+          <Input placeholder="Document title (optional)" value={safeForm.documentTitle || ""} onChange={e => setSafeForm(p => ({ ...p, documentTitle: e.target.value }))}
+            className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[13px]" />
+          <Input placeholder="Document link — Google Docs, etc. (optional)" value={safeForm.documentUrl || ""} onChange={e => setSafeForm(p => ({ ...p, documentUrl: e.target.value }))}
+            className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[13px]" />
           <Button
             onClick={() => safeForm.portalUserId && safeForm.investorName && createSafeM.mutate({
               portalUserId: safeForm.portalUserId,
@@ -418,6 +479,8 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
               amount: safeForm.amount || 0,
               valuationCap: safeForm.valuationCap,
               status: safeForm.status || "sent",
+              documentTitle: safeForm.documentTitle,
+              documentUrl: safeForm.documentUrl,
             } as Omit<InvestorSafe, "id">)}
             className="bg-white text-neutral-900 hover:bg-neutral-200 h-8 text-[12px]"
           >

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { downloadPortalFile, getPortalMySafe, openPortalFile } from "@/lib/portal";
 import { p } from "@/components/portal/portalTheme";
-import { Download, FileText } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 function fmt(n: number) {
@@ -29,7 +29,11 @@ export default function PortalSafePage() {
 
   const safe = data?.data;
 
-  async function downloadSafe() {
+  async function openSafeDocument() {
+    if (safe?.documentUrl) {
+      window.open(safe.documentUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
     try {
       const res = await downloadPortalFile("/api/portal/safe/file");
       if (res.success && res.data) {
@@ -38,7 +42,7 @@ export default function PortalSafePage() {
         toast.error(res.error || "No document available");
       }
     } catch {
-      toast.error("Could not download SAFE");
+      toast.error("Could not open document");
     }
   }
 
@@ -68,9 +72,9 @@ export default function PortalSafePage() {
                 </div>
               </div>
               {(safe.hasDocument || safe.documentUrl) && (
-                <button type="button" onClick={downloadSafe} className={p.btnSecondary}>
-                  <Download className="w-4 h-4 mr-2" />
-                  View document
+                <button type="button" onClick={openSafeDocument} className={`${p.btnSecondary} w-full sm:w-auto`}>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open document
                 </button>
               )}
             </div>

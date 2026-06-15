@@ -581,8 +581,11 @@ router.patch("/admin/safes/:id", requireRole("admin"), async (req: Request<IdPar
     notifyFireAndForget(
       (async () => {
         const email = await resolveInvestorEmail(prev.portalUserId);
-        const statusNote = updates.status ? `New status: ${updates.status}` : "Details updated";
-        await emailSafeUpdate(prev.investorName, email, "updated", statusNote);
+        let detail = updates.status ? `New status: ${updates.status}` : "Details updated";
+        if (updates.documentUrl && updates.documentUrl !== prev.documentUrl) {
+          detail = "A document link has been added to your SAFE.";
+        }
+        await emailSafeUpdate(prev.investorName, email, "updated", detail);
       })()
     );
   } catch (err) {

@@ -5,7 +5,9 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { getPortalCapTable } from "@/lib/portal";
 import { HolderProfileCard } from "@/components/portal/HolderProfileCard";
 import { HolderAvatar, fmtShares, fmtCapMoney, StatusBadge } from "@/components/portal/CapTableDisplay";
+import { RoundTargetCard } from "@/components/portal/RoundTargetCard";
 import { p } from "@/components/portal/portalTheme";
+import { roundCommitments, pipelineCommitments, trackedOwnership } from "@/lib/capTableStats";
 
 export default function PortalCapTablePage() {
   const { data, isLoading } = useQuery({
@@ -14,8 +16,9 @@ export default function PortalCapTablePage() {
   });
 
   const entries = data?.data || [];
-  const totalInvested = entries.reduce((s, e) => s + (e.investmentAmount || 0), 0);
-  const totalOwnership = entries.reduce((s, e) => s + (e.ownershipPct || 0), 0);
+  const closedCommitments = roundCommitments(entries);
+  const pipeline = pipelineCommitments(entries);
+  const totalOwnership = trackedOwnership(entries);
 
   return (
     <PortalShell>
@@ -27,10 +30,18 @@ export default function PortalCapTablePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <RoundTargetCard roundCommitmentsUsd={closedCommitments} pipelineUsd={pipeline} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <div className={`${p.card} ${p.cardPad}`}>
-            <p className={p.statLabel}>Total invested</p>
-            <p className={p.statValue}>{fmtCapMoney(totalInvested)}</p>
+            <p className={p.statLabel}>Round commitments (closed)</p>
+            <p className={p.statValue}>{fmtCapMoney(closedCommitments)}</p>
+            <p className="text-sm text-slate-500 mt-2">Mark Cuban $100K · Chris Mullaly $10K</p>
+          </div>
+          <div className={`${p.card} ${p.cardPad}`}>
+            <p className={p.statLabel}>In discussion</p>
+            <p className={p.statValue}>{pipeline > 0 ? fmtCapMoney(pipeline) : "—"}</p>
+            <p className="text-sm text-slate-500 mt-2">Not included in closed total</p>
           </div>
           <div className={`${p.card} ${p.cardPad}`}>
             <p className={p.statLabel}>Tracked ownership</p>
@@ -63,7 +74,7 @@ export default function PortalCapTablePage() {
                   <thead>
                     <tr>
                       <th className={p.th}>Holder</th>
-                      <th className={`${p.th} text-right`}>Investment</th>
+                      <th className={`${p.th} text-right`}>Commitment</th>
                       <th className={`${p.th} text-right`}>Shares</th>
                       <th className={`${p.th} text-right`}>Ownership</th>
                       <th className={p.th}>Status</th>
@@ -82,7 +93,9 @@ export default function PortalCapTablePage() {
                           </div>
                         </td>
                         <td className={`${p.td} text-right tabular-nums font-medium text-slate-900`}>
-                          {fmtCapMoney(row.investmentAmount || 0)}
+                          {row.holderType === "investor" && row.investmentAmount
+                            ? fmtCapMoney(row.investmentAmount)
+                            : "—"}
                         </td>
                         <td className={`${p.td} text-right text-slate-600 max-w-[200px]`}>
                           {fmtShares(row.shares, row.sharesLabel)}
@@ -91,7 +104,7 @@ export default function PortalCapTablePage() {
                           {row.ownershipPct ? `${row.ownershipPct.toFixed(2)}%` : "—"}
                         </td>
                         <td className={p.td}>
-                          <StatusBadge status={row.status} />
+                          <StatusBadge status={row.status} notes={row.notes} />
                         </td>
                       </tr>
                     ))}

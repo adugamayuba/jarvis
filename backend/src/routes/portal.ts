@@ -48,7 +48,7 @@ const CapTableSchema = z.object({
   sharesLabel: z.string().optional().default(""),
   investmentAmount: z.number().optional().default(0),
   instrument: z.enum(["common", "preferred", "safe", "convertible_note", "options"]).default("safe"),
-  status: z.enum(["active", "pending", "discussing"]).default("pending"),
+  status: z.enum(["active", "pending", "discussing", "negotiating"]).default("pending"),
   visible: z.boolean().optional().default(true),
   notes: z.string().optional().default(""),
   description: z.string().optional().default(""),

@@ -20,7 +20,7 @@ export type CapTableInstrument =
   | "convertible_note"
   | "options";
 
-export type CapTableStatus = "active" | "pending" | "discussing";
+export type CapTableStatus = "active" | "pending" | "discussing" | "negotiating";
 
 export type SafeStatus = "draft" | "sent" | "signed" | "funded";
 

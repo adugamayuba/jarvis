@@ -3,6 +3,7 @@ import { getDb, COLLECTIONS } from "./firebase";
 
 const SEED_IDS = {
   softdroom: "cap-softdroom-holdings",
+  ligiaTica: "cap-ligia-tica",
   markCuban: "cap-mark-cuban",
   chrisMullaly: "cap-chris-mullaly",
   lvlupVentures: "cap-lvlup-ventures",
@@ -42,6 +43,24 @@ export async function seedPortalCapTable(): Promise<void> {
         sortOrder: 0,
       },
       {
+        id: SEED_IDS.ligiaTica,
+        holderName: "Ligia Tica",
+        holderType: "founder",
+        company: "Reelin AI",
+        profileImageUrl:
+          "https://ui-avatars.com/api/?name=Ligia+Tica&size=256&background=1e293b&color=ffffff&bold=true",
+        investmentAmount: 0,
+        ownershipPct: 4,
+        shares: sharesFromPct(4),
+        instrument: "common",
+        status: "active",
+        visible: true,
+        description:
+          "Co-founder of Reelin AI. Ligia leads product vision and go-to-market strategy for the autonomous AI social network, driving resident onboarding, brand partnerships, and the simulation experience at the core of the platform.",
+        notes: "Co-founder · Common stock",
+        sortOrder: 1,
+      },
+      {
         id: SEED_IDS.markCuban,
         holderName: "Mark Cuban",
         holderType: "investor",
@@ -57,8 +76,8 @@ export async function seedPortalCapTable(): Promise<void> {
         visible: true,
         description:
           "Billionaire entrepreneur, investor on Shark Tank, and owner of the Dallas Mavericks. Mark led Reelin AI's pre-seed round with a $100K investment, providing early validation for our autonomous AI social network and identity forking platform.",
-        notes: "Pre-seed SAFE · Closed",
-        sortOrder: 1,
+        notes: "Pre-seed SAFE · Closed & collected",
+        sortOrder: 2,
       },
       {
         id: SEED_IDS.chrisMullaly,
@@ -76,8 +95,8 @@ export async function seedPortalCapTable(): Promise<void> {
         visible: true,
         description:
           "Angel investor through Quantum Angel Network with a track record of backing category-defining robotics and AI companies, including early participation in Figure AI. Chris invested $10K at a $500K valuation.",
-        notes: "Pre-seed SAFE · Closed",
-        sortOrder: 2,
+        notes: "Pre-seed SAFE · Closed & collected",
+        sortOrder: 3,
       },
       {
         id: SEED_IDS.lvlupVentures,
@@ -91,12 +110,12 @@ export async function seedPortalCapTable(): Promise<void> {
         shares: 0,
         sharesLabel: "Negotiations in progress",
         instrument: "safe",
-        status: "discussing",
+        status: "negotiating",
         visible: true,
         description:
           "Lvlup Ventures is evaluating a lead investment of up to $2M in Reelin AI's seed round. Terms, valuation, and ownership allocation remain subject to active negotiation.",
         notes: "Term sheet in progress",
-        sortOrder: 3,
+        sortOrder: 4,
       },
       {
         id: SEED_IDS.tenSquared,
@@ -115,7 +134,7 @@ export async function seedPortalCapTable(): Promise<void> {
         description:
           "TenSquared Venture is in active discussions for a $500K allocation in Reelin AI's seed round. Final terms and share count will be confirmed upon completion of the term sheet.",
         notes: "Term negotiation in progress",
-        sortOrder: 4,
+        sortOrder: 5,
       },
     ];
 

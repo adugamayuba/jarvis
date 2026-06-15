@@ -18,7 +18,7 @@ export type PortalStage = "prospect" | "discussing" | "safe_sent" | "safe_signed
 export type SafeStatus = "draft" | "sent" | "signed" | "funded";
 export type CapTableHolderType = "founder" | "investor" | "advisor" | "option_pool" | "parent" | "other";
 export type CapTableInstrument = "common" | "preferred" | "safe" | "convertible_note" | "options";
-export type CapTableStatus = "active" | "pending" | "discussing";
+export type CapTableStatus = "active" | "pending" | "discussing" | "negotiating";
 export type DataRoomCategory = "financials" | "legal" | "product" | "pitch" | "other";
 
 export interface PortalUser {

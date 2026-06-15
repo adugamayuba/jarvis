@@ -66,11 +66,12 @@ export async function emailInvestorLogin(name: string, email: string): Promise<v
   const time = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
   await notifyInvestor(
     email,
-    "You signed in to the investor portal",
-    `<p>Hello ${name},</p>
-     <p>You signed in to the Reelin AI investor portal at ${time} ET.</p>
-     <p>If this wasn't you, contact us immediately at abel@reelin.ai.</p>
-     <p><a href="${PORTAL_URL}">Open portal →</a></p>`
+    "Sign-in to your Reelin investor portal",
+    `<p>Hi ${name},</p>
+     <p>We noticed you signed in to your Reelin investors portal on ${time} ET.</p>
+     <p>If this wasn't you, please contact us immediately at
+     <a href="mailto:abel@reelin.ai">abel@reelin.ai</a>.</p>
+     <p><a href="${PORTAL_URL}">Return to portal →</a></p>`
   );
 }
 

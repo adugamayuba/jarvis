@@ -5,9 +5,11 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { getPortalDashboard } from "@/lib/portal";
 import { cn } from "@/lib/utils";
 import { HolderProfileCard } from "@/components/portal/HolderProfileCard";
+import { RoundTargetCard } from "@/components/portal/RoundTargetCard";
 import { fmtCapMoney } from "@/components/portal/CapTableDisplay";
 import { portalHref } from "@/lib/investorPortalHost";
 import { p } from "@/components/portal/portalTheme";
+import { roundCommitments, pipelineCommitments } from "@/lib/capTableStats";
 
 const STAGE_LABELS: Record<string, { label: string; className: string }> = {
   prospect: { label: "Prospect", className: "text-slate-600" },
@@ -25,6 +27,8 @@ export default function PortalOverviewPage() {
 
   const dash = data?.data;
   const stage = dash?.profile.stage ? STAGE_LABELS[dash.profile.stage] : null;
+  const closedCommitments = dash ? roundCommitments(dash.capTable) : 0;
+  const pipeline = dash ? pipelineCommitments(dash.capTable) : 0;
 
   return (
     <PortalShell>
@@ -45,7 +49,7 @@ export default function PortalOverviewPage() {
               <p className={cn("text-xl font-semibold mt-2", stage?.className)}>{stage?.label || "—"}</p>
             </div>
             <div className={`${p.card} ${p.cardPad}`}>
-              <p className={p.statLabel}>Investment amount</p>
+              <p className={p.statLabel}>Your commitment</p>
               <p className={p.statValue}>{fmtCapMoney(dash.profile.investmentAmount)}</p>
             </div>
             <div className={`${p.card} ${p.cardPad}`}>
@@ -53,6 +57,8 @@ export default function PortalOverviewPage() {
               <p className={p.statValue}>{dash.dataRoomCount}</p>
             </div>
           </div>
+
+          <RoundTargetCard roundCommitmentsUsd={closedCommitments} pipelineUsd={pipeline} />
 
           {dash.profile.lastConversation && (
             <div className={`${p.card} ${p.cardPad}`}>

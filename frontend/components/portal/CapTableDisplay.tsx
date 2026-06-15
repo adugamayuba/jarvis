@@ -42,16 +42,26 @@ function fmtMoney(n: number) {
   return `$${n.toLocaleString()}`;
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, notes }: { status: string; notes?: string }) {
+  const closed = status === "active" && notes?.toLowerCase().includes("closed");
+  const label = closed
+    ? "Closed"
+    : status === "discussing"
+      ? "In discussion"
+      : status === "negotiating"
+        ? "Negotiating"
+        : status;
+
   const styles: Record<string, string> = {
-    active: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+    active: closed ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200",
     pending: "bg-amber-50 text-amber-800 ring-amber-200",
     discussing: "bg-sky-50 text-sky-800 ring-sky-200",
+    negotiating: "bg-violet-50 text-violet-800 ring-violet-200",
   };
   const cls = styles[status] || "bg-slate-100 text-slate-700 ring-slate-200";
   return (
     <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold capitalize ring-1 ring-inset ${cls}`}>
-      {status}
+      {label}
     </span>
   );
 }

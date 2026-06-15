@@ -6,7 +6,7 @@ import { ExternalLink } from "lucide-react";
 function holderTypeLabel(type: string): string {
   const labels: Record<string, string> = {
     parent: "Parent company",
-    founder: "Founder",
+    founder: "Co-founder",
     investor: "Investor",
     advisor: "Advisor",
     option_pool: "Option pool",
@@ -17,6 +17,7 @@ function holderTypeLabel(type: string): string {
 
 export function HolderProfileCard({ holder }: { holder: CapTableEntry }) {
   const isParent = holder.holderType === "parent";
+  const isFounder = holder.holderType === "founder";
 
   return (
     <article
@@ -25,6 +26,11 @@ export function HolderProfileCard({ holder }: { holder: CapTableEntry }) {
       {isParent && (
         <div className="px-5 py-2 bg-slate-900 text-white text-xs font-semibold uppercase tracking-wider">
           Parent company
+        </div>
+      )}
+      {isFounder && (
+        <div className="px-5 py-2 bg-slate-700 text-white text-xs font-semibold uppercase tracking-wider">
+          Co-founder
         </div>
       )}
       <div className="p-5 sm:p-7 flex flex-col sm:flex-row gap-5 sm:gap-6">
@@ -50,7 +56,7 @@ export function HolderProfileCard({ holder }: { holder: CapTableEntry }) {
                 </a>
               )}
             </div>
-            <StatusBadge status={holder.status} />
+            <StatusBadge status={holder.status} notes={holder.notes} />
           </div>
           {holder.description && (
             <p className="text-[15px] sm:text-base text-slate-600 leading-relaxed mt-4">
@@ -62,8 +68,11 @@ export function HolderProfileCard({ holder }: { holder: CapTableEntry }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-slate-200 border-t border-slate-200">
         {[
           {
-            label: "Investment",
-            value: holder.investmentAmount ? fmtCapMoney(holder.investmentAmount) : "—",
+            label: holder.holderType === "investor" ? "Round commitment" : "Investment",
+            value:
+              holder.holderType === "investor" && holder.investmentAmount
+                ? fmtCapMoney(holder.investmentAmount)
+                : "—",
           },
           {
             label: "Ownership",

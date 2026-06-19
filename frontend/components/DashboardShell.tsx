@@ -3,12 +3,14 @@
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { isInvestorPortalHost } from "@/lib/investorPortalHost";
+import { isProductRoadmapHost } from "@/lib/productRoadmapHost";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPortal = pathname.startsWith("/portal") || isInvestorPortalHost();
+  const isRoadmap = pathname.startsWith("/product-roadmap") || isProductRoadmapHost();
 
-  if (isPortal) {
+  if (isPortal || isRoadmap) {
     return <>{children}</>;
   }
 

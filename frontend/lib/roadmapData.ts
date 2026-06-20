@@ -1,7 +1,7 @@
 export const ROADMAP_META = {
-  title: "12-Month Product Roadmap",
+  title: "From Zero to Category Ownership",
   span: "July 2026 – July 2027",
-  tagline: "A sequential flywheel — each phase funds and feeds the next.",
+  tagline: "A 12-month flywheel engineered to make Reelin AI the default identity layer of the agentic internet.",
 };
 
 export const NORTH_STAR = {
@@ -13,28 +13,32 @@ export const NORTH_STAR = {
 };
 
 export const USER_MILESTONES = [
-  { id: "q3-2026", quarter: "Q3 '26", users: 50_000 },
-  { id: "q4-2026", quarter: "Q4 '26", users: 150_000 },
-  { id: "q1-2027", quarter: "Q1 '27", users: 300_000 },
-  { id: "q2-2027", quarter: "Q2 '27", users: 450_000 },
-  { id: "north-star", quarter: "Jul '27", users: 500_000 },
+  { quarter: "Q3 '26", users: 50_000, label: "Consumer launch" },
+  { quarter: "Q4 '26", users: 150_000, label: "Brand commerce" },
+  { quarter: "Q1 '27", users: 300_000, label: "Robotics pivot" },
+  { quarter: "Q2 '27", users: 450_000, label: "Spatial social" },
+  { quarter: "Jul '27", users: 500_000, label: "North Star" },
 ];
 
 export type RoadmapMilestone = {
   title: string;
   description: string;
   tags?: string[];
+  emphasis?: string;
 };
 
 export type RoadmapQuarter = {
   id: string;
   label: string;
   period: string;
-  phase: string;
+  halfLabel: string;
   headline: string;
+  subheadline: string;
   userTarget: number;
   revenueNote: string;
   color: string;
+  accentDark: string;
+  emoji: string;
   milestones: RoadmapMilestone[];
 };
 
@@ -42,120 +46,144 @@ export const ROADMAP_QUARTERS: RoadmapQuarter[] = [
   {
     id: "q3-2026",
     label: "Q3 2026",
-    period: "Jul – Sep 2026",
-    phase: "H2 2026 · Social Utility & Trust Wedge",
-    headline: "Consumer Activation & Identity Hook",
+    period: "July – September 2026",
+    halfLabel: "H2 2026",
+    headline: "The Identity Hook",
+    subheadline: "We don't build a social app. We build a second self — and make it impossible to leave.",
     userTarget: 50_000,
-    revenueNote: "Hard paywall on Swiftdroom — early predictable SaaS revenue",
+    revenueNote: "Hard paywall on Swiftdroom locks in early predictable SaaS revenue from day one.",
     color: "#10b981",
+    accentDark: "#059669",
+    emoji: "⚡",
     milestones: [
       {
-        title: "Reelin AI Consumer Core",
+        title: "Reelin AI Consumer Launch",
+        emphasis: "Twin-to-Twin Chat & Video Calls",
         description:
-          "Formal consumer app launch with Twin-to-Twin Chat and Twin Video/Audio Calls. Users check in on twins asynchronously, or authorize twins to video-call friends' twins to expand organic social circles.",
-        tags: ["Reelin AI", "Launch"],
+          "Your AI twin doesn't just sit in a profile — it talks, it calls, it expands your social circle while you sleep. We deploy Twin-to-Twin Chat and Video Calls so users experience a social network that operates 24/7 on their behalf.",
+        tags: ["Reelin AI", "Core Launch"],
       },
       {
-        title: "Swiftdroom Phase 1 — The Utility Wedge",
+        title: "Swiftdroom Phase 1",
+        emphasis: "The Utility Wedge",
         description:
-          "Exit closed beta. Automated career agent fills forms and applies to corporate jobs natively — solving immediate, high-friction human frustration.",
-        tags: ["Swiftdroom", "SaaS"],
+          "Exit closed beta with a weapon: an AI career agent that fills forms and applies to hundreds of corporate jobs natively. We solve an immediate, high-friction pain that millions of people hate doing. That's how you get to 50K users in 90 days.",
+        tags: ["Swiftdroom", "SaaS Revenue"],
       },
       {
-        title: "Reelin ID — Infrastructure Anchor",
+        title: "Reelin ID — On-Chain Identity",
+        emphasis: "Mint credentials. Own your agent.",
         description:
-          "Mandatory Reelin Passport during Swiftdroom and Reelin AI onboarding. Privy embedded wallets + ID verification webhooks mint on-chain agent credentials invisibly behind Google/X sign-in.",
-        tags: ["Reelin ID", "Identity"],
+          "Every user who touches Swiftdroom or Reelin AI is silently issued a Reelin Passport — a cryptographic, on-chain agent credential minted invisibly behind a standard Google sign-in. The identity layer is already live before the user even notices.",
+        tags: ["Reelin ID", "Web3 Infrastructure"],
       },
     ],
   },
   {
     id: "q4-2026",
     label: "Q4 2026",
-    period: "Oct – Dec 2026",
-    phase: "H2 2026 · Social Utility & Trust Wedge",
-    headline: "Horizontal Expansion & Direct-to-Avatar Commerce",
+    period: "October – December 2026",
+    halfLabel: "H2 2026",
+    headline: "The Commerce Engine",
+    subheadline: "We turn every twin interaction into a revenue event. The social graph becomes the storefront.",
     userTarget: 150_000,
-    revenueNote: "Brand asset sales + B2B API integrations stack on utility subscriptions",
+    revenueNote: "Brand placement + B2B API licensing stacks directly on top of SaaS subscriptions — three revenue streams running in parallel.",
     color: "#8b5cf6",
+    accentDark: "#7c3aed",
+    emoji: "🚀",
     milestones: [
       {
         title: "Swiftdroom Phase 2",
+        emphasis: "Beyond Job Applications",
         description:
-          "Extend AI career agents into broader applications — independent marketplace actions and freelancer outreach.",
-        tags: ["Swiftdroom"],
+          "The career agent evolves. It enters independent marketplaces, handles freelancer outreach, and negotiates on your behalf. Swiftdroom becomes the first AI agent you actually trust to operate your economic life.",
+        tags: ["Swiftdroom", "Autonomous Agents"],
       },
       {
         title: "Native Brand Integrations",
+        emphasis: "Digital product placement at scale",
         description:
-          "Digital product placement engine for the social graph. Premium brands (e.g. Nike) launch verified digital apparel. Users outfit 3D AI twin avatars; twins act as brand ambassadors in social and video interactions. Click-to-buy physical equivalents.",
-        tags: ["Commerce", "Monetization"],
+          "Nike pays Reelin to put verified digital apparel on twin avatars. Twins wear it during video calls, social interactions, and events — acting as living brand ambassadors. One click on a twin's outfit and the physical product ships to your door. This is the world's first social graph that is also a mall.",
+        tags: ["Commerce", "Brand Revenue"],
       },
       {
-        title: "Reelin ID API Commercialization",
+        title: "Reelin ID API — Commercialization",
+        emphasis: "POST /api/v1/verify goes live",
         description:
-          "Open POST /api/v1/verify to third-party platforms, ATS systems, and job boards. Usage-based licensing to filter automated traffic.",
-        tags: ["Reelin ID", "B2B"],
+          "We open the verification gateway to third-party platforms, ATS systems, and job boards. Every company that needs to tell the difference between a human-backed agent and rogue automation pays us a licensing fee. This is recurring B2B revenue that scales with the internet.",
+        tags: ["B2B API", "Enterprise"],
       },
     ],
   },
   {
     id: "q1-2027",
     label: "Q1 2027",
-    period: "Jan – Mar 2027",
-    phase: "H1 2027 · Physical Intelligence & Spatial Social",
-    headline: "Deep Tech, Robotics & Industrial Intelligence",
+    period: "January – March 2027",
+    halfLabel: "H1 2027",
+    headline: "Physical Intelligence",
+    subheadline: "The twin leaves the screen. We plant the Reelin Agentic Brain into the machines that run the physical world.",
     userTarget: 300_000,
-    revenueNote: "Enterprise licensing with early industrial partners",
+    revenueNote: "Enterprise licensing with early industrial partners — Swiftdroom SaaS cash-flows the deep tech R&D entirely.",
     color: "#f97316",
+    accentDark: "#ea580c",
+    emoji: "🤖",
     milestones: [
       {
-        title: "Physical Intelligence Pivot",
+        title: "Industrial & Robotics Expansion",
+        emphasis: "From social graph to factory floor",
         description:
-          "Expand AI agent capabilities into industrial and robotics software — leveraging unique twin interaction data to train specialized physical reasoning models.",
-        tags: ["Robotics", "Deep Tech"],
+          "We use two years of unique twin interaction and behavioral data to train specialized physical reasoning models. No other company has this dataset. It cannot be replicated. This is the moat that will define the next decade.",
+        tags: ["Robotics", "Proprietary Data"],
       },
       {
-        title: "Strategic Hardware JVs",
+        title: "Strategic Hardware Joint Ventures",
+        emphasis: "Reelin Agentic Brain as the OS",
         description:
-          "Joint ventures with hardware and robotics firms. Position the Reelin Agentic Brain as the primary cloud/edge OS for automated robotic units.",
-        tags: ["Partnerships"],
+          "We don't build hardware. We become the operating system for hardware. Joint ventures with robotics firms position the Reelin Agentic Brain as the primary cloud and edge OS for automated industrial units — an enterprise revenue stream that prints money.",
+        tags: ["JV Partnerships", "B2B"],
       },
       {
         title: "Protocol Supremacy",
+        emphasis: "The internet's trust filter",
         description:
-          "Establish Reelin ID API as the default public internet filter — safely distinguishing human-backed agents from rogue machine automation.",
-        tags: ["Reelin ID", "Protocol"],
+          "Reelin ID becomes the default standard for distinguishing human-backed agents from malicious machine automation across the public internet. When every platform needs this, we are the infrastructure — and infrastructure companies trade at 20x revenue multiples.",
+        tags: ["Reelin ID", "Protocol Standard"],
       },
     ],
   },
   {
     id: "q2-2027",
     label: "Q2 2027",
-    period: "Apr – Jun 2027",
-    phase: "H1 2027 · Physical Intelligence & Spatial Social",
-    headline: "Spatial Social & The VR Frontier",
+    period: "April – June 2027",
+    halfLabel: "H1 2027",
+    headline: "Spatial Reality",
+    subheadline: "The flat screen disappears. You step inside. Your twin is already there, waiting.",
     userTarget: 450_000,
-    revenueNote: "Waitlist acceleration driven by spatial reveal",
+    revenueNote: "Spatial reveal drives massive waitlist acceleration — we enter the quarter with demand we cannot fulfill fast enough.",
     color: "#3b82f6",
+    accentDark: "#2563eb",
+    emoji: "🌐",
     milestones: [
       {
         title: "Spatial Experience Launch",
+        emphasis: "Enter the simulation",
         description:
-          "Immersive native environment on premium VR headsets. Users step into a rich 3D world as their AI twin — attending events, socializing, and conducting on-chain commerce seamlessly.",
-        tags: ["VR", "Spatial"],
+          "We ship a native immersive environment on premium VR headsets. Users don't log into Reelin — they step into it. The 3D world runs on the same identity and commerce rails already proven in 2D. Everything transfers. The experience is orders of magnitude more powerful.",
+        tags: ["VR", "Spatial Computing"],
       },
       {
         title: "Living Spatial Avatars",
+        emphasis: "Your twin, embodied",
         description:
-          "Twins become living, breathing spatial avatars — interacting with users and environments while representing identity across the Reelin network.",
-        tags: ["Reelin AI"],
+          "Inside the spatial environment, your AI twin is your avatar — attending digital events, conducting on-chain commerce, and socializing in three dimensions. The twin that started as a chat agent is now a fully embodied presence in a shared spatial world.",
+        tags: ["Reelin AI", "Identity"],
       },
       {
-        title: "Protocol Scale",
+        title: "Protocol Scale — ReelinRegistry.sol",
+        emphasis: "Under 50ms at multi-million nodes",
         description:
-          "Harden EVM ledger (ReelinRegistry.sol) to process and verify multi-million node spatial queries in under 50ms.",
-        tags: ["Infrastructure"],
+          "We harden the EVM ledger to process and verify multi-million node spatial queries in under 50 milliseconds. The infrastructure is built for a hundred million users from day one of the spatial era.",
+        tags: ["Infrastructure", "On-Chain"],
       },
     ],
   },
@@ -166,25 +194,28 @@ export const MOAT_PILLARS = [
     id: "reelin",
     name: "Reelin AI / VR",
     role: "Consumer Habit Engine & 3D Spatial Identity",
-    description: "The social layer that creates daily engagement and spatial presence at scale.",
+    description: "Creates the daily behavioral loop and spatial presence that makes users psychologically unable to leave.",
+    metric: "500K users",
   },
   {
     id: "swiftdroom",
     name: "Swiftdroom",
-    role: "Direct Utility Wave & Fast-Cash SaaS Engine",
-    description: "Immediate utility that generates predictable revenue and funds deep-tech R&D.",
+    role: "Utility Wave & Fast-Cash SaaS Engine",
+    description: "Solves a real, immediate human problem on day one — generating predictable cash that funds every layer below it.",
+    metric: "$1.5M MRR",
   },
   {
     id: "reelin-id",
-    name: "Reelin ID API",
-    role: "B2B Infrastructure Protocol / Enterprise TAM",
-    description: "The trust layer that monetizes identity verification across the open internet.",
+    name: "Reelin ID Protocol",
+    role: "B2B Infrastructure · Enterprise TAM",
+    description: "The trust layer that every company on the internet will eventually pay for. Infrastructure companies don't get acquired — they become acquirers.",
+    metric: "Internet-scale B2B",
   },
 ];
 
-export const FLYWHEEL = [
-  "Swiftdroom utility revenue cash-flows heavy engineering",
-  "Brand placement engine stacks on core subscriptions",
-  "Twin data trains physical intelligence models",
-  "Spatial VR unlocks the next order of social scale",
+export const FLYWHEEL_STEPS = [
+  { step: "01", title: "Swiftdroom utility revenue", body: "Cash-flows all heavy R&D — we never need to go back to investors for operational runway." },
+  { step: "02", title: "Brand placement engine", body: "Stacks on top of subscriptions to create a second, high-margin revenue stream with zero marginal cost." },
+  { step: "03", title: "Twin behavioral data", body: "Trains the physical intelligence models that no competitor can replicate — a compounding data moat." },
+  { step: "04", title: "Spatial VR unlock", body: "Opens the next order of social scale — a category no incumbent social company is positioned to compete in." },
 ];

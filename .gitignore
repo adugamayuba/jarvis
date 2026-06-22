@@ -5,3 +5,10 @@ dist/
 .next/
 *.log
 .DS_Store
+
+# ── Local AI training context — never push to remote ──
+training data/RAW_DETAILS.md
+training data/STRUCTURED_KNOWLEDGE.md
+training data/MyActivity.html
+training-data.zip
+MEMORY.md

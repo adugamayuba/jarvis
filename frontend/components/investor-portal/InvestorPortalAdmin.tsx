@@ -149,6 +149,7 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
   const capEntries = capQ.data?.data || [];
   const safes = safesQ.data?.data || [];
   const docs = docsQ.data?.data || [];
+  const wireDocs = docs.filter(d => d.category === "wire");
 
   return (
     <div className={embedded ? "space-y-4" : "h-full overflow-auto p-6"}>
@@ -269,7 +270,56 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
         )}
 
         {tab === "safes" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <div className="border border-neutral-800 rounded-xl p-4 space-y-3">
+              <div>
+                <p className="text-[13px] text-white font-medium">Wire / Banking Details</p>
+                <p className="text-[12px] text-neutral-500 mt-1">
+                  Shown to all investors under My SAFE. Upload PDFs here — no local scripts needed.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {wireDocs.length === 0 ? (
+                  <p className="text-[12px] text-neutral-600">No wire documents yet.</p>
+                ) : wireDocs.map(d => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-800 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[12px] text-white truncate">{d.title}</p>
+                      <p className="text-[11px] text-neutral-500">
+                        {d.hasFile ? "PDF attached" : "No file yet"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="cursor-pointer flex items-center gap-1 text-[11px] text-neutral-400 hover:text-white">
+                        <Upload className="w-3.5 h-3.5" />
+                        {d.hasFile ? "Replace" : "Upload"}
+                        <input type="file" accept=".pdf" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          await uploadDataRoomFile(d.id, file);
+                          qc.invalidateQueries({ queryKey: ["admin-data-room"] });
+                          toast.success("Wire document uploaded");
+                        }} />
+                      </label>
+                      <button onClick={() => deleteDocM.mutate(d.id)} className="p-1.5 text-neutral-500 hover:text-red-400">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                onClick={() => {
+                  setDocForm({ category: "wire", visibility: "all", title: "" });
+                  setShowDocModal(true);
+                }}
+                variant="outline"
+                className="border-neutral-700 text-neutral-300 hover:bg-neutral-800 h-8 text-[11px]"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add wire document
+              </Button>
+            </div>
+
             <div className="flex justify-end">
               <Button onClick={() => setShowSafeModal(true)} className="bg-white text-neutral-900 hover:bg-neutral-200 h-8 text-[12px]">
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add SAFE
@@ -498,6 +548,14 @@ export function InvestorPortalAdmin({ embedded = false }: { embedded?: boolean }
             className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[13px]" />
           <Input placeholder="External URL (optional)" value={docForm.documentUrl || ""} onChange={e => setDocForm(p => ({ ...p, documentUrl: e.target.value }))}
             className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[13px]" />
+          <Select value={docForm.category || "other"} onValueChange={v => v && setDocForm(p => ({ ...p, category: v as DataRoomDoc["category"] }))}>
+            <SelectTrigger className="bg-neutral-800/50 border-neutral-700 text-white h-8 text-[13px]"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-neutral-900 border-neutral-700">
+              {(["financials", "legal", "product", "pitch", "wire", "other"] as const).map(c => (
+                <SelectItem key={c} value={c} className="text-[12px] capitalize">{c === "wire" ? "Wire / Banking" : c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             onClick={() => docForm.title && createDocM.mutate({
               title: docForm.title,

@@ -19,7 +19,7 @@ export type SafeStatus = "draft" | "sent" | "signed" | "funded";
 export type CapTableHolderType = "founder" | "investor" | "advisor" | "option_pool" | "parent" | "other";
 export type CapTableInstrument = "common" | "preferred" | "safe" | "convertible_note" | "options";
 export type CapTableStatus = "active" | "pending" | "discussing" | "negotiating";
-export type DataRoomCategory = "financials" | "legal" | "product" | "pitch" | "other";
+export type DataRoomCategory = "financials" | "legal" | "product" | "pitch" | "wire" | "other";
 
 export interface PortalUser {
   id: string;
@@ -141,6 +141,11 @@ export async function getPortalDataRoom(): Promise<ApiResponse<DataRoomDoc[]>> {
 
 export async function getPortalMySafe(): Promise<ApiResponse<InvestorSafe | null>> {
   const res = await portalApi.get("/api/portal/my-safe");
+  return res.data;
+}
+
+export async function getPortalWireInstructions(): Promise<ApiResponse<DataRoomDoc[]>> {
+  const res = await portalApi.get("/api/portal/wire-instructions");
   return res.data;
 }
 

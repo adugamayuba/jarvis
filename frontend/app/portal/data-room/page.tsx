@@ -12,7 +12,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   legal: "Legal",
   product: "Product",
   pitch: "Pitch",
-  other: "Other",
+  wire: "Wire / Banking",
 };
 
 export default function PortalDataRoomPage() {

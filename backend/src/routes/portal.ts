@@ -74,7 +74,7 @@ const SafeSchema = z.object({
 const DataRoomSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().default(""),
-  category: z.enum(["financials", "legal", "product", "pitch", "other"]).default("other"),
+  category: z.enum(["financials", "legal", "product", "pitch", "wire", "other"]).default("other"),
   visibility: z.enum(["all", "specific"]).default("all"),
   allowedPortalUserIds: z.array(z.string()).optional().default([]),
   documentUrl: z.string().optional().default(""),
@@ -241,6 +241,29 @@ router.get("/data-room", requireRole("investor"), async (req: Request, res: Resp
     const docs = snap.docs
       .map(d => ({ id: d.id, ...(d.data() as DataRoomDocument) }))
       .filter(doc => canAccessDoc(doc, portalUserId))
+      .filter(doc => doc.category !== "wire")
+      .map(doc => {
+        const hasFile = !!(doc.documentUrl || doc.documentBase64);
+        const { documentBase64: _b64, ...rest } = doc;
+        return { ...rest, hasFile };
+      });
+    res.json({ success: true, data: docs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error" });
+  }
+});
+
+router.get("/wire-instructions", requireRole("investor"), async (req: Request, res: Response) => {
+  try {
+    const portalUserId = req.auth!.portalUserId!;
+    const db = getDb();
+    const snap = await db.collection(COLLECTIONS.DATA_ROOM)
+      .where("category", "==", "wire")
+      .get();
+    const docs = snap.docs
+      .map(d => ({ id: d.id, ...(d.data() as DataRoomDocument) }))
+      .filter(doc => canAccessDoc(doc, portalUserId))
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
       .map(doc => {
         const hasFile = !!(doc.documentUrl || doc.documentBase64);
         const { documentBase64: _b64, ...rest } = doc;

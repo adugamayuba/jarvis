@@ -12,3 +12,5 @@ training data/STRUCTURED_KNOWLEDGE.md
 training data/MyActivity.html
 training-data.zip
 MEMORY.md
+documents/wire/*
+!documents/wire/README.md

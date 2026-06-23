@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { PortalShell } from "@/components/portal/PortalShell";
-import { downloadPortalFile, getPortalMySafe, openPortalFile } from "@/lib/portal";
+import { downloadPortalFile, getPortalMySafe, getPortalWireInstructions, openPortalFile } from "@/lib/portal";
 import { p } from "@/components/portal/portalTheme";
-import { ExternalLink, FileText } from "lucide-react";
+import { Building2, ExternalLink, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 function fmt(n: number) {
@@ -27,7 +27,13 @@ export default function PortalSafePage() {
     queryFn: getPortalMySafe,
   });
 
+  const { data: wireData, isLoading: wireLoading } = useQuery({
+    queryKey: ["portal-wire-instructions"],
+    queryFn: getPortalWireInstructions,
+  });
+
   const safe = data?.data;
+  const wireDocs = wireData?.data || [];
 
   async function openSafeDocument() {
     if (safe?.documentUrl) {
@@ -36,6 +42,19 @@ export default function PortalSafePage() {
     }
     try {
       const res = await downloadPortalFile("/api/portal/safe/file");
+      if (res.success && res.data) {
+        openPortalFile(res.data);
+      } else {
+        toast.error(res.error || "No document available");
+      }
+    } catch {
+      toast.error("Could not open document");
+    }
+  }
+
+  async function openWireDocument(id: string) {
+    try {
+      const res = await downloadPortalFile(`/api/portal/data-room/${id}/file`);
       if (res.success && res.data) {
         openPortalFile(res.data);
       } else {
@@ -114,6 +133,53 @@ export default function PortalSafePage() {
             </p>
           </div>
         )}
+
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Wire / Banking Details</h2>
+            <p className="text-[15px] text-slate-500 mt-1">Reelin AI Inc. — use these instructions to complete your investment wire transfer.</p>
+          </div>
+
+          {wireLoading ? (
+            <p className={p.muted}>Loading wire instructions...</p>
+          ) : wireDocs.length === 0 ? (
+            <div className={`${p.card} px-8 py-10 text-center`}>
+              <Building2 className="w-9 h-9 text-slate-300 mx-auto mb-3" />
+              <p className="text-[15px] text-slate-600">Wire instructions will be posted here shortly.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {wireDocs.map(doc => (
+                <div
+                  key={doc.id}
+                  className={`${p.card} px-4 sm:px-5 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
+                >
+                  <div className="flex items-start gap-4 min-w-0">
+                    <div className="w-11 h-11 rounded-lg bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center shrink-0">
+                      <Building2 className="w-5 h-5 text-slate-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold text-slate-900 truncate">{doc.title}</p>
+                      {doc.description && (
+                        <p className="text-[14px] text-slate-500 mt-0.5 line-clamp-2">{doc.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  {(doc.hasFile || doc.documentUrl) && (
+                    <button
+                      type="button"
+                      onClick={() => openWireDocument(doc.id)}
+                      className={`${p.btnSecondary} w-full sm:w-auto shrink-0`}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Open
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </PortalShell>
   );

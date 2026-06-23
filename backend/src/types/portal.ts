@@ -29,6 +29,7 @@ export type DataRoomCategory =
   | "legal"
   | "product"
   | "pitch"
+  | "wire"
   | "other";
 
 export interface PortalUser {

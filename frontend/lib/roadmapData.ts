@@ -132,7 +132,7 @@ export const ROADMAP_QUARTERS: RoadmapQuarter[] = [
         title: "Industrial & Robotics Expansion",
         emphasis: "Proprietary behavioral data → physical reasoning models",
         description:
-          "By Q1 2027, we will have accumulated two years of unique twin interaction data. We will use this dataset to train specialized physical reasoning models. No competitor will have access to this data — it is proprietary, non-replicable, and forms the foundation of our long-term technical moat.",
+          "By Q1 2027, we will have accumulated about 1 year of unique twin interaction data. We will use this dataset to train specialized physical reasoning models. No competitor will have access to this data — it is proprietary, non-replicable, and forms the foundation of our long-term technical moat.",
         tags: ["Robotics", "Proprietary Data"],
       },
       {

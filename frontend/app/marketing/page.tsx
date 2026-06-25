@@ -7,6 +7,7 @@ import {
   MAILING_LIST_SEGMENTS,
   MAILING_LIST_TOTAL,
   MARKETING_META,
+  TOTAL_SENT,
 } from "@/lib/marketingData";
 
 function fmt(n: number) {
@@ -26,8 +27,6 @@ function pct(n: number) {
 }
 
 export default function MarketingDashboardPage() {
-  const totalDelivered = CAMPAIGN_HISTORY.reduce((s, c) => s + c.delivered, 0);
-  const totalRecipients = CAMPAIGN_HISTORY.reduce((s, c) => s + c.recipients, 0);
   const avgOpen =
     CAMPAIGN_HISTORY.reduce((s, c) => s + c.openRate, 0) / CAMPAIGN_HISTORY.length;
   const avgClick =
@@ -60,12 +59,11 @@ export default function MarketingDashboardPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5 border border-[#e5e5e5] rounded-lg p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5 border border-[#e5e5e5] rounded-lg p-6">
           {[
             { label: "Mailing list", value: fmt(MAILING_LIST_TOTAL) },
             { label: "Campaigns (3 mo)", value: fmt(CAMPAIGN_COUNT) },
-            { label: "Total recipients", value: fmt(totalRecipients) },
-            { label: "Emails delivered", value: fmt(totalDelivered) },
+            { label: "Total sent", value: fmt(TOTAL_SENT) },
             { label: "Avg open rate", value: pct(avgOpen) },
             { label: "Avg click rate", value: pct(avgClick) },
           ].map(({ label, value }) => (

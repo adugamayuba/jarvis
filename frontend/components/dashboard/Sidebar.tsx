@@ -6,7 +6,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, Search, Users, Mail,
   Send, LogOut, Zap, TrendingUp, Menu, X, Upload, Star, BookOpen, Video,
-  Building2, Briefcase, Sparkles,
+  Building2, Briefcase, Sparkles, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearToken, getRole } from "@/lib/auth";
@@ -17,6 +17,7 @@ const reelinPipelineItems = [
   { href: "/import", icon: Upload, label: "Import & Emails" },
   { href: "/contacts", icon: Users, label: "Contacts" },
   { href: "/campaigns", icon: Mail, label: "Campaigns" },
+  { href: "/marketing", icon: BarChart3, label: "Marketing Dashboard" },
   { href: "/bulk", icon: Send, label: "Bulk Send" },
   { href: "/investors", icon: TrendingUp, label: "Investors" },
   { href: "/applications", icon: Send, label: "Applications" },

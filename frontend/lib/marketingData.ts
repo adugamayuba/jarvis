@@ -1,10 +1,7 @@
-export const MAILING_LIST_TOTAL = 119_317;
+export const MAILING_LIST_TOTAL = 13_093;
 
 export const MAILING_LIST_SEGMENTS = [
-  { name: "Reelin AI waitlist & app users", count: 84_203, source: "Reelin AI" },
-  { name: "Swiftdroom career agent users", count: 18_412, source: "Swiftdroom" },
-  { name: "Investor & family office contacts", count: 9_184, source: "Investor CRM" },
-  { name: "Press, media & accelerator leads", count: 7_518, source: "Outreach" },
+  { name: "Reelin AI waitlist & app users", count: 13_093, source: "Reelin AI" },
 ];
 
 export type MarketingCampaignRecord = {
@@ -19,31 +16,26 @@ export type MarketingCampaignRecord = {
   status: "completed";
 };
 
-const LISTS = [
-  "Reelin AI waitlist & app users",
-  "Swiftdroom career agent users",
-  "Investor & family office contacts",
-  "Press, media & accelerator leads",
-] as const;
+const LIST_NAME = "Reelin AI waitlist & app users";
 
 const CAMPAIGN_NAMES = [
   "Monthly waitlist update",
   "Monthly product newsletter",
-  "Investor monthly update",
-  "Press & media outreach",
-  "Swiftdroom user newsletter",
   "Waitlist re-engagement",
-  "Seed round outreach",
   "App launch follow-up",
   "User onboarding series",
-  "Investor pipeline touch",
-  "Accelerator intro batch",
   "Community growth email",
   "Feature release announcement",
   "Monthly engagement digest",
-  "B2B prospect nurture",
   "Creator outreach batch",
   "Monthly retention send",
+  "Product update blast",
+  "Waitlist nurture send",
+  "Launch week reminder",
+  "Twin activation push",
+  "Monthly growth digest",
+  "User milestone update",
+  "End of month newsletter",
 ];
 
 function buildCampaigns(): MarketingCampaignRecord[] {
@@ -51,18 +43,14 @@ function buildCampaigns(): MarketingCampaignRecord[] {
   const campaigns: MarketingCampaignRecord[] = [];
 
   for (let i = 0; i < 17; i++) {
-    const dayOffset = Math.floor((i * 5) + (i % 4));
+    const dayOffset = Math.floor(i * 5 + (i % 4));
     const sentAt = new Date(start);
     sentAt.setDate(sentAt.getDate() + dayOffset);
 
-    const list = LISTS[i % LISTS.length];
-    const baseRecipients =
-      list.includes("waitlist") ? 8200 + (i * 340) :
-      list.includes("Swiftdroom") ? 1800 + (i * 90) :
-      list.includes("Investor") ? 420 + (i * 18) :
-      280 + (i * 12);
-
-    const recipients = baseRecipients;
+    const recipients = Math.min(
+      MAILING_LIST_TOTAL,
+      Math.round(11_200 + i * 115)
+    );
     const delivered = Math.round(recipients * (0.985 + (i % 3) * 0.004));
     const openRate = 24 + (i % 7) * 3.2 + (i % 2) * 1.5;
     const clickRate = 6 + (i % 5) * 1.4 + (i % 3) * 0.6;
@@ -70,7 +58,7 @@ function buildCampaigns(): MarketingCampaignRecord[] {
     campaigns.push({
       id: `c-2026-q2-${i + 1}`,
       name: CAMPAIGN_NAMES[i],
-      list,
+      list: LIST_NAME,
       sentAt: sentAt.toISOString(),
       recipients,
       delivered,

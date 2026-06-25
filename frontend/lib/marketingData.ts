@@ -2,7 +2,7 @@ export const MAILING_LIST_TOTAL = 119_317;
 export const TOTAL_SENT = 13_093;
 
 export const MAILING_LIST_SEGMENTS = [
-  { name: "Reelin AI waitlist & app users", count: MAILING_LIST_TOTAL, source: "Reelin AI" },
+  { name: "Reelin AI Prospect Emails", count: MAILING_LIST_TOTAL, source: "Reelin AI" },
 ];
 
 export type MarketingCampaignRecord = {
@@ -17,7 +17,7 @@ export type MarketingCampaignRecord = {
   status: "completed";
 };
 
-const LIST_NAME = "Reelin AI waitlist & app users";
+const LIST_NAME = "Reelin AI Prospect Emails";
 
 const CAMPAIGN_NAMES = [
   "Monthly waitlist update",

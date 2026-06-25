@@ -87,7 +87,7 @@ export default function MarketingDashboardPage() {
                 <tr className="border-b border-[#e5e5e5] bg-[#fafafa] text-[#888] text-left">
                   <th className="px-5 py-3 font-medium">List</th>
                   <th className="px-5 py-3 font-medium">Source</th>
-                  <th className="px-5 py-3 font-medium text-right">Subscribers</th>
+                  <th className="px-5 py-3 font-medium text-right">Prospect</th>
                 </tr>
               </thead>
               <tbody>

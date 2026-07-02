@@ -23,9 +23,20 @@ export const BANKING_META = {
   bank: "Mercury",
   currency: "USD",
   asOf: "2026-06-08",
+  userFirstName: "Ligia",
+  userInitials: "LT",
 };
 
-export const ACCOUNTS: BankingAccount[] = [
+export const PAYEES = [
+  "Abel Adugam",
+  "Argil, Inc.",
+  "Google LLC",
+  "OpenAI, LLC",
+  "Vercel Inc.",
+  "Contractor Services LLC",
+];
+
+export const INITIAL_ACCOUNTS: BankingAccount[] = [
   {
     id: "checking-primary",
     name: "Operating",
@@ -44,9 +55,7 @@ export const ACCOUNTS: BankingAccount[] = [
   },
 ];
 
-export const TOTAL_BALANCE = ACCOUNTS.reduce((sum, a) => sum + a.balance, 0);
-
-export const TRANSACTIONS: BankingTransaction[] = [
+export const INITIAL_TRANSACTIONS: BankingTransaction[] = [
   {
     id: "tx-001",
     date: "2026-06-05",
@@ -189,6 +198,10 @@ export const TRANSACTIONS: BankingTransaction[] = [
   },
 ];
 
+export const ACCOUNTS = INITIAL_ACCOUNTS;
+export const TRANSACTIONS = INITIAL_TRANSACTIONS;
+export const TOTAL_BALANCE = INITIAL_ACCOUNTS.reduce((sum, a) => sum + a.balance, 0);
+
 export function getMonthFlow(transactions: BankingTransaction[], yearMonth: string) {
   return transactions
     .filter((t) => t.date.startsWith(yearMonth))
@@ -202,4 +215,4 @@ export function getMonthFlow(transactions: BankingTransaction[], yearMonth: stri
     );
 }
 
-export const JUNE_2026_FLOW = getMonthFlow(TRANSACTIONS, "2026-06");
+export const JUNE_2026_FLOW = getMonthFlow(INITIAL_TRANSACTIONS, "2026-06");

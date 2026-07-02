@@ -6,10 +6,10 @@ import { useState } from "react";
 import {
   LayoutDashboard, Search, Users, Mail,
   Send, LogOut, Zap, TrendingUp, Menu, X, Upload, Star, BookOpen, Video,
-  Building2, Briefcase, Sparkles, BarChart3,
+  Building2, Briefcase, Sparkles, BarChart3, Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { clearToken, getRole } from "@/lib/auth";
+import { clearToken, getRole, isAdmin } from "@/lib/auth";
 import { getGrowthHubSubsidiaries } from "@/lib/subsidiaries";
 
 const reelinPipelineItems = [
@@ -120,6 +120,15 @@ function NavLinks({ onClose }: { onClose?: () => void }) {
             active={pathname === "/"}
             onClose={onClose}
           />
+          {isAdmin() && (
+            <NavLink
+              href="/banking"
+              icon={Landmark}
+              label="Banking"
+              active={pathname.startsWith("/banking")}
+              onClose={onClose}
+            />
+          )}
         </div>
 
         {/* Subsidiaries with growth hubs */}

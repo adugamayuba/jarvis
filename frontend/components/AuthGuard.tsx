@@ -7,6 +7,7 @@ import { isInvestorPortalHost } from "@/lib/investorPortalHost";
 import { isProductRoadmapHost } from "@/lib/productRoadmapHost";
 
 const COFOUNDER_ALLOWED = ["/influencers-finder", "/login"];
+const ADMIN_ONLY_PATHS = ["/banking"];
 const PUBLIC_PATHS = ["/login", "/portal/login", "/"];
 
 function isPublicPath(pathname: string): boolean {
@@ -77,6 +78,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     if (role === "cofounder" && !COFOUNDER_ALLOWED.some(p => pathname.startsWith(p))) {
       router.replace("/influencers-finder");
+      return;
+    }
+
+    if (role !== "admin" && ADMIN_ONLY_PATHS.some(p => pathname.startsWith(p))) {
+      router.replace(role === "cofounder" ? "/influencers-finder" : "/");
       return;
     }
 

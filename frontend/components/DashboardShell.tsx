@@ -9,8 +9,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPortal = pathname.startsWith("/portal") || isInvestorPortalHost();
   const isRoadmap = pathname.startsWith("/product-roadmap") || isProductRoadmapHost();
+  const isBanking = pathname.startsWith("/banking");
 
-  if (isPortal || isRoadmap) {
+  if (isPortal || isRoadmap || isBanking) {
     return <>{children}</>;
   }
 

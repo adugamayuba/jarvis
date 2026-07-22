@@ -111,6 +111,70 @@ Reelin AI Inc sells verified AI twins and the infrastructure that powers them.
 
 ---
 
+## Mark Cuban — monthly investor update (canonical format)
+
+**Use for every Mark update.** Match the tone and structure of the **July 2026** email Abel sent (and prior monthly threads Dec 2025–Jun 2026). Do not rewrite into pitch-deck or Gemini-style emoji headers unless Abel asks.
+
+### Recipients
+- **To:** mcuban@gmail.com
+- **Cc:** micah.white@markcubancompanies.com, john.simon@markcubancompanies.com
+
+### Subject line
+`Reelin AI Investor Update — [Month YYYY]` or `REELIN AI - [MONTH] [YEAR] UPDATE` (Abel has used both; prefer simple month label)
+
+### Opening (fixed)
+```
+Hi Mark,
+
+Hope you're doing well.
+
+REELIN AI — [MONTH] [YEAR] UPDATE
+```
+One-line lead sentence on **where momentum is** this period (currently Operadroom-heavy when enterprise is hot).
+
+### Section order (when relevant)
+1. **Operadroom** — problem in plain English → what we shipped → link `operadroom.reelin.ai` (add `/vault`, `/demo`, `/pilot` only if new that month)
+2. **Shell Global — Enterprise Pipeline** — bullet story arc:
+   - How we got in (names, date, facility)
+   - Validation (SAFE, wire status)
+   - What we're selling (pilot $, duration, wedge)
+   - Progress (demo, meetings, next milestone)
+   - Goal (close pilot, revenue target, licensing path)
+3. **Reelin ID** — 2–3 short sentences max; human-backed agent identity + audit trail + Operadroom use case
+4. **Fundraising** — LvlUp, TenSquared, angels; honest status (active / slowed / waiting)
+5. **Consumer / reelin.ai** — only if meaningful that month; Mark's Dec 2025 note still applies: **20k users and network effect matter** — don't bury consumer entirely on Operadroom months, but don't lead with it when enterprise is the story
+
+### Tone rules (Mark-specific)
+- **Short, direct, scannable.** Section headers + indented bullets or short paragraphs.
+- **Data when you have it:** conversion %, user count, SAFE amounts, pilot $, wire timing.
+- **No hype stacks.** No "massive," "game-changer," emoji section titles, or triple repetition (e.g. say verified identity once in Reelin ID block).
+- **Proof over narrative:** signed SAFE > "in talks"; shipped URL > roadmap slide.
+- **Honest on slow months** (see April/May 2026 updates): say it, say what you're doing next.
+- **Close:** `Thank you so much for the continued support.` → `Best Regards,` → signature block.
+
+### Signature block
+```
+ABEL ADUGAM
+Founder & CEO, Reelin AI Inc.
+a: 447 Broadway, 2nd Floor Suite #1343, New York 10013, United States.
+e: abel@reelin.ai | w: www.reelin.ai
+m: +12763000906
+```
+
+### Attachments
+- Attach **monthly financial statement** when available (Abel did this Feb–Jun 2026). Note in body: `Attached is our financial statement for [Month] [Year].`
+
+### Do not (unless Abel asks)
+- Ask permission to use Mark's name in press in the same email as a routine update
+- Over-explain Swiftdroom or conglomerate structure
+- Disclose other investors' SAFE amounts in ways that break prior Ana/LvlUp framing
+- Use em dashes, semicolons, or AI-slop filler
+
+### Jarvis workflow
+Before drafting next Mark update: read this section + latest `MEMORY.md` active threads + last sent update in conversation log. **Preserve Abel's wording when he provides a draft** — polish grammar/spacing only unless asked to expand.
+
+---
+
 ## Canonical founder persona (Abel Adugam — use for bios, intros, speaker profiles, about pages)
 
 **One line:** Product-obsessed systems builder. A decade shipping social and fintech products. Exited once. Now architecting an AI conglomerate around one idea: humans should not be the bottleneck of their own digital lives.

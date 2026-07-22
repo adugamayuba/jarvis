@@ -27,7 +27,8 @@
 
 | Thread | Status | Next step |
 |---|---|---|
-| Dominik Wagner (Shell) | **$12,500 SAFE signed** (7/16) — wire in a few days | Log wire on receipt; send Rheinland proposal + **pilot URL**; John intro Mon 7/20; ping only if no wire ~7–10 days |
+| Dominik Wagner (Shell) | **$12,500 SAFE signed** (7/16) — **wire by early next week** (Dominik confirmed 7/22) | Log wire on receipt · no chase before ~7/28 · send `/vault` when ready for records demo · Rheinland proposal + pilot URL |
+| LVLUP Marketing Edge (SmartPush) | **Intro sent 7/22** — Arianna → Abel + Jasmine Chung | Reply Jasmine · schedule onboarding call · part of LvlUp Labs accelerator eval (parallel to Ana investment thread) |
 | Rahul Kumar (Shell advisor) | **Terms aligned 7/17** — draft 18-mo agreement | **1,000 shares** + quarterly cash · 8 hrs/wk weekends · DD before sign · next call **7/31 6pm** |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
 | Shell colleague (unnamed) | Dominik mentioned to coworker; may co-invest — **TBD** | Wait for Dominik check-in; separate SAFE if serious; don't chase |
@@ -793,6 +794,35 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Shipped:** `operadroom.reelin.ai/vault` — SpaceX black UI · agent ingest on full handwritten pages · insights · **knowledge graph explorer (#9)** · brain actions · Ask the plant + suggested Qs · Reelin ID audit
 - **Security pitch (Dominik):** Isolated cloud sandbox · every upload/index/search/citation on-chain · copy/export flagged for cyber review
 - **Landing updated:** Records-first positioning · Plant Memory section · Reelin ID security · vault removed from public nav
+
+---
+
+### 2026-07-22 — Dominik wire timeline confirmed
+
+- **Message:** Dominik checked internally · will wire **latest by early next week**
+- **Decisions:** No follow-up on wire until ~7/28 · treat as on track
+- **Actions taken:** Acknowledge reply · log in cap table tracker on receipt
+- **Open threads:** Wire landing · then share `/vault` Plant Memory demo + Rheinland proposal · records digitization pilot path
+
+---
+
+### 2026-07-22 — LVLUP Marketing Edge intro (SmartPush)
+
+- **Email:** Arianna Kleynburg (LvlUp) intro'd **Abel ↔ Jasmine Chung** (SmartPush / Marketing Edge Accelerator)
+- **Context:** Reelin AI under eval for **LvlUp Labs Marketing Edge Accelerator** investment track · SmartPush = email platform + white-glove onboarding for cohort founders
+- **Cc:** Ming Li (Shopline) · Ana Kharabadze (LvlUp)
+- **Decisions:** Treat as accelerator diligence step, not separate from Ana/$2M thread · take the call, low friction
+- **Actions taken:** Draft reply to Jasmine to schedule
+- **Open threads:** SmartPush fit call · clarify current email stack (likely minimal) · consumer waitlist + investor update use cases
+
+---
+
+### 2026-07-23 — Mark Cuban investor update sent (June 2026)
+
+- **Sent:** Monthly update to **Mark Cuban** (+ Micah, John per prior thread)
+- **Focus:** Operadroom launch · Shell Rheinland pipeline · Reelin ID · fundraising (LvlUp, TenSquared, angels)
+- **Shell highlights:** Dominik April 2026 · $12.5k SAFE wire early next week · up to $500K 90-day pilot · demo for facility leadership next week · annual Shell licensing goal
+- **Open threads:** Await Mark reply · attach financial statement if he asks · demo Dominik/facility leadership on schedule
 
 ---
 

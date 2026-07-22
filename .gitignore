@@ -7,7 +7,6 @@ dist/
 .DS_Store
 
 # Large raw exports — keep local only
-training data/MyActivity.html
 training-data.zip
 documents/wire/*
 !documents/wire/README.md

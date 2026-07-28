@@ -2,7 +2,7 @@
 
 > **Owner:** Abel Adugam  
 > **Purpose:** Running log of Jarvis sessions for continuity across chats  
-> **Last updated:** 2026-07-22  
+> **Last updated:** 2026-07-23  
 
 ---
 
@@ -27,8 +27,8 @@
 
 | Thread | Status | Next step |
 |---|---|---|
-| Dominik Wagner (Shell) | **$12,500 SAFE signed** (7/16) — **wire by early next week** (Dominik confirmed 7/22) | Log wire on receipt · no chase before ~7/28 · send `/vault` when ready for records demo · Rheinland proposal + pilot URL |
-| LVLUP Marketing Edge (SmartPush) | **Intro sent 7/22** — Arianna → Abel + Jasmine Chung | Reply Jasmine · schedule onboarding call · part of LvlUp Labs accelerator eval (parallel to Ana investment thread) |
+| Dominik Wagner (Shell) | **$12,500 SAFE signed** (7/16) — **wire still pending** (7/27) · **call Thu 8:30pm** | Dominik articulating opportunity first, then demo check · no wire chase on demo call · send one-pager before Thu · `/vault` lead |
+| LVLUP Marketing Edge (SmartPush) | **Call done ~7/27** — Jasmine + Moe Munshi · Ana/Arianna invited | Abel: send digital-twin educational content on thread · await Jasmine/Moe fit decision · SmartPush for ~100k list + GA Aug push |
 | Rahul Kumar (Shell advisor) | **Terms aligned 7/17** — draft 18-mo agreement | **1,000 shares** + quarterly cash · 8 hrs/wk weekends · DD before sign · next call **7/31 6pm** |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
 | Shell colleague (unnamed) | Dominik mentioned to coworker; may co-invest — **TBD** | Wait for Dominik check-in; separate SAFE if serious; don't chase |
@@ -887,6 +887,30 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Focus:** Operadroom launch · Shell Rheinland pipeline · Reelin ID · fundraising (LvlUp, TenSquared, angels)
 - **Shell highlights:** Dominik April 2026 · $12.5k SAFE wire early next week · up to $500K 90-day pilot · demo for facility leadership next week · annual Shell licensing goal
 - **Open threads:** Await Mark reply · attach financial statement if he asks · demo Dominik/facility leadership on schedule
+
+---
+
+### 2026-07-27 — Dominik demo call scheduled (wire still pending)
+
+- **Wire:** Not received yet as of 7/27 (was "early next week" per 7/22). Do not lead Thu call with wire chase.
+- **Thread:** Abel shared demo ready · Dominik: "supi" · wants to **articulate opportunity more clearly first**, then check against demo
+- **Scheduled:** **Thursday 8:30pm** — Abel to send calendar invite
+- **Read:** Still engaged, not ghosting. He's building internal narrative before demo (likely for facility leadership). Positive signal.
+- **Prep:** One-pager opportunity framing (records → Vault → pilot $) · live `/vault` walkthrough · let him talk first on "the opportunity"
+- **Open threads:** Wire lands separately · post-call: his articulated doc vs our demo alignment
+
+---
+
+### 2026-07-27 — Jasmine Chung / SmartPush call (Marketing Edge)
+
+- **Attendees:** Abel · Ligia · Jasmine Chung · Moe Munshi · (invited: Ana, Arianna, Ming Li)
+- **Gemini note errors:** Rilling→**Reelin** · Operadrome→**Operadroom** · Lia→**Ligia** · Moldbook→**Moltbook** · Smart Push→**SmartPush**
+- **What Abel shared:** Mark Cuban $100k pre-seed · consumer twins live iOS/Android · Operadroom + Shell Germany pilot (3-mo, aim contract ~30d) · Abel=enterprise / Ligia=consumer · ~2k beta · GA late Aug · goal 20k–50k active · ~100k email list (70–90% opted-in) · deliverability pain · need pro email stack · WhatsApp twin demo · 30% conversion after hero simplify · NBI after scale with Mark's team
+- **Jasmine ask:** Educational content explaining digital twins for users
+- **Abel commit:** Send existing educational docs on email thread · add to site by Wed/Thu
+- **Their next step:** Jasmine + Moe evaluate if SmartPush fits · propose collaboration paths
+- **Read:** Solid diligence call. Still **not** a $25k yes. Positive: they heard Shell + dual product + list size. Risk: big scraped list + dual narrative may need clarity on Marketing Edge fit (consumer email vs enterprise).
+- **Open threads:** Send twin education pack · await SmartPush proposal · keep Ana/LvlUp main track separate
 
 ---
 

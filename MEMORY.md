@@ -28,7 +28,7 @@
 | Thread | Status | Next step |
 |---|---|---|
 | Dominik Wagner (Shell) | **$12,500 SAFE signed** (7/16) — **wire still pending** (7/27) · **call Thu 8:30pm** | Dominik articulating opportunity first, then demo check · no wire chase on demo call · send one-pager before Thu · `/vault` lead |
-| LVLUP Marketing Edge (SmartPush) | **Call done 7/27** — Jasmine + Moe · Abel sent education pack | Await SmartPush fit decision (few days) · list reality: ~100k total · **~10k opted-in** · rest cold · GA end Aug · <200 paid · 2k+ beta |
+| LVLUP Marketing Edge (SmartPush) | **Education sent 7/29** — Google Doc to Jasmine/Moe (+ Ana, Arianna, Ming, Ligia) | Await SmartPush next steps · list: ~100k · ~10k opted-in · rest cold · no chase 3–4 days from send |
 | Rahul Kumar (Shell advisor) | **Terms aligned 7/17** — draft 18-mo agreement | **1,000 shares** + quarterly cash · 8 hrs/wk weekends · DD before sign · next call **7/31 6pm** |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
 | Shell colleague (unnamed) | Dominik mentioned to coworker; may co-invest — **TBD** | Wait for Dominik check-in; separate SAFE if serious; don't chase |
@@ -999,6 +999,17 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 **Read:** Solid diligence. SmartPush cares about list quality + education. Cold-heavy list may mean they propose warm-first / compliance-safe onboarding only. Education pack sent (see `documents/marketing/Reelin-Digital-Twin-Education.md`). $25k Marketing Edge still separate from this fit call.
 
 **Open:** Await their next-steps email · keep Ana/LvlUp main track parallel · don't oversell cold blast
+
+---
+
+### 2026-07-29 — SmartPush education pack sent
+
+- **Sent:** Wed Jul 29 ~12:05 AM · Abel → Jasmine, Moe, Arianna, Ming, Ana, Ligia
+- **Content:** Google Doc educational email marketing pack  
+  `https://docs.google.com/document/d/1JSrwLJjoft4wAReeeNIYdThJuD_DyfuZbLMFlvU0HBo/edit`
+- **Local mirror:** `documents/marketing/Reelin-Digital-Twin-Education.md`
+- **Status:** Ball in Jasmine/Moe court · they said next steps within a couple days of the call (call was 7/27)
+- **Do not:** Chase before ~Aug 1–2 unless they ping first
 
 ---
 

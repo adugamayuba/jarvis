@@ -28,7 +28,7 @@
 | Thread | Status | Next step |
 |---|---|---|
 | Dominik Wagner (Shell) | **$12,500 SAFE signed** (7/16) — **wire still pending** (7/27) · **call Thu 8:30pm** | Dominik articulating opportunity first, then demo check · no wire chase on demo call · send one-pager before Thu · `/vault` lead |
-| LVLUP Marketing Edge (SmartPush) | **Call done ~7/27** — Jasmine + Moe Munshi · Ana/Arianna invited | Abel: send digital-twin educational content on thread · await Jasmine/Moe fit decision · SmartPush for ~100k list + GA Aug push |
+| LVLUP Marketing Edge (SmartPush) | **Call done 7/27** — Jasmine + Moe · Abel sent education pack | Await SmartPush fit decision (few days) · list reality: ~100k total · **~10k opted-in** · rest cold · GA end Aug · <200 paid · 2k+ beta |
 | Rahul Kumar (Shell advisor) | **Terms aligned 7/17** — draft 18-mo agreement | **1,000 shares** + quarterly cash · 8 hrs/wk weekends · DD before sign · next call **7/31 6pm** |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
 | Shell colleague (unnamed) | Dominik mentioned to coworker; may co-invest — **TBD** | Wait for Dominik check-in; separate SAFE if serious; don't chase |
@@ -966,16 +966,39 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 
 ---
 
-### 2026-07-27 — Jasmine Chung / SmartPush call (Marketing Edge)
+### 2026-07-27 — Jasmine Chung / SmartPush call (Marketing Edge) — full transcript
 
-- **Attendees:** Abel · Ligia · Jasmine Chung · Moe Munshi · (invited: Ana, Arianna, Ming Li)
-- **Gemini note errors:** Rilling→**Reelin** · Operadrome→**Operadroom** · Lia→**Ligia** · Moldbook→**Moltbook** · Smart Push→**SmartPush**
-- **What Abel shared:** Mark Cuban $100k pre-seed · consumer twins live iOS/Android · Operadroom + Shell Germany pilot (3-mo, aim contract ~30d) · Abel=enterprise / Ligia=consumer · ~2k beta · GA late Aug · goal 20k–50k active · ~100k email list (70–90% opted-in) · deliverability pain · need pro email stack · WhatsApp twin demo · 30% conversion after hero simplify · NBI after scale with Mark's team
-- **Jasmine ask:** Educational content explaining digital twins for users
-- **Abel commit:** Send existing educational docs on email thread · add to site by Wed/Thu
-- **Their next step:** Jasmine + Moe evaluate if SmartPush fits · propose collaboration paths
-- **Read:** Solid diligence call. Still **not** a $25k yes. Positive: they heard Shell + dual product + list size. Risk: big scraped list + dual narrative may need clarity on Marketing Edge fit (consumer email vs enterprise).
-- **Open threads:** Send twin education pack · await SmartPush proposal · keep Ana/LvlUp main track separate
+- **Attendees:** Abel (Cairo) · Jasmine Chung · Moe Munshi (new) · Ligia invited/couldn't join (Washington)
+- **Name fixes:** Reelin · Operadroom · Ligia · Moltbook · SmartPush (transcript garbles these)
+
+**Consumer (reelin.ai)**
+- Mark Cuban **$100k** pre-seed ~2 weeks after Nov inception (email DD → Mon call → Fri offer)
+- Live App Store + Play Store after Apple privacy fight · ~**2,000+** beta · **<200** paid subscribers · mostly US
+- ICP: creator economy · twin daily reels / WhatsApp delivery · share to Stories
+- Split: Abel leans enterprise · Ligia consumer · Abel still in both
+- GA push: **end of August** (~20–25 days from call)
+- Goal: **20k–50k active users** (onboarded, not necessarily paid) to unlock **NBI** with Mark's team (~10 brands in simulation)
+- KPI: completed onboarding + active subscribers
+- Prior UGC (~20 creators, ~2 mo ago): **not great** · learnings for next push
+- Conversion: simplified hero → ~**30%** · Operadroom not on reelin.ai yet (avoid distracting consumers)
+
+**Operadroom**
+- Shell Rheinland Germany · production/ops engineers as users · facility leadership = decision maker
+- 3-mo pilot · aim **signed contract ~30 days** from conversations · then annual/regional
+- `/vault` / head-of-facility call that week
+
+**Email / SmartPush ask**
+- ~**100k** contacts scraped · internal custom DB · can export any format · segmented
+- **Corrected list mix (important):** ~**10k opted-in** (closer to 10k) · rest cold · NOT 70–90% opted-in (Gemini wrong; Abel clarified after Mo asked)
+- Pain: **deliverability / inbox at scale** · some beta automations · marketing flows weak
+- Email first · SMS later · WhatsApp already used for twin video → share to status
+- Mo asked cold vs warm makeup · Abel can break out by segment
+
+**Their close:** Jasmine + Mo evaluate if SmartPush is right path · Abel send educational twin content · they reply with next steps in a couple days
+
+**Read:** Solid diligence. SmartPush cares about list quality + education. Cold-heavy list may mean they propose warm-first / compliance-safe onboarding only. Education pack sent (see `documents/marketing/Reelin-Digital-Twin-Education.md`). $25k Marketing Edge still separate from this fit call.
+
+**Open:** Await their next-steps email · keep Ana/LvlUp main track parallel · don't oversell cold blast
 
 ---
 

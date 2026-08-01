@@ -27,9 +27,9 @@
 
 | Thread | Status | Next step |
 |---|---|---|
-| Dominik Wagner (Shell) | **$12,500 SAFE signed** (7/16) — **wire still pending** (7/27) · **call Thu 8:30pm** | Dominik articulating opportunity first, then demo check · no wire chase on demo call · send one-pager before Thu · `/vault` lead |
-| LVLUP Marketing Edge (SmartPush) | **Education sent 7/29** — Google Doc to Jasmine/Moe (+ Ana, Arianna, Ming, Ligia) | Await SmartPush next steps · list: ~100k · ~10k opted-in · rest cold · no chase 3–4 days from send |
-| Rahul Kumar (Shell advisor) | **Terms aligned 7/17** — draft 18-mo agreement | **1,000 shares** + quarterly cash · 8 hrs/wk weekends · DD before sign · next call **7/31 6pm** |
+| Dominik Wagner (Shell) | **SAFE signed** · wire **initiate Fri 7/31** · **land Mon 8/3** (per Dominik 7/30) · opportunity call done/pending notes | Confirm wire Mon · keep facility/demo track separate |
+| LVLUP Marketing Edge (SmartPush) | **Education sent 7/29** · Jasmine/Moe asked list breakdown + email perf **7/30** | Reply with honest segment counts + any delivery stats · admit gaps · warm-first |
+| Rahul Kumar (Shell advisor) | **Agreement draft ready** · **$4k/qtr** + **500 Class C options / 18-mo vest** · share Mon 8/3 | Rahul reviews in Google Docs · finalize call · Germany clause included · Fri 8/7 check-in |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
 | Shell colleague (unnamed) | Dominik mentioned to coworker; may co-invest — **TBD** | Wait for Dominik check-in; separate SAFE if serious; don't chase |
 | Argil credit refund | **Credits extended +1yr** · need **$39/mo** plan to use | **Resubscribe $39/mo** — unlock ~370k credits · skip cash fight |
@@ -1010,6 +1010,42 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Local mirror:** `documents/marketing/Reelin-Digital-Twin-Education.md`
 - **Status:** Ball in Jasmine/Moe court · they said next steps within a couple days of the call (call was 7/27)
 - **Do not:** Chase before ~Aug 1–2 unless they ping first
+
+---
+
+### 2026-07-31 — Rahul call (Vault demo + Germany + contract)
+
+- **Gemini fixes:** Dominic→**Dominik** · Centry/Cintill→**Centillion** (Sai Global) · digital agent twin framing · Reelin AI
+- **Demo:** Abel showed `/vault` Phase 0 (ingest, graph, Reelin ID). Rahul tested **P-2047** queries ("all docs with tag", "last maintenance") — weak/no hit. Abel to fix tagging philosophy + connect query path to graph (engineers type `P-2047` / `P-2047`, not "pump").
+- **Rahul read on Dominik:** Wants **foundational digital twin / digital agent twin** for Rheinland (tag ↔ docs ↔ systems). Planning draft first (MoC, Safe Isolation) → execution. Budget/planning cycles take **months** (Dominik told Abel).
+- **Positioning locked:** Agent = **enabler**, not system of record. Does not replace SAP. Short-term: site-owned procedure → human pastes into existing tools. Medium-term: add-in for vendors (e.g. Centillion / Sai Global) to grow their market share.
+- **Business model:** Dual stream — (1) product catalog (2) B2B consulting/service. MoC = industry-wide safety/process pain → tell investors. Kongsberg→**Kongsberg / Volar** (Falær?) multi-million digital twin deals but weak product depth = opening.
+- **Germany:** Rahul wants hydrogen + circular economy (lithium battery recycling, e.g. **tozero**-class startups). Will lead those workstreams if Germany division. Refinery/chemical roadmaps continue as base. Needs structure / physical presence. Contacts GM of multi-plant DE/NL co after **Aug 25**.
+- **Contract:** Abel share Google Doc **by Monday 8/3** · Rahul adds clauses in Doc · separate meeting to finalize · target structure **~Sep 1**. Include **Germany division / lead workstreams** language (Rahul may use for work visa / risk cover alongside other primary job).
+- **Dominik joint call:** Rahul to WhatsApp Dominik (unified team ask for date). Abel not chase Dominik immediately post-Thu call. If quiet by Tue → Abel WhatsApp Rahul to chase.
+- **Next touch:** **Fri Aug 7** calendar set.
+- **Open:** Contract draft Mon · Vault query fix · year objectives session · customers = chicken/egg for VCs
+
+---
+
+### 2026-08-02 — Rahul advisory terms locked for draft
+
+- **Cash:** **$4,000 per quarter** ($24,000 over 18 months)
+- **Equity:** Option for **500 Class C** shares/stock options · vest **monthly over 18 months** (~27.78/mo)
+- **Doc:** `documents/pilot/Rahul-Kumar-Strategic-Advisor-Agreement.md` → paste to Google Docs for Rahul
+- **Includes:** Weekend ~8 hrs/wk · COI exhibit · enabler not SoR · Germany workstream intent · no Shell-deal equity milestones
+- **Note:** Counsel should review before signature · Board must approve option grant
+
+---
+
+- **Total contacts:** **119,317**
+- **Registered beta / app users:** **2,074** (opted-in via iOS/Android/web) · onboarding + product emails sent
+- **Waitlist / organic sign-ups:** **5,356** (opted-in) · ~**739** emails sent so far · batching until GA + UGC/email campaigns
+- **Investor / update list:** **1,014** · ~**120** personalized manual sends · ~**95%** delivery · ~**85%** open · not automated
+- **Cold / ICP-sourced prospects:** **~110,873** (remainder) · not treated as opted-in · not full-blasted
+- **Unsubscribes:** **<0.2%** on sent volume
+- **Positioning for Marketing Edge:** Start warm (users + waitlist) · cold later only if compliant · Shopline/LvlUp email infra for consumer GA scale
+- **Open:** Send Jasmine reply · await recommended path / $25k Marketing Edge decision
 
 ---
 

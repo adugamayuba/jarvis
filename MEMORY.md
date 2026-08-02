@@ -27,7 +27,7 @@
 
 | Thread | Status | Next step |
 |---|---|---|
-| Dominik Wagner (Shell) | **SAFE signed** · wire **initiate Fri 7/31** · **land Mon 8/3** (per Dominik 7/30) · opportunity call done/pending notes | Confirm wire Mon · keep facility/demo track separate |
+| Dominik Wagner (Shell) | **$12,500 wire IN TRANSIT** (7/31–8/2) · label: `Reelin AI Inc - PURCHASE FOR SAFE` | Confirm bank credit · thank Dominik + Sylvia · keep facility/Vault track separate from SAFE |
 | LVLUP Marketing Edge (SmartPush) | **Education sent 7/29** · Jasmine/Moe asked list breakdown + email perf **7/30** | Reply with honest segment counts + any delivery stats · admit gaps · warm-first |
 | Rahul Kumar (Shell advisor) | **Agreement draft ready** · **$4k/qtr** + **500 Class C options / 18-mo vest** · share Mon 8/3 | Rahul reviews in Google Docs · finalize call · Germany clause included · Fri 8/7 check-in |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
@@ -53,7 +53,7 @@
 
 **Tagline:** Fork your identity. Verify your agents. Deploy them anywhere.
 
-**Softdroom Holdings** (Singapore parent) owns the portfolio. **Swiftdroom** is a Softdroom subsidiary (cash engine), not part of the Reelin AI Inc investor narrative. Do not lead seed decks or enterprise conversations with Swiftdroom.
+**Softdroom Holdings** (Estonia parent — forming ~2026-08, e-Residency path) owns the portfolio. Singapore deferred until cash/revenue justifies ~$3k setup. **Swiftdroom** is a Softdroom subsidiary (cash engine), not part of the Reelin AI Inc investor narrative. Do not lead seed decks or enterprise conversations with Swiftdroom.
 
 **Reframe for anyone who heard the old four-product list:** "Reelin AI Inc focuses on the twin stack. Swiftdroom sits under Softdroom Holdings as our utility cash subsidiary."
 
@@ -273,7 +273,7 @@ Vision-first · Systems thinker · Operator who ships · Direct communicator · 
 3. Product + technical + fundraising in one founder
 4. Conglomerate narrative at seed stage (bold when it lands with the right investors)
 5. Speed (concept → Mark Cuban → live app stores in months)
-6. Global orientation (US entity, Singapore governance, GCC fundraising, multi-market ops)
+6. Global orientation (US entity, Estonia Holdings, GCC fundraising, multi-market ops)
 
 ### Vision
 
@@ -1028,7 +1028,14 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 
 ---
 
-### 2026-08-02 — Rahul advisory terms locked for draft
+### 2026-08-02 — Dominik wire initiated ($12,500)
+
+- **Label (Abel):** `Reelin AI Inc - PURCHASE FOR SAFE` (same style Mark Cuban used)
+- **Dominik:** Confirmed **$12,500 is on its way** (him + Sylvia joint SAFE)
+- **Abel reply tone:** Warm · partners · building together · no pilot pitch in same beat
+- **Next:** Confirm receipt in bank · short confirmation email to Dominik & Sylvia · log in cap table / data room · facility/Vault remains separate thread
+
+---
 
 - **Cash:** **$4,000 per quarter** ($24,000 over 18 months)
 - **Equity:** Option for **500 Class C** shares/stock options · vest **monthly over 18 months** (~27.78/mo)
@@ -1054,5 +1061,15 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Sent:** Follow-up email to **Ana (LVLUP Venture)** and **Pras** — same message to both
 - **Content:** New investor added · data room updated (signed SAFE, cap table) · no SAFE amount disclosed · Operadroom industrial wedge · **$500k / 3-mo pilot in negotiation** with Shell Rheinland
 - **Open threads:** Await response · offer call if they want walkthrough · confirm data room reflects latest SAFE before any diligence questions
+
+---
+
+### 2026-08-03 — Softdroom Holdings: Estonia now (not Singapore)
+
+- **Context:** Singapore Holdings setup ~$3k vs Estonia e-Residency ~$150 + company fees. Cash/growth prioritized over jurisdiction optics.
+- **Decision:** Incorporate **Softdroom Holdings in Estonia** now (~2 weeks). Singapore optional later when revenue justifies upgrade.
+- **Priority stack:** Growth · cash flow · huge revenue. Entity cheap; execution expensive.
+- **Keep:** Reelin AI Inc (US) as raise + Identity Stack opco. Do not move US entity.
+- **Open:** File e-Residency + company registration · bank account · confirm Swiftdroom equity under Holdings once live
 
 ---

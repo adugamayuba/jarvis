@@ -28,7 +28,7 @@
 | Thread | Status | Next step |
 |---|---|---|
 | Dominik Wagner (Shell) | **$12,500 wire IN TRANSIT** (7/31–8/2) · label: `Reelin AI Inc - PURCHASE FOR SAFE` | Confirm bank credit · thank Dominik + Sylvia · keep facility/Vault track separate from SAFE |
-| LVLUP Marketing Edge (SmartPush) | **Education sent 7/29** · Jasmine/Moe asked list breakdown + email perf **7/30** | Reply with honest segment counts + any delivery stats · admit gaps · warm-first |
+| LVLUP Marketing Edge (SmartPush) | **List breakdown received** · Jasmine/Moe ack **8/3–8/4**: reviewing · **recommendation + next steps tomorrow** | Wait for their email · no chase · then decide warm-first / Marketing Edge path |
 | Rahul Kumar (Shell advisor) | **Agreement draft ready** · **$4k/qtr** + **500 Class C options / 18-mo vest** · share Mon 8/3 | Rahul reviews in Google Docs · finalize call · Germany clause included · Fri 8/7 check-in |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
 | Shell colleague (unnamed) | Dominik mentioned to coworker; may co-invest — **TBD** | Wait for Dominik check-in; separate SAFE if serious; don't chase |
@@ -1052,7 +1052,17 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Cold / ICP-sourced prospects:** **~110,873** (remainder) · not treated as opted-in · not full-blasted
 - **Unsubscribes:** **<0.2%** on sent volume
 - **Positioning for Marketing Edge:** Start warm (users + waitlist) · cold later only if compliant · Shopline/LvlUp email infra for consumer GA scale
-- **Open:** Send Jasmine reply · await recommended path / $25k Marketing Edge decision
+- **Status 2026-08-03/04:** Jasmine & Moe acknowledged detailed breakdown · reviewing · will follow up **tomorrow** with recommendation + next steps
+- **Open:** Await their recommendation · then decide warm-first / up-to-$25k Marketing Edge path
+
+---
+
+### 2026-08-03 — Jasmine & Moe acknowledge list breakdown
+
+- **From:** Jasmine Chung & Moe Munshi (SmartPush / Marketing Edge)
+- **Message:** Thanked Abel for detailed list/email breakdown · reviewing · will send **recommendation and next steps tomorrow**
+- **Action:** Short polite ack · do not chase · wait for their proposal
+- **Open:** Receive recommendation · align with Ana/LvlUp track · keep warm-first posture
 
 ---
 

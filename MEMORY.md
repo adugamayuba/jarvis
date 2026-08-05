@@ -27,7 +27,7 @@
 
 | Thread | Status | Next step |
 |---|---|---|
-| Dominik Wagner (Shell) | **$12,500 wire IN TRANSIT** (7/31–8/2) · label: `Reelin AI Inc - PURCHASE FOR SAFE` | Confirm bank credit · thank Dominik + Sylvia · keep facility/Vault track separate from SAFE |
+| Dominik Wagner (Shell) | **$12,500 SAFE WIRE RECEIVED** (Aug 2026) · Dominik + Sylvia · label: `Reelin AI Inc - PURCHASE FOR SAFE` | Thank Dominik + Sylvia · log cap table / data room · facility/Vault track stays separate |
 | LVLUP Marketing Edge (SmartPush) | **List breakdown received** · Jasmine/Moe ack **8/3–8/4**: reviewing · **recommendation + next steps tomorrow** | Wait for their email · no chase · then decide warm-first / Marketing Edge path |
 | Rahul Kumar (Shell advisor) | **Agreement draft ready** · **$4k/qtr** + **500 Class C options / 18-mo vest** · share Mon 8/3 | Rahul reviews in Google Docs · finalize call · Germany clause included · Fri 8/7 check-in |
 | John (Dominik intro) | **John Roble** — intro call **Mon 7/20 2:30pm** Teams | GTKY call · process tech lane · update Dominik after |
@@ -1034,6 +1034,16 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Dominik:** Confirmed **$12,500 is on its way** (him + Sylvia joint SAFE)
 - **Abel reply tone:** Warm · partners · building together · no pilot pitch in same beat
 - **Next:** Confirm receipt in bank · short confirmation email to Dominik & Sylvia · log in cap table / data room · facility/Vault remains separate thread
+
+---
+
+### 2026-08-05 — Dominik $12,500 SAFE wire RECEIVED
+
+- **Amount:** **USD $12,500** landed in Reelin AI Inc account
+- **Investors:** Dominik Wagner + Sylvia (joint SAFE)
+- **Wire memo:** `Reelin AI Inc - PURCHASE FOR SAFE`
+- **Actions:** Thank-you to Dominik & Sylvia · update cap table / investor portal / data room · do **not** mix facility pilot or Vault ask into this thank-you
+- **Open:** Confirm SAFE fully executed + reflected in docs · keep Shell Rheinland commercial track separate · optional note to Mark in next monthly update (new angel, no need to disclose amount if Ana framing requires)
 
 ---
 

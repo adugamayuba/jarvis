@@ -1105,3 +1105,13 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Note:** Visa approval unlocks founder relocation to Estonia; separate from Softdroom Holdings entity formation (can proceed in parallel)
 
 ---
+
+### 2026-08-06 — E-Residency application blocked (Nigerian citizenship restrictions)
+
+- **Issue:** Nigeria is on Estonia's restricted citizenship list for e-Residency; none of the four exceptions apply (no 3+ years EEA residence, no existing Estonian business, not Honorary Consul, no prior e-Residency)
+- **Decision:** Wait for Startup Visa approval (UBKA-SODS-1493) first · once approved and business activity established in Estonia, Abel can qualify for e-Residency exception #2 ("active business in Estonia with reasonable continuity")
+- **Alternative path:** Ligia (Romanian/EU citizen) can apply for e-Residency without restrictions if needed sooner
+- **Timeline:** E-Residency application deferred until after Startup Visa approval + 3-6 months of Estonian business operations
+- **Softdroom Holdings formation:** Can proceed via other paths (Ligia e-Residency, or post-Startup Visa company registration services, or different jurisdiction if Estonia blocked)
+
+---

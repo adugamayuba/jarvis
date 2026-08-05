@@ -1093,3 +1093,15 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Open:** File e-Residency + company registration · bank account · confirm Swiftdroom equity under Holdings once live
 
 ---
+
+### 2026-08-06 — Estonia Startup Visa application submitted
+
+- **Application code:** UBKA-SODS-1493
+- **Submitted for:** Reelin AI Inc (applying for founder visa, not Holdings entity)
+- **Committee timeline:** 10 working days from application entry to voting
+- **Committed hiring:** 12 employees in Estonia within 6-12 months (EU ops, enterprise sales, engineering)
+- **Traction highlighted:** 2K users, Mark Cuban $100k, Dominik $12.5K SAFE, $500K Shell pilot negotiation, $10M seed raise at $50M post
+- **Next:** Await committee decision · prepare for potential follow-up questions · track application status on company dashboard
+- **Note:** Visa approval unlocks founder relocation to Estonia; separate from Softdroom Holdings entity formation (can proceed in parallel)
+
+---

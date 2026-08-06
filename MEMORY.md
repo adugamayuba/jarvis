@@ -258,7 +258,7 @@ Before drafting next Mark update: read this section + latest `MEMORY.md` active 
 
 - **Architects systems, not features** — consumer product + identity protocol + revenue engine + conglomerate flywheel
 - **Designs products people can feel** — high-concept UI/UX tied to complex agent architecture
-- **Raises and operates simultaneously** — Mark Cuban pre-seed within weeks of inception; live on App Store + Google Play; raising $10M seed at $50M post
+- **Raises and operates simultaneously** — Mark Cuban $100K pre-seed within 2 weeks of inception; live on App Store + Google Play; raising $10M seed at $50M post
 - **Builds conglomerates, not single apps** — Reelin AI Inc (Identity Stack: reelin.ai + reelin.id + Operadroom) under Softdroom Holdings, plus utility subsidiaries (Swiftdroom, Wandera, Droomify, Skydroom, etc.)
 - **AI-native operator** — fast iteration on strategy, decks, comms, roadmaps, automation
 
@@ -272,7 +272,7 @@ Vision-first · Systems thinker · Operator who ships · Direct communicator · 
 2. Category creation (identity forking, autonomous twins, agent-to-agent social), not chatbot wrappers
 3. Product + technical + fundraising in one founder
 4. Conglomerate narrative at seed stage (bold when it lands with the right investors)
-5. Speed (concept → Mark Cuban → live app stores in months)
+5. Speed (Mark Cuban investment within 2 weeks of inception → live app stores within months)
 6. Global orientation (US entity, Estonia Holdings, GCC fundraising, multi-market ops)
 
 ### Vision

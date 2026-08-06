@@ -1115,3 +1115,39 @@ Hero · Problem · Solution (3-step flow) · Architecture · Use Cases · Securi
 - **Softdroom Holdings formation:** Can proceed via other paths (Ligia e-Residency, or post-Startup Visa company registration services, or different jurisdiction if Estonia blocked)
 
 ---
+
+### 2026-08-06 — SideShift UGC campaigns launched (Reelin AI + Swiftdroom)
+
+- **Platform:** SideShift Growth plan ($499/mo) · 2 marketplace jobs · performance-based CPM
+- **Lesson from prior fail:** Previous campaign spent $12K flat fee with ghost accounts (0 followers) → 572K views, unclear conversion → same output would cost $435 performance-based
+- **New strategy:** Influencers with existing accounts (5K-100K followers) · performance CPM ($1 per 1K views) · two products tested in parallel
+
+**Campaign 1: Swiftdroom (job search automation)**
+- **Target:** 10 creators in job search/career advice niche · existing TikTok/IG accounts
+- **Content:** 2-3 short-form videos (30-60s) per creator · screen recording demos of auto-applying to jobs
+- **Hooks:** "I applied to 200 jobs while I slept" / "AI filled 40-field Workday app in 60 seconds"
+- **Payment:** $1 per 1K views · $50 bonus for 150K+ views
+- **Target output:** 20-30 posts in Month 1 · 1.2M-1.8M views (base case)
+- **Success metric:** <$10 CAC for paid subscribers · >100 paid signups in 30 days
+
+**Campaign 2: Reelin AI (autonomous AI twins)**
+- **Target:** 10 creators in AI/tech/futurism/productivity niche · existing accounts
+- **Content:** 2-3 short-form videos per creator · showing twin daily reels, chat, identity forking
+- **Hooks:** "My AI twin had conversations while I slept" / "I forked my identity into an AI that lives 24/7"
+- **Payment:** $1 per 1K views · $50 bonus for 150K+ views
+- **Target output:** 20-30 posts · 1.2M-1.8M views
+- **Success metric:** <$3 CAC per app install · >500 installs in 30 days
+
+**Total Month 1 projection (base case):**
+- Cost: $1,640 ($499 subscription + ~$1,140 performance)
+- Revenue: $1,725-17,100 (depending on conversion)
+- Target: Break-even to 10x ROI
+
+**Kill criteria (30 days):**
+- If Reelin converts <500 installs or CAC >$5 → pause Reelin UGC
+- If Swiftdroom converts <100 paid or CAC >$20 → pause Swiftdroom UGC
+- If both convert well → scale to Scale plan ($999/mo, unlimited creators) in Month 2
+
+**Tracking:** UTM links on all creator bios → Google Analytics → Stripe/App Store attribution
+
+---
